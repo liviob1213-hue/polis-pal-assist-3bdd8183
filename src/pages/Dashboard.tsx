@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trophy, Clock, CheckCircle2, Users, TrendingUp } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -54,6 +55,8 @@ const item = {
 };
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
       {/* Header */}
@@ -67,23 +70,23 @@ const Dashboard = () => {
             <Trophy className="h-3.5 w-3.5" />
             Ranking: 20%
           </Badge>
-          <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
+          <Button onClick={() => navigate("/demandas")} className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
             <Plus className="h-4 w-4" /> Nova Demanda
           </Button>
         </div>
       </motion.div>
 
       {/* Stats */}
-      <motion.div variants={item} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {stats.map((stat) => (
           <Card key={stat.label} className="glass-card">
-            <CardContent className="flex items-center gap-4 p-5">
-              <div className={`p-2.5 rounded-xl bg-secondary ${stat.color}`}>
-                <stat.icon className="h-5 w-5" />
+            <CardContent className="flex items-center gap-3 md:gap-4 p-4 md:p-5">
+              <div className={`p-2 md:p-2.5 rounded-xl bg-secondary ${stat.color}`}>
+                <stat.icon className="h-4 w-4 md:h-5 md:w-5" />
               </div>
-              <div>
-                <p className="text-2xl font-bold">{stat.value}</p>
-                <p className="text-xs text-muted-foreground">{stat.label}</p>
+              <div className="min-w-0">
+                <p className="text-xl md:text-2xl font-bold">{stat.value}</p>
+                <p className="text-[10px] md:text-xs text-muted-foreground truncate">{stat.label}</p>
               </div>
             </CardContent>
           </Card>
@@ -91,9 +94,8 @@ const Dashboard = () => {
       </motion.div>
 
       {/* Charts + Quick View */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2 space-y-6">
-          {/* Main Chart */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-6">
+        <div className="xl:col-span-2 space-y-4 md:space-y-6">
           <motion.div variants={item}>
             <Card className="glass-card">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -106,34 +108,17 @@ const Dashboard = () => {
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
                     <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-                    <Tooltip
-                      contentStyle={{
-                        background: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                        fontSize: 12,
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="value"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth={2.5}
-                      dot={{ fill: "hsl(var(--primary))", r: 4 }}
-                      activeDot={{ r: 6, fill: "hsl(var(--accent))" }}
-                    />
+                    <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: 12 }} />
+                    <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ fill: "hsl(var(--primary))", r: 4 }} activeDot={{ r: 6, fill: "hsl(var(--accent))" }} />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
           </motion.div>
 
-          {/* Secondary charts */}
-          <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             <Card className="glass-card">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base font-semibold">Atendimentos por Bairro</CardTitle>
-              </CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-base font-semibold">Atendimentos por Bairro</CardTitle></CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={bairroData}>
@@ -147,9 +132,7 @@ const Dashboard = () => {
               </CardContent>
             </Card>
             <Card className="glass-card">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base font-semibold">Tarefas da Equipe</CardTitle>
-              </CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-base font-semibold">Tarefas da Equipe</CardTitle></CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={teamData}>
@@ -165,13 +148,12 @@ const Dashboard = () => {
           </motion.div>
         </div>
 
-        {/* Quick view sidebar */}
-        <motion.div variants={item} className="space-y-6">
+        <motion.div variants={item} className="space-y-4 md:space-y-6">
           <Card className="glass-card">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold">Agenda do Dia</CardTitle>
-                <Button variant="link" size="sm" className="text-accent p-0 h-auto text-xs">Ver tudo</Button>
+                <Button variant="link" size="sm" className="text-accent p-0 h-auto text-xs" onClick={() => navigate("/agenda")}>Ver tudo</Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -193,7 +175,7 @@ const Dashboard = () => {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold">Tarefas Pendentes</CardTitle>
-                <Button variant="link" size="sm" className="text-accent p-0 h-auto text-xs">Kanban</Button>
+                <Button variant="link" size="sm" className="text-accent p-0 h-auto text-xs" onClick={() => navigate("/tarefas")}>Kanban</Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -203,16 +185,9 @@ const Dashboard = () => {
                   <div>
                     <p className="text-sm font-medium">{tarefa.title}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge
-                        variant={tarefa.priority === "Alta Prioridade" ? "destructive" : "secondary"}
-                        className="text-[10px]"
-                      >
-                        {tarefa.priority}
-                      </Badge>
+                      <Badge variant={tarefa.priority === "Alta Prioridade" ? "destructive" : "secondary"} className="text-[10px]">{tarefa.priority}</Badge>
                       {tarefa.status && (
-                        <Badge variant="outline" className="text-[10px] border-info text-info">
-                          {tarefa.status}
-                        </Badge>
+                        <Badge variant="outline" className="text-[10px] border-info text-info">{tarefa.status}</Badge>
                       )}
                     </div>
                   </div>
