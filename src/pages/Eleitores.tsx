@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, MessageCircle, Trash2, Send } from "lucide-react";
+import { Plus, Search, Pencil, MessageCircle, Trash2, Send, Save, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Eleitor {
@@ -45,7 +45,31 @@ const Eleitores = () => {
   const [form, setForm] = useState({ nome: "", endereco: "", contato: "", interesse: "" });
   const [whatsappDialog, setWhatsappDialog] = useState<Eleitor | null>(null);
   const [whatsappMsg, setWhatsappMsg] = useState("");
+  const [savedMessages, setSavedMessages] = useState<{ id: string; label: string; text: string }[]>(() => {
+    const stored = localStorage.getItem("whatsapp-templates");
+    return stored ? JSON.parse(stored) : [
+      { id: "1", label: "Saudação", text: "Olá! Tudo bem? Aqui é do gabinete. Como posso ajudá-lo(a)?" },
+      { id: "2", label: "Agradecimento", text: "Obrigado pelo seu contato! Estamos trabalhando na sua demanda." },
+    ];
+  });
   const { toast } = useToast();
+
+  const saveMessage = () => {
+    if (!whatsappMsg.trim()) return;
+    const label = prompt("Nome para esta mensagem salva:");
+    if (!label) return;
+    const newMsg = { id: Date.now().toString(), label, text: whatsappMsg };
+    const updated = [...savedMessages, newMsg];
+    setSavedMessages(updated);
+    localStorage.setItem("whatsapp-templates", JSON.stringify(updated));
+    toast({ title: "Mensagem salva!" });
+  };
+
+  const deleteTemplate = (id: string) => {
+    const updated = savedMessages.filter((m) => m.id !== id);
+    setSavedMessages(updated);
+    localStorage.setItem("whatsapp-templates", JSON.stringify(updated));
+  };
 
   const filtered = eleitores.filter(
     (e) =>
@@ -251,16 +275,51 @@ const Eleitores = () => {
                 <p className="text-sm font-medium">{whatsappDialog.nome}</p>
                 <p className="text-xs text-muted-foreground">{whatsappDialog.contato}</p>
               </div>
+              {savedMessages.length > 0 && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Mensagens salvas</Label>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {savedMessages.map((msg) => (
+                      <div key={msg.id} className="group flex items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={`text-xs gap-1 h-7 ${whatsappMsg === msg.text ? "border-primary bg-primary/10" : ""}`}
+                          onClick={() => setWhatsappMsg(msg.text)}
+                        >
+                          <Star className="h-3 w-3" />
+                          {msg.label}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                          onClick={() => deleteTemplate(msg.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div>
                 <Label>Mensagem (opcional)</Label>
                 <Textarea
                   value={whatsappMsg}
                   onChange={(e) => setWhatsappMsg(e.target.value)}
-                  placeholder="Digite a mensagem que será enviada como primeira mensagem..."
+                  placeholder="Digite a mensagem ou selecione uma salva acima..."
                   rows={4}
                   className="mt-1"
                 />
-                <p className="text-xs text-muted-foreground mt-1">A mensagem será pré-preenchida no WhatsApp antes de enviar.</p>
+                <div className="flex items-center justify-between mt-1">
+                  <p className="text-xs text-muted-foreground">A mensagem será pré-preenchida no WhatsApp.</p>
+                  {whatsappMsg.trim() && (
+                    <Button variant="ghost" size="sm" className="text-xs h-6 gap-1 text-muted-foreground hover:text-foreground" onClick={saveMessage}>
+                      <Save className="h-3 w-3" /> Salvar
+                    </Button>
+                  )}
+                </div>
               </div>
               <Button onClick={sendWhatsapp} className="w-full bg-success hover:bg-success/90 text-success-foreground gap-2">
                 <Send className="h-4 w-4" />
