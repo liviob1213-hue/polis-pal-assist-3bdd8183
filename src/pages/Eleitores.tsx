@@ -114,7 +114,7 @@ const Eleitores = () => {
     if (!whatsappDialog) return;
     const phone = whatsappDialog.contato.replace(/\D/g, "");
     const fullPhone = phone.startsWith("55") ? phone : `55${phone}`;
-    const url = `https://wa.me/${fullPhone}${whatsappMsg ? `?text=${encodeURIComponent(whatsappMsg)}` : ""}`;
+    const url = `https://web.whatsapp.com/send?phone=${fullPhone}${whatsappMsg ? `&text=${encodeURIComponent(whatsappMsg)}` : ""}`;
     window.open(url, "_blank");
     setWhatsappDialog(null);
     setWhatsappMsg("");
@@ -288,7 +288,7 @@ const Eleitores = () => {
                           onClick={() => {
                             const phone = whatsappDialog!.contato.replace(/\D/g, "");
                             const fullPhone = phone.startsWith("55") ? phone : `55${phone}`;
-                            window.open(`https://wa.me/${fullPhone}?text=${encodeURIComponent(msg.text)}`, "_blank");
+                            window.open(`https://web.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(msg.text)}`, "_blank");
                             setWhatsappDialog(null);
                             toast({ title: "WhatsApp aberto!" });
                           }}
