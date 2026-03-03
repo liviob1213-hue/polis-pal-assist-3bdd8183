@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,8 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, MessageCircle, Trash2 } from "lucide-react";
+import { Plus, Search, Pencil, MessageCircle, Trash2, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Eleitor {
@@ -42,6 +43,8 @@ const Eleitores = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ nome: "", endereco: "", contato: "", interesse: "" });
+  const [whatsappDialog, setWhatsappDialog] = useState<Eleitor | null>(null);
+  const [whatsappMsg, setWhatsappMsg] = useState("");
   const { toast } = useToast();
 
   const filtered = eleitores.filter(
@@ -76,6 +79,22 @@ const Eleitores = () => {
   const handleDelete = (id: string) => {
     setEleitores((prev) => prev.filter((e) => e.id !== id));
     toast({ title: "Eleitor removido" });
+  };
+
+  const openWhatsapp = (eleitor: Eleitor) => {
+    setWhatsappDialog(eleitor);
+    setWhatsappMsg("");
+  };
+
+  const sendWhatsapp = () => {
+    if (!whatsappDialog) return;
+    const phone = whatsappDialog.contato.replace(/\D/g, "");
+    const fullPhone = phone.startsWith("55") ? phone : `55${phone}`;
+    const url = `https://wa.me/${fullPhone}${whatsappMsg ? `?text=${encodeURIComponent(whatsappMsg)}` : ""}`;
+    window.open(url, "_blank");
+    setWhatsappDialog(null);
+    setWhatsappMsg("");
+    toast({ title: "WhatsApp aberto!" });
   };
 
   return (
@@ -128,53 +147,129 @@ const Eleitores = () => {
 
       <Card className="glass-card overflow-hidden">
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-secondary/50 hover:bg-secondary/50">
-                <TableHead className="font-semibold">Nome</TableHead>
-                <TableHead className="font-semibold hidden md:table-cell">Endereço</TableHead>
-                <TableHead className="font-semibold">Contato</TableHead>
-                <TableHead className="font-semibold">Interesse</TableHead>
-                <TableHead className="font-semibold text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((eleitor) => (
-                <TableRow key={eleitor.id} className="hover:bg-secondary/30">
-                  <TableCell className="font-medium">{eleitor.nome}</TableCell>
-                  <TableCell className="hidden md:table-cell text-muted-foreground text-sm">{eleitor.endereco}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1.5 text-sm">
-                      <MessageCircle className="h-3.5 w-3.5 text-success" />
-                      {eleitor.contato}
+          {/* Desktop table */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-secondary/50 hover:bg-secondary/50">
+                  <TableHead className="font-semibold">Nome</TableHead>
+                  <TableHead className="font-semibold">Endereço</TableHead>
+                  <TableHead className="font-semibold">Contato</TableHead>
+                  <TableHead className="font-semibold">Interesse</TableHead>
+                  <TableHead className="font-semibold text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((eleitor) => (
+                  <TableRow key={eleitor.id} className="hover:bg-secondary/30">
+                    <TableCell className="font-medium">{eleitor.nome}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{eleitor.endereco}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5 text-sm">
+                        <MessageCircle className="h-3.5 w-3.5 text-success" />
+                        {eleitor.contato}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={interestColors[eleitor.interesse] || ""}>{eleitor.interesse}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-success hover:text-success hover:bg-success/10" onClick={() => openWhatsapp(eleitor)} title="Enviar WhatsApp">
+                          <MessageCircle className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => handleEdit(eleitor)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(eleitor.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filtered.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      Nenhum eleitor encontrado.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-3 p-4">
+            {filtered.map((eleitor) => (
+              <Card key={eleitor.id} className="glass-card">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-semibold text-sm">{eleitor.nome}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{eleitor.endereco}</p>
                     </div>
-                  </TableCell>
-                  <TableCell>
                     <Badge variant="outline" className={interestColors[eleitor.interesse] || ""}>{eleitor.interesse}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => handleEdit(eleitor)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(eleitor.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filtered.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Nenhum eleitor encontrado.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <MessageCircle className="h-3.5 w-3.5 text-success" />
+                    {eleitor.contato}
+                  </div>
+                  <div className="flex gap-1 pt-1 border-t border-border">
+                    <Button variant="ghost" size="sm" className="text-success hover:text-success hover:bg-success/10 gap-1 text-xs" onClick={() => openWhatsapp(eleitor)}>
+                      <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-muted-foreground text-xs" onClick={() => handleEdit(eleitor)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive text-xs" onClick={() => handleDelete(eleitor.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {filtered.length === 0 && (
+              <p className="text-center py-8 text-muted-foreground text-sm">Nenhum eleitor encontrado.</p>
+            )}
+          </div>
         </CardContent>
       </Card>
+
+      {/* WhatsApp Dialog */}
+      <Dialog open={!!whatsappDialog} onOpenChange={(o) => { if (!o) setWhatsappDialog(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-success" />
+              Enviar WhatsApp
+            </DialogTitle>
+          </DialogHeader>
+          {whatsappDialog && (
+            <div className="space-y-4 pt-2">
+              <div className="p-3 rounded-lg bg-secondary/50">
+                <p className="text-sm font-medium">{whatsappDialog.nome}</p>
+                <p className="text-xs text-muted-foreground">{whatsappDialog.contato}</p>
+              </div>
+              <div>
+                <Label>Mensagem (opcional)</Label>
+                <Textarea
+                  value={whatsappMsg}
+                  onChange={(e) => setWhatsappMsg(e.target.value)}
+                  placeholder="Digite a mensagem que será enviada como primeira mensagem..."
+                  rows={4}
+                  className="mt-1"
+                />
+                <p className="text-xs text-muted-foreground mt-1">A mensagem será pré-preenchida no WhatsApp antes de enviar.</p>
+              </div>
+              <Button onClick={sendWhatsapp} className="w-full bg-success hover:bg-success/90 text-success-foreground gap-2">
+                <Send className="h-4 w-4" />
+                Abrir WhatsApp
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 };

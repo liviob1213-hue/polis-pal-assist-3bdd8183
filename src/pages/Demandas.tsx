@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, User, Calendar, Clock, CheckCircle2 } from "lucide-react";
+import { Plus, User, Calendar, Clock, CheckCircle2, FileText, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 interface Demanda {
   id: string;
@@ -57,6 +58,7 @@ const Demandas = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ titulo: "", descricao: "", prioridade: "Média" as string, solicitante: "" });
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleAdd = () => {
     if (!form.titulo) { toast({ title: "Preencha o título", variant: "destructive" }); return; }
@@ -70,6 +72,11 @@ const Demandas = () => {
     setForm({ titulo: "", descricao: "", prioridade: "Média", solicitante: "" });
     setDialogOpen(false);
     toast({ title: "Demanda criada!" });
+  };
+
+  const handleCreatePL = (demanda: Demanda) => {
+    const msg = `Crie um Projeto de Lei baseado nesta demanda:\n\nTítulo: ${demanda.titulo}\nDescrição: ${demanda.descricao}\nSolicitante: ${demanda.solicitante}\nPrioridade: ${demanda.prioridade}`;
+    navigate("/assistente", { state: { prefill: msg } });
   };
 
   return (
@@ -111,7 +118,7 @@ const Demandas = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {demandas.map((demanda) => (
           <motion.div key={demanda.id} initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.2 }}>
-            <Card className={`glass-card border-l-4 ${borderLeftStyles[demanda.prioridade]} hover:shadow-[var(--shadow-lg)] transition-shadow cursor-pointer`}>
+            <Card className={`glass-card border-l-4 ${borderLeftStyles[demanda.prioridade]} hover:shadow-[var(--shadow-lg)] transition-all cursor-pointer`}>
               <CardContent className="p-5 space-y-4">
                 <div className="flex items-center justify-between gap-2">
                   <Badge variant="outline" className={statusStyles[demanda.status]}>{demanda.status}</Badge>
@@ -129,6 +136,15 @@ const Demandas = () => {
                   <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />{demanda.tarefas} tarefas</span>
                   <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{demanda.dias} dias</span>
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-2 text-xs border-accent/30 text-accent hover:bg-accent/10 hover:text-accent"
+                  onClick={() => handleCreatePL(demanda)}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Criar Projeto de Lei com IA
+                </Button>
               </CardContent>
             </Card>
           </motion.div>
