@@ -285,7 +285,13 @@ const Eleitores = () => {
                           variant="outline"
                           size="sm"
                           className={`text-xs gap-1 h-7 ${whatsappMsg === msg.text ? "border-primary bg-primary/10" : ""}`}
-                          onClick={() => setWhatsappMsg(msg.text)}
+                          onClick={() => {
+                            const phone = whatsappDialog!.contato.replace(/\D/g, "");
+                            const fullPhone = phone.startsWith("55") ? phone : `55${phone}`;
+                            window.open(`https://wa.me/${fullPhone}?text=${encodeURIComponent(msg.text)}`, "_blank");
+                            setWhatsappDialog(null);
+                            toast({ title: "WhatsApp aberto!" });
+                          }}
                         >
                           <Star className="h-3 w-3" />
                           {msg.label}
