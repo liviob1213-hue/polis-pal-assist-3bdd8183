@@ -12,6 +12,7 @@ import Tarefas from "./pages/Tarefas";
 import Agenda from "./pages/Agenda";
 import Assistente from "./pages/Assistente";
 import Configuracoes from "./pages/Configuracoes";
+import DisparoMassa from "./pages/DisparoMassa";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const AnimatedRoutes = () => {
         <Route path="/tarefas" element={<Tarefas />} />
         <Route path="/agenda" element={<Agenda />} />
         <Route path="/assistente" element={<Assistente />} />
+        <Route path="/disparo-massa" element={<DisparoMassa />} />
         <Route path="/configuracoes" element={<Configuracoes />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

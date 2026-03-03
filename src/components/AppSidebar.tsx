@@ -5,6 +5,7 @@ import {
   CheckSquare,
   CalendarDays,
   Bot,
+  Send,
   Settings,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
@@ -29,6 +30,7 @@ const menuItems = [
   { title: "Gestão de Tarefas", url: "/tarefas", icon: CheckSquare },
   { title: "Agenda Oficial", url: "/agenda", icon: CalendarDays },
   { title: "Assistente Legislativo", url: "/assistente", icon: Bot },
+  { title: "Disparo em Massa", url: "/disparo-massa", icon: Send },
   { title: "Configurações", url: "/configuracoes", icon: Settings },
 ];
 

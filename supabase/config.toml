@@ -2,3 +2,6 @@ project_id = "cfrhwhpzpdhavksnsorz"
 
 [functions.chat]
 verify_jwt = false
+
+[functions.uazapi-disparo-massa]
+verify_jwt = false
