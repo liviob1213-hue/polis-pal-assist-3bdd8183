@@ -74,7 +74,7 @@ const DisparoMassa = () => {
             Escreva a mensagem e configure o intervalo de envio.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6">
           <div>
             <Label htmlFor="mensagem">Mensagem da Campanha</Label>
             <Textarea
