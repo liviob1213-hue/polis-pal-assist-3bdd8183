@@ -143,7 +143,7 @@ const Assistente = () => {
                   className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   {msg.role === "assistant" && (
-                    <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center shrink-0 mt-1">
+                    <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg gradient-primary flex items-center justify-center shrink-0 mt-1">
                       <Bot className="h-4 w-4 text-primary-foreground" />
                     </div>
                   )}
