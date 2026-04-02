@@ -82,8 +82,8 @@ const DisparoMassa = () => {
               value={mensagem}
               onChange={(e) => setMensagem(e.target.value)}
               placeholder="Digite aqui a mensagem que será enviada para todos os eleitores..."
-              rows={6}
-              className="mt-1.5"
+              rows={4}
+              className="mt-1.5 text-sm"
             />
           </div>
 
