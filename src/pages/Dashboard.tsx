@@ -77,16 +77,16 @@ const Dashboard = () => {
       </motion.div>
 
       {/* Stats */}
-      <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
         {stats.map((stat) => (
           <Card key={stat.label} className="glass-card">
-            <CardContent className="flex items-center gap-3 md:gap-4 p-4 md:p-5">
-              <div className={`p-2 md:p-2.5 rounded-xl bg-secondary ${stat.color}`}>
-                <stat.icon className="h-4 w-4 md:h-5 md:w-5" />
+            <CardContent className="flex items-center gap-2 sm:gap-3 md:gap-4 p-3 sm:p-4 md:p-5">
+              <div className={`p-1.5 sm:p-2 md:p-2.5 rounded-lg sm:rounded-xl bg-secondary ${stat.color}`}>
+                <stat.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xl md:text-2xl font-bold">{stat.value}</p>
-                <p className="text-[10px] md:text-xs text-muted-foreground truncate">{stat.label}</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold">{stat.value}</p>
+                <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground truncate">{stat.label}</p>
               </div>
             </CardContent>
           </Card>
