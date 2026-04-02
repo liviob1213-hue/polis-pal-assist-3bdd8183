@@ -117,13 +117,13 @@ const Assistente = () => {
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 h-[calc(100vh-8rem)] flex flex-col">
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 sm:space-y-4 h-[calc(100vh-6.5rem)] sm:h-[calc(100vh-8rem)] flex flex-col">
       <div>
         <div className="flex items-center gap-2">
-          <Sparkles className="h-6 w-6 text-accent" />
-          <h1 className="text-2xl font-bold tracking-tight">Assistente Legislativo</h1>
+          <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-accent" />
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Assistente Legislativo</h1>
         </div>
-        <p className="text-muted-foreground text-sm mt-1">IA especializada em redação parlamentar e jurídica.</p>
+        <p className="text-muted-foreground text-xs sm:text-sm mt-1">IA especializada em redação parlamentar e jurídica.</p>
       </div>
 
       <Card className="glass-card flex-1 flex flex-col overflow-hidden">
