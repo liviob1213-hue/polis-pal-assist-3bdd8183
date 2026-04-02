@@ -115,7 +115,7 @@ const Demandas = () => {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {demandas.map((demanda) => (
           <motion.div key={demanda.id} initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.2 }}>
             <Card className={`glass-card border-l-4 ${borderLeftStyles[demanda.prioridade]} hover:shadow-[var(--shadow-lg)] transition-all cursor-pointer`}>
