@@ -152,7 +152,7 @@ const Tarefas = () => {
                 <h3 className="font-semibold text-sm">{col.title}</h3>
                 <Badge variant="secondary" className="text-xs ml-auto">{colTarefas.length}</Badge>
               </div>
-              <div className={`space-y-3 min-h-[200px] p-3 rounded-xl bg-secondary/30 border border-border/50 transition-colors ${dragId ? "border-primary/20 bg-primary/5" : ""}`}>
+              <div className={`space-y-2 sm:space-y-3 min-h-[120px] md:min-h-[200px] p-2 sm:p-3 rounded-xl bg-secondary/30 border border-border/50 transition-colors ${dragId ? "border-primary/20 bg-primary/5" : ""}`}>
                 <AnimatePresence>
                   {colTarefas.map((tarefa) => (
                     <motion.div
