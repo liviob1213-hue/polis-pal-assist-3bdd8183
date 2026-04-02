@@ -132,7 +132,7 @@ const Assistente = () => {
           <span className="text-xs font-medium text-muted-foreground">IA Online — Assistente Legislativo</span>
         </div>
 
-        <ScrollArea className="flex-1 p-4 md:p-5" ref={scrollRef}>
+        <ScrollArea className="flex-1 p-3 sm:p-4 md:p-5" ref={scrollRef}>
           <div className="space-y-4 max-w-3xl mx-auto">
             <AnimatePresence>
               {messages.map((msg) => (
