@@ -98,13 +98,13 @@ const Tarefas = () => {
   const total = tarefas.length;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Gestão de Tarefas</h1>
-          <p className="text-muted-foreground text-sm mt-1">Organize e acompanhe as atividades do gabinete.</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Gestão de Tarefas</h1>
+          <p className="text-muted-foreground text-xs sm:text-sm mt-1">Organize e acompanhe as atividades do gabinete.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Badge variant="secondary" className="text-sm">{total} Total</Badge>
           <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingTarefa(null); setForm({ titulo: "", descricao: "", prioridade: "Média" }); } }}>
             <DialogTrigger asChild>
