@@ -50,11 +50,11 @@ const Agenda = () => {
   const datesWithEvents = compromissos.map((c) => c.data);
 
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Agenda Oficial</h1>
-          <p className="text-muted-foreground text-sm mt-1">Compromissos e sessões plenárias.</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Agenda Oficial</h1>
+          <p className="text-muted-foreground text-xs sm:text-sm mt-1">Compromissos e sessões plenárias.</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
