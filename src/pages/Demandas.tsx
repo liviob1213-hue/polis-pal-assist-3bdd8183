@@ -80,11 +80,11 @@ const Demandas = () => {
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Gestão de Demandas</h1>
-          <p className="text-muted-foreground text-sm mt-1">Acompanhe e resolva as solicitações da população.</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Gestão de Demandas</h1>
+          <p className="text-muted-foreground text-xs sm:text-sm mt-1">Acompanhe e resolva as solicitações da população.</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -115,11 +115,11 @@ const Demandas = () => {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {demandas.map((demanda) => (
           <motion.div key={demanda.id} initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.2 }}>
             <Card className={`glass-card border-l-4 ${borderLeftStyles[demanda.prioridade]} hover:shadow-[var(--shadow-lg)] transition-all cursor-pointer`}>
-              <CardContent className="p-5 space-y-4">
+              <CardContent className="p-4 sm:p-5 space-y-3 sm:space-y-4">
                 <div className="flex items-center justify-between gap-2">
                   <Badge variant="outline" className={statusStyles[demanda.status]}>{demanda.status}</Badge>
                   <Badge variant="outline" className={prioridadeStyles[demanda.prioridade]}>{demanda.prioridade}</Badge>

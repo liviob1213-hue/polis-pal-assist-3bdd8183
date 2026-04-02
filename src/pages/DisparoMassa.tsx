@@ -56,16 +56,16 @@ const DisparoMassa = () => {
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Disparo em Massa</h1>
-        <p className="text-muted-foreground text-sm mt-1">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Disparo em Massa</h1>
+        <p className="text-muted-foreground text-xs sm:text-sm mt-1">
           Envie mensagens para toda a sua base de eleitores via WhatsApp.
         </p>
       </div>
 
       <Card className="glass-card max-w-2xl">
-        <CardHeader>
+        <CardHeader className="p-4 sm:p-6">
           <CardTitle className="flex items-center gap-2 text-lg">
             <MessageCircle className="h-5 w-5 text-success" />
             Nova Campanha
@@ -74,7 +74,7 @@ const DisparoMassa = () => {
             Escreva a mensagem e configure o intervalo de envio.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6">
           <div>
             <Label htmlFor="mensagem">Mensagem da Campanha</Label>
             <Textarea
@@ -82,12 +82,12 @@ const DisparoMassa = () => {
               value={mensagem}
               onChange={(e) => setMensagem(e.target.value)}
               placeholder="Digite aqui a mensagem que será enviada para todos os eleitores..."
-              rows={6}
-              className="mt-1.5"
+              rows={4}
+              className="mt-1.5 text-sm"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <div>
               <Label htmlFor="delayMin">Espera Mínima (segundos)</Label>
               <Input

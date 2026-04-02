@@ -98,13 +98,13 @@ const Tarefas = () => {
   const total = tarefas.length;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Gestão de Tarefas</h1>
-          <p className="text-muted-foreground text-sm mt-1">Organize e acompanhe as atividades do gabinete.</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Gestão de Tarefas</h1>
+          <p className="text-muted-foreground text-xs sm:text-sm mt-1">Organize e acompanhe as atividades do gabinete.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Badge variant="secondary" className="text-sm">{total} Total</Badge>
           <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingTarefa(null); setForm({ titulo: "", descricao: "", prioridade: "Média" }); } }}>
             <DialogTrigger asChild>
@@ -137,7 +137,7 @@ const Tarefas = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6 overflow-x-auto">
         {columns.map((col) => {
           const colTarefas = tarefas.filter((t) => t.status === col.key);
           return (
@@ -152,7 +152,7 @@ const Tarefas = () => {
                 <h3 className="font-semibold text-sm">{col.title}</h3>
                 <Badge variant="secondary" className="text-xs ml-auto">{colTarefas.length}</Badge>
               </div>
-              <div className={`space-y-3 min-h-[200px] p-3 rounded-xl bg-secondary/30 border border-border/50 transition-colors ${dragId ? "border-primary/20 bg-primary/5" : ""}`}>
+              <div className={`space-y-2 sm:space-y-3 min-h-[120px] md:min-h-[200px] p-2 sm:p-3 rounded-xl bg-secondary/30 border border-border/50 transition-colors ${dragId ? "border-primary/20 bg-primary/5" : ""}`}>
                 <AnimatePresence>
                   {colTarefas.map((tarefa) => (
                     <motion.div
@@ -166,14 +166,14 @@ const Tarefas = () => {
                       onDragEnd={() => setDragId(null)}
                     >
                       <Card className={`glass-card hover:shadow-[var(--shadow-md)] transition-all cursor-grab active:cursor-grabbing group ${dragId === tarefa.id ? "opacity-50 scale-95" : ""}`}>
-                        <CardContent className="p-4 space-y-3">
+                        <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
                           <div className="flex items-start justify-between">
-                            <p className="text-sm font-medium flex-1">{tarefa.titulo}</p>
+                            <p className="text-xs sm:text-sm font-medium flex-1">{tarefa.titulo}</p>
                             <div className="flex items-center gap-1 shrink-0">
-                              <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground" onClick={() => openEdit(tarefa)}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground" onClick={() => openEdit(tarefa)}>
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
-                              <GripVertical className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors" />
+                              <GripVertical className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors hidden md:block" />
                             </div>
                           </div>
                           {tarefa.descricao && (

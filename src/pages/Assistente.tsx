@@ -117,13 +117,13 @@ const Assistente = () => {
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 h-[calc(100vh-8rem)] flex flex-col">
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 sm:space-y-4 h-[calc(100vh-6.5rem)] sm:h-[calc(100vh-8rem)] flex flex-col">
       <div>
         <div className="flex items-center gap-2">
-          <Sparkles className="h-6 w-6 text-accent" />
-          <h1 className="text-2xl font-bold tracking-tight">Assistente Legislativo</h1>
+          <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-accent" />
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Assistente Legislativo</h1>
         </div>
-        <p className="text-muted-foreground text-sm mt-1">IA especializada em redação parlamentar e jurídica.</p>
+        <p className="text-muted-foreground text-xs sm:text-sm mt-1">IA especializada em redação parlamentar e jurídica.</p>
       </div>
 
       <Card className="glass-card flex-1 flex flex-col overflow-hidden">
@@ -132,7 +132,7 @@ const Assistente = () => {
           <span className="text-xs font-medium text-muted-foreground">IA Online — Assistente Legislativo</span>
         </div>
 
-        <ScrollArea className="flex-1 p-4 md:p-5" ref={scrollRef}>
+        <ScrollArea className="flex-1 p-3 sm:p-4 md:p-5" ref={scrollRef}>
           <div className="space-y-4 max-w-3xl mx-auto">
             <AnimatePresence>
               {messages.map((msg) => (
@@ -143,12 +143,12 @@ const Assistente = () => {
                   className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   {msg.role === "assistant" && (
-                    <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center shrink-0 mt-1">
+                    <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg gradient-primary flex items-center justify-center shrink-0 mt-1">
                       <Bot className="h-4 w-4 text-primary-foreground" />
                     </div>
                   )}
                   <div
-                    className={`max-w-[85%] md:max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                    className={`max-w-[90%] sm:max-w-[85%] md:max-w-[80%] rounded-2xl px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm leading-relaxed ${
                       msg.role === "user"
                         ? "bg-primary text-primary-foreground rounded-br-md"
                         : "bg-secondary text-secondary-foreground rounded-bl-md"
@@ -163,8 +163,8 @@ const Assistente = () => {
                     )}
                   </div>
                   {msg.role === "user" && (
-                    <div className="h-8 w-8 rounded-lg bg-accent flex items-center justify-center shrink-0 mt-1">
-                      <User className="h-4 w-4 text-accent-foreground" />
+                    <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-accent flex items-center justify-center shrink-0 mt-1">
+                      <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-accent-foreground" />
                     </div>
                   )}
                 </motion.div>
@@ -183,7 +183,7 @@ const Assistente = () => {
           </div>
         </ScrollArea>
 
-        <div className="p-3 md:p-4 border-t border-border">
+        <div className="p-2 sm:p-3 md:p-4 border-t border-border">
           <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="flex gap-2 max-w-3xl mx-auto">
             <Input
               value={input}

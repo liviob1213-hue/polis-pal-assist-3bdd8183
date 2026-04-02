@@ -159,11 +159,11 @@ const Eleitores = () => {
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Base de Eleitores</h1>
-          <p className="text-muted-foreground text-sm mt-1">Gerencie os contatos e interesses da sua base.</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Base de Eleitores</h1>
+          <p className="text-muted-foreground text-xs sm:text-sm mt-1">Gerencie os contatos e interesses da sua base.</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingId(null); setForm({ nome: "", endereco: "", telefone: "", interesse: "" }); } }}>
           <DialogTrigger asChild>

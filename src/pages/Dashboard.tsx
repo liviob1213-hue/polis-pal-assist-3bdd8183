@@ -60,33 +60,33 @@ const Dashboard = () => {
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
       {/* Header */}
-      <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Painel de Controle</h1>
-          <p className="text-muted-foreground text-sm mt-1">Visão geral do gabinete</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Painel de Controle</h1>
+          <p className="text-muted-foreground text-xs sm:text-sm mt-1">Visão geral do gabinete</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="border-accent text-accent gap-1.5 px-3 py-1.5">
-            <Trophy className="h-3.5 w-3.5" />
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Badge variant="outline" className="border-accent text-accent gap-1.5 px-2.5 py-1 text-xs sm:px-3 sm:py-1.5">
+            <Trophy className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
             Ranking: 20%
           </Badge>
-          <Button onClick={() => navigate("/demandas")} className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
-            <Plus className="h-4 w-4" /> Nova Demanda
+          <Button onClick={() => navigate("/demandas")} size="sm" className="gradient-primary text-primary-foreground gap-1.5 sm:gap-2 shadow-[var(--shadow-md)] text-xs sm:text-sm">
+            <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Nova Demanda
           </Button>
         </div>
       </motion.div>
 
       {/* Stats */}
-      <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
         {stats.map((stat) => (
           <Card key={stat.label} className="glass-card">
-            <CardContent className="flex items-center gap-3 md:gap-4 p-4 md:p-5">
-              <div className={`p-2 md:p-2.5 rounded-xl bg-secondary ${stat.color}`}>
-                <stat.icon className="h-4 w-4 md:h-5 md:w-5" />
+            <CardContent className="flex items-center gap-2 sm:gap-3 md:gap-4 p-3 sm:p-4 md:p-5">
+              <div className={`p-1.5 sm:p-2 md:p-2.5 rounded-lg sm:rounded-xl bg-secondary ${stat.color}`}>
+                <stat.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xl md:text-2xl font-bold">{stat.value}</p>
-                <p className="text-[10px] md:text-xs text-muted-foreground truncate">{stat.label}</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold">{stat.value}</p>
+                <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground truncate">{stat.label}</p>
               </div>
             </CardContent>
           </Card>
@@ -103,7 +103,7 @@ const Dashboard = () => {
                 <Badge variant="secondary" className="text-xs">Este Mês</Badge>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={240}>
+                <ResponsiveContainer width="100%" height={180}>
                   <LineChart data={monthlyData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
