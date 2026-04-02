@@ -60,18 +60,18 @@ const Dashboard = () => {
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
       {/* Header */}
-      <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Painel de Controle</h1>
-          <p className="text-muted-foreground text-sm mt-1">Visão geral do gabinete</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Painel de Controle</h1>
+          <p className="text-muted-foreground text-xs sm:text-sm mt-1">Visão geral do gabinete</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="border-accent text-accent gap-1.5 px-3 py-1.5">
-            <Trophy className="h-3.5 w-3.5" />
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Badge variant="outline" className="border-accent text-accent gap-1.5 px-2.5 py-1 text-xs sm:px-3 sm:py-1.5">
+            <Trophy className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
             Ranking: 20%
           </Badge>
-          <Button onClick={() => navigate("/demandas")} className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
-            <Plus className="h-4 w-4" /> Nova Demanda
+          <Button onClick={() => navigate("/demandas")} size="sm" className="gradient-primary text-primary-foreground gap-1.5 sm:gap-2 shadow-[var(--shadow-md)] text-xs sm:text-sm">
+            <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Nova Demanda
           </Button>
         </div>
       </motion.div>
