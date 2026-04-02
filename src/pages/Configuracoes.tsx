@@ -22,10 +22,10 @@ const Configuracoes = () => {
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-2xl">
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 sm:space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Configurações</h1>
-        <p className="text-muted-foreground text-sm mt-1">Gerencie as preferências do gabinete.</p>
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Configurações</h1>
+        <p className="text-muted-foreground text-xs sm:text-sm mt-1">Gerencie as preferências do gabinete.</p>
       </div>
 
       <Card className="glass-card">

@@ -103,7 +103,7 @@ const Dashboard = () => {
                 <Badge variant="secondary" className="text-xs">Este Mês</Badge>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={240}>
+                <ResponsiveContainer width="100%" height={180}>
                   <LineChart data={monthlyData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />

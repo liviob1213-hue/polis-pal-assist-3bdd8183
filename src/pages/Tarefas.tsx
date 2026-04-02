@@ -166,14 +166,14 @@ const Tarefas = () => {
                       onDragEnd={() => setDragId(null)}
                     >
                       <Card className={`glass-card hover:shadow-[var(--shadow-md)] transition-all cursor-grab active:cursor-grabbing group ${dragId === tarefa.id ? "opacity-50 scale-95" : ""}`}>
-                        <CardContent className="p-4 space-y-3">
+                        <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
                           <div className="flex items-start justify-between">
-                            <p className="text-sm font-medium flex-1">{tarefa.titulo}</p>
+                            <p className="text-xs sm:text-sm font-medium flex-1">{tarefa.titulo}</p>
                             <div className="flex items-center gap-1 shrink-0">
-                              <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground" onClick={() => openEdit(tarefa)}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground" onClick={() => openEdit(tarefa)}>
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
-                              <GripVertical className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors" />
+                              <GripVertical className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors hidden md:block" />
                             </div>
                           </div>
                           {tarefa.descricao && (

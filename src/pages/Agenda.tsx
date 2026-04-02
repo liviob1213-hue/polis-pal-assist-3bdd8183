@@ -85,7 +85,7 @@ const Agenda = () => {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <Card className="glass-card lg:col-span-1">
           <CardContent className="p-4 flex justify-center">
             <Calendar

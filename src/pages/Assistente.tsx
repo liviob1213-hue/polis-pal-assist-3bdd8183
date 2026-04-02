@@ -183,7 +183,7 @@ const Assistente = () => {
           </div>
         </ScrollArea>
 
-        <div className="p-3 md:p-4 border-t border-border">
+        <div className="p-2 sm:p-3 md:p-4 border-t border-border">
           <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="flex gap-2 max-w-3xl mx-auto">
             <Input
               value={input}
