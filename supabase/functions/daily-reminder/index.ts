@@ -75,10 +75,12 @@ Deno.serve(async (req) => {
     msg += `\n_Total: ${tarefas.length} tarefa(s) pendente(s)_`;
 
     // Send via Uazapi
-    const fullPhone = adminPhone.replace(/\D/g, "").startsWith("55")
-      ? adminPhone.replace(/\D/g, "")
-      : `55${adminPhone.replace(/\D/g, "")}`;
-
+    // Formatar para Uazapi: 55+DDD+número sem o 9
+    let fullPhone = adminPhone.replace(/\D/g, "");
+    if (!fullPhone.startsWith("55")) fullPhone = `55${fullPhone}`;
+    if (fullPhone.length === 13 && fullPhone[4] === "9") {
+      fullPhone = fullPhone.slice(0, 4) + fullPhone.slice(5);
+    }
     const uazRes = await fetch(`${uazapiUrl}/sendText`, {
       method: "POST",
       headers: { "Content-Type": "application/json", token: uazapiToken },
