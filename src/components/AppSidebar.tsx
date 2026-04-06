@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   Users,
+  MapPin,
   FileText,
   CheckSquare,
   CalendarDays,
