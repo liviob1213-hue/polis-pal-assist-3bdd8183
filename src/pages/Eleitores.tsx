@@ -68,7 +68,8 @@ const Eleitores = () => {
   });
 
   const upsertMutation = useMutation({
-    mutationFn: async (payload: { id?: string; nome: string; endereco: string; telefone: string; interesse: string }) => {
+    mutationFn: async (payload: { id?: string; nome: string; rua: string; numero: string; complemento: string; bairro: string; cidade: string; estado: string; cep: string; telefone: string; interesse: string }) => {
+      const endereco = [payload.rua, payload.numero, payload.complemento, payload.bairro, payload.cidade, payload.estado, payload.cep].filter(Boolean).join(", ");
       let eleitorId = payload.id;
       if (payload.id) {
         const { error } = await supabase.from("eleitores").update({
