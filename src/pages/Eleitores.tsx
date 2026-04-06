@@ -82,7 +82,7 @@ const Eleitores = () => {
       } else {
         const { data, error } = await supabase.from("eleitores").insert({
           nome: payload.nome,
-          endereco: payload.endereco || null,
+          endereco: endereco || null,
           telefone: payload.telefone || null,
           interesse: payload.interesse || null,
         }).select("id").single();
