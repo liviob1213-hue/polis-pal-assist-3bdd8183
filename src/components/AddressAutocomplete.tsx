@@ -16,7 +16,7 @@ const AddressAutocomplete = ({ value, onChange, placeholder = "Digite o endereç
   // Load Google Maps script if not yet loaded
   useEffect(() => {
     if (!apiKey) return;
-    if (window.google?.maps?.places) {
+    if ((window as any).google?.maps?.places) {
       setLoaded(true);
       return;
     }
