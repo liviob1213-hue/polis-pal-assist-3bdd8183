@@ -18,11 +18,19 @@ function supabaseAdmin() {
   return createClient(getEnv("SUPABASE_URL"), getEnv("SUPABASE_SERVICE_ROLE_KEY"));
 }
 
+function jsonResponse(payload: unknown, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 // ─── Formatação de telefone para Uazapi ─────────────────────
 // Formato Uazapi: 55 + DDD + número SEM o 9 (ex: 553184752052)
 
 function formatPhoneForUazapi(phone: string): string {
-  let digits = phone.replace(/\D/g, "");
+  let digits = String(phone || "").replace(/\D/g, "");
+  if (!digits) return "";
   if (!digits.startsWith("55")) digits = `55${digits}`;
   // Se tem 13 dígitos (55 + DDD + 9 + 8 dígitos), remover o 9
   if (digits.length === 13 && digits[4] === "9") {
@@ -31,14 +39,60 @@ function formatPhoneForUazapi(phone: string): string {
   return digits;
 }
 
+function extractMessageFromWebhook(body: any): string {
+  const candidates = [
+    body?.message?.content,
+    body?.message?.message?.conversation,
+    body?.message?.message?.extendedTextMessage?.text,
+    body?.message?.body,
+    body?.message?.text,
+    body?.text?.message,
+    body?.text,
+    body?.chat?.wa_lastMessageTextVote,
+    body?.mensagem,
+    body?.body,
+  ];
+
+  const message = candidates.find((value) => typeof value === "string" && value.trim().length > 0);
+  return typeof message === "string" ? message.trim() : "";
+}
+
+function extractSenderPhone(body: any): string {
+  const candidates = [
+    body?.message?.chatid,
+    body?.chat?.wa_chatid,
+    body?.message?.key?.remoteJid,
+    body?.key?.remoteJid,
+    body?.chat?.phone,
+    body?.message?.from,
+    body?.from,
+    body?.sender,
+    body?.phone,
+    body?.number,
+    body?.telefone,
+    body?.chat?.wa_fastid?.split?.(":")?.[1],
+    body?.chat?.id,
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const digits = String(candidate).replace(/\D/g, "");
+    if (digits.length >= 10) {
+      return formatPhoneForUazapi(digits);
+    }
+  }
+
+  return "";
+}
+
 // ─── Números autorizados ────────────────────────────────────
 
 function getAuthorizedNumbers(): string[] {
   const adminPhone = Deno.env.get("ADMIN_WHATSAPP") || "";
-  const hardcoded = ["553184752052"];
+  const hardcoded = ["553184752052", "553181096698"];
   const all = [...hardcoded];
   if (adminPhone) all.push(formatPhoneForUazapi(adminPhone));
-  return [...new Set(all)];
+  return [...new Set(all.filter(Boolean))];
 }
 
 function isAuthorized(phone: string): boolean {
@@ -313,41 +367,15 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    console.log("📦 Webhook body (full):", JSON.stringify(body).substring(0, 2000));
+    console.log("📦 Webhook body (full):", JSON.stringify(body).substring(0, 2500));
 
-    // Uazapi webhook - extract message text from various possible locations
-    const message = 
-      body?.message?.message?.conversation ||
-      body?.message?.message?.extendedTextMessage?.text ||
-      body?.message?.body ||
-      body?.message?.text ||
-      body?.text?.message ||
-      body?.text ||
-      body?.mensagem ||
-      body?.body ||
-      "";
+    const message = extractMessageFromWebhook(body);
+    const senderPhone = extractSenderPhone(body);
 
-    // Uazapi webhook - extract sender phone from various possible locations
-    const rawPhone = 
-      body?.message?.key?.remoteJid ||
-      body?.chat?.id ||
-      body?.key?.remoteJid ||
-      body?.message?.from ||
-      body?.from ||
-      body?.sender ||
-      body?.phone ||
-      body?.number ||
-      body?.telefone ||
-      "";
-    const senderPhone = rawPhone.replace("@s.whatsapp.net", "").replace("@c.us", "");
-    
     console.log("📱 Extracted phone:", senderPhone, "📝 Extracted message:", message);
 
     if (!message) {
-      return new Response(
-        JSON.stringify({ status: "ignored", reason: "no message" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ status: "ignored", reason: "no message" });
     }
 
     console.log(`📩 Mensagem de ${senderPhone}: ${message}`);
@@ -355,10 +383,7 @@ Deno.serve(async (req) => {
     // Verificar autorização
     if (!isAuthorized(senderPhone)) {
       console.log(`🚫 Número não autorizado: ${senderPhone}`);
-      return new Response(
-        JSON.stringify({ status: "unauthorized", phone: senderPhone }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ status: "unauthorized", phone: senderPhone });
     }
 
     // Classify intent
@@ -414,15 +439,10 @@ Intenções possíveis:
       }
     }
 
-    return new Response(
-      JSON.stringify({ success: true, intent: extracted.intent, reply }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({ success: true, intent: extracted.intent, reply });
   } catch (error) {
     console.error("whatsapp-agent error:", error);
-    return new Response(
-      JSON.stringify({ error: error.message || "Erro interno" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    const message = error instanceof Error ? error.message : "Erro interno";
+    return jsonResponse({ success: false, error: message });
   }
 });
