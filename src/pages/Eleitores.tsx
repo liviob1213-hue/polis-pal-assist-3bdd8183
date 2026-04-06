@@ -156,7 +156,19 @@ const Eleitores = () => {
   };
 
   const handleEdit = (eleitor: Eleitor) => {
-    setForm({ nome: eleitor.nome, endereco: eleitor.endereco || "", telefone: eleitor.telefone || "", interesse: eleitor.interesse || "" });
+    const parts = (eleitor.endereco || "").split(", ");
+    setForm({
+      nome: eleitor.nome,
+      rua: parts[0] || "",
+      numero: parts[1] || "",
+      complemento: "",
+      bairro: parts[2] || "",
+      cidade: parts[3] || "",
+      estado: parts[4] || "",
+      cep: parts[5] || "",
+      telefone: eleitor.telefone || "",
+      interesse: eleitor.interesse || "",
+    });
     setEditingId(eleitor.id);
     setDialogOpen(true);
   };
