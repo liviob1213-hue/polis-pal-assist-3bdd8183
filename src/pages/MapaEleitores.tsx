@@ -169,7 +169,7 @@ const MapaEleitores = () => {
             </div>
           ) : (
             <div className="h-[calc(100vh-220px)] min-h-[400px]">
-              <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
+              <APIProvider apiKey={mapsApiKey}>
                 <Map
                   defaultCenter={{ lat: -15.78, lng: -47.93 }}
                   defaultZoom={4}
