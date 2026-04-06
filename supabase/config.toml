@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.daily-reminder]
 verify_jwt = false
+
+[functions.geocode]
+verify_jwt = false
+
+[functions.maps-key]
+verify_jwt = false

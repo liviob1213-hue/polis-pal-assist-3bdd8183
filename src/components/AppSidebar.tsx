@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   Users,
+  MapPin,
   FileText,
   CheckSquare,
   CalendarDays,
@@ -27,6 +28,7 @@ import logoDemocrat from "@/assets/logo-democrat.png";
 const menuItems = [
   { title: "Painel de Controle", url: "/", icon: LayoutDashboard },
   { title: "Base de Eleitores", url: "/eleitores", icon: Users },
+  { title: "Mapa de Eleitores", url: "/mapa-eleitores", icon: MapPin },
   { title: "Gestão de Demandas", url: "/demandas", icon: FileText },
   { title: "Gestão de Tarefas", url: "/tarefas", icon: CheckSquare },
   { title: "Agenda Oficial", url: "/agenda", icon: CalendarDays },

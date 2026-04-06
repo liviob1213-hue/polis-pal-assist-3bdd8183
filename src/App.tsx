@@ -7,6 +7,7 @@ import { AnimatePresence } from "framer-motion";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Eleitores from "./pages/Eleitores";
+import MapaEleitores from "./pages/MapaEleitores";
 import Demandas from "./pages/Demandas";
 import Tarefas from "./pages/Tarefas";
 import Agenda from "./pages/Agenda";
@@ -24,6 +25,7 @@ const AnimatedRoutes = () => {
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/eleitores" element={<Eleitores />} />
+        <Route path="/mapa-eleitores" element={<MapaEleitores />} />
         <Route path="/demandas" element={<Demandas />} />
         <Route path="/tarefas" element={<Tarefas />} />
         <Route path="/agenda" element={<Agenda />} />

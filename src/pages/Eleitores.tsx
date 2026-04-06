@@ -13,6 +13,8 @@ import { Plus, Search, Pencil, MessageCircle, Trash2, Send, Save, Star, Loader2 
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
+import { useGoogleMapsKey } from "@/hooks/useGoogleMapsKey";
 
 interface Eleitor {
   id: string;
@@ -20,6 +22,8 @@ interface Eleitor {
   endereco: string | null;
   telefone: string | null;
   interesse: string | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 const interesses = ["Saúde", "Obras", "Educação", "Segurança", "Transporte", "Meio Ambiente"];
@@ -49,13 +53,14 @@ const Eleitores = () => {
   });
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: mapsApiKey = "" } = useGoogleMapsKey();
 
   const { data: eleitores = [], isLoading } = useQuery({
     queryKey: ["eleitores"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("eleitores")
-        .select("id, nome, endereco, telefone, interesse")
+        .select("id, nome, endereco, telefone, interesse, latitude, longitude")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as Eleitor[];
@@ -64,6 +69,7 @@ const Eleitores = () => {
 
   const upsertMutation = useMutation({
     mutationFn: async (payload: { id?: string; nome: string; endereco: string; telefone: string; interesse: string }) => {
+      let eleitorId = payload.id;
       if (payload.id) {
         const { error } = await supabase.from("eleitores").update({
           nome: payload.nome,
@@ -73,17 +79,30 @@ const Eleitores = () => {
         }).eq("id", payload.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("eleitores").insert({
+        const { data, error } = await supabase.from("eleitores").insert({
           nome: payload.nome,
           endereco: payload.endereco || null,
           telefone: payload.telefone || null,
           interesse: payload.interesse || null,
-        });
+        }).select("id").single();
         if (error) throw error;
+        eleitorId = data.id;
+      }
+
+      // Trigger geocoding if address is provided
+      if (payload.endereco && eleitorId) {
+        try {
+          await supabase.functions.invoke("geocode", {
+            body: { eleitor_id: eleitorId, endereco: payload.endereco },
+          });
+        } catch (geoErr) {
+          console.warn("Geocoding failed:", geoErr);
+        }
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["eleitores"] });
+      queryClient.invalidateQueries({ queryKey: ["eleitores-mapa"] });
       toast({ title: editingId ? "Eleitor atualizado!" : "Eleitor adicionado!" });
       setForm({ nome: "", endereco: "", telefone: "", interesse: "" });
       setEditingId(null);
@@ -177,7 +196,7 @@ const Eleitores = () => {
             </DialogHeader>
             <div className="space-y-4 pt-2">
               <div><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Nome completo" /></div>
-              <div><Label>Endereço</Label><Input value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} placeholder="Endereço" /></div>
+              <div><Label>Endereço</Label><AddressAutocomplete apiKey={mapsApiKey} value={form.endereco} onChange={(v) => setForm({ ...form, endereco: v })} placeholder="Digite o endereço completo" /></div>
               <div><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} placeholder="(00) 00000-0000" /></div>
               <div>
                 <Label>Interesse</Label>
