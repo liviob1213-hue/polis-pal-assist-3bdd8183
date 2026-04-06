@@ -25,6 +25,7 @@ const AnimatedRoutes = () => {
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/eleitores" element={<Eleitores />} />
+        <Route path="/mapa-eleitores" element={<MapaEleitores />} />
         <Route path="/demandas" element={<Demandas />} />
         <Route path="/tarefas" element={<Tarefas />} />
         <Route path="/agenda" element={<Agenda />} />

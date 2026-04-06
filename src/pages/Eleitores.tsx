@@ -196,7 +196,7 @@ const Eleitores = () => {
             </DialogHeader>
             <div className="space-y-4 pt-2">
               <div><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Nome completo" /></div>
-              <div><Label>Endereço</Label><Input value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} placeholder="Endereço" /></div>
+              <div><Label>Endereço</Label><AddressAutocomplete apiKey={GOOGLE_MAPS_API_KEY} value={form.endereco} onChange={(v) => setForm({ ...form, endereco: v })} placeholder="Digite o endereço completo" /></div>
               <div><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} placeholder="(00) 00000-0000" /></div>
               <div>
                 <Label>Interesse</Label>
