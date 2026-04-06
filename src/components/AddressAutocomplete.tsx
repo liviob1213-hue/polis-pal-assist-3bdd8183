@@ -10,7 +10,7 @@ interface AddressAutocompleteProps {
 
 const AddressAutocomplete = ({ value, onChange, placeholder = "Digite o endereço...", apiKey }: AddressAutocompleteProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const autocompleteRef = useRef<any>(null);
   const [loaded, setLoaded] = useState(false);
 
   // Load Google Maps script if not yet loaded
