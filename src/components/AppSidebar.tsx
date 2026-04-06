@@ -43,7 +43,7 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="gradient-sidebar border-r-0">
       <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border">
-        <img src={logoDemocrat} alt="Democrat.IA" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+        <img src={logoDemocrat} alt="Democrat.AI" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
         {!collapsed && (
           <div>
             <h2 className="text-base font-bold text-sidebar-accent-foreground tracking-tight">
