@@ -7,6 +7,7 @@ import { AnimatePresence } from "framer-motion";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Eleitores from "./pages/Eleitores";
+import MapaEleitores from "./pages/MapaEleitores";
 import Demandas from "./pages/Demandas";
 import Tarefas from "./pages/Tarefas";
 import Agenda from "./pages/Agenda";
