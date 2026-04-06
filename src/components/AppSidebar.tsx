@@ -48,7 +48,7 @@ export function AppSidebar() {
         {!collapsed && (
           <div>
             <h2 className="text-base font-bold text-sidebar-accent-foreground tracking-tight">
-              democrat.ai
+              DEMOCRAT.AI
             </h2>
           </div>
         )}
