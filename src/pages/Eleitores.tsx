@@ -53,6 +53,7 @@ const Eleitores = () => {
   });
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: mapsApiKey = "" } = useGoogleMapsKey();
 
   const { data: eleitores = [], isLoading } = useQuery({
     queryKey: ["eleitores"],
