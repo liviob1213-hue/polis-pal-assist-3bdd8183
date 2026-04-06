@@ -90,8 +90,7 @@ const Eleitores = () => {
         eleitorId = data.id;
       }
 
-      // Trigger geocoding if address is provided
-      if (payload.endereco && eleitorId) {
+      if (endereco && eleitorId) {
         try {
           await supabase.functions.invoke("geocode", {
             body: { eleitor_id: eleitorId, endereco: payload.endereco },
