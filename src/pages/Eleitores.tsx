@@ -206,9 +206,24 @@ const Eleitores = () => {
             <DialogHeader>
               <DialogTitle>{editingId ? "Editar Eleitor" : "Novo Eleitor"}</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 pt-2">
+            <div className="space-y-4 pt-2 max-h-[70vh] overflow-y-auto pr-1">
               <div><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Nome completo" /></div>
-              <div><Label>Endereço</Label><AddressAutocomplete apiKey={mapsApiKey} value={form.endereco} onChange={(v) => setForm({ ...form, endereco: v })} placeholder="Digite o endereço completo" /></div>
+              
+              <div className="space-y-3 p-3 rounded-lg bg-secondary/30 border border-border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Endereço</p>
+                <div><Label>Rua / Logradouro</Label><AddressAutocomplete apiKey={mapsApiKey} value={form.rua} onChange={(v) => setForm({ ...form, rua: v })} placeholder="Ex: Rua das Flores" /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label>Número</Label><Input value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} placeholder="Nº" /></div>
+                  <div><Label>Complemento</Label><Input value={form.complemento} onChange={(e) => setForm({ ...form, complemento: e.target.value })} placeholder="Apto, Bloco..." /></div>
+                </div>
+                <div><Label>Bairro</Label><Input value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} placeholder="Bairro" /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label>Cidade</Label><Input value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} placeholder="Cidade" /></div>
+                  <div><Label>Estado</Label><Input value={form.estado} onChange={(e) => setForm({ ...form, estado: e.target.value })} placeholder="UF" maxLength={2} /></div>
+                </div>
+                <div className="w-1/2"><Label>CEP</Label><Input value={form.cep} onChange={(e) => setForm({ ...form, cep: e.target.value })} placeholder="00000-000" /></div>
+              </div>
+
               <div><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} placeholder="(00) 00000-0000" /></div>
               <div>
                 <Label>Interesse</Label>
