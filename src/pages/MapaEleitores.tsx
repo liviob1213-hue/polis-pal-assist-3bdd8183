@@ -98,7 +98,7 @@ const MapContent = ({ eleitores, searchQuery }: { eleitores: Eleitor[]; searchQu
           title={eleitor.nome}
         >
           <div className="flex items-center justify-center w-6 h-6 rounded-full bg-accent text-accent-foreground shadow-md border-[1.5px] border-white cursor-pointer hover:scale-125 transition-transform">
-            <MapPin className="h-3.5 w-3.5" />
+            <span className="text-[10px] font-bold leading-none">E</span>
           </div>
         </AdvancedMarker>
       ))}
