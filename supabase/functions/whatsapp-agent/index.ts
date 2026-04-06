@@ -53,7 +53,7 @@ async function sendMessage(phone: string, text: string) {
   const token = getEnv("UAZAPI_TOKEN");
   const fullPhone = formatPhoneForUazapi(phone);
 
-  const res = await fetch(`${url}/sendText`, {
+  const res = await fetch(`${url}/send/text`, {
     method: "POST",
     headers: { "Content-Type": "application/json", token },
     body: JSON.stringify({ number: fullPhone, text }),
