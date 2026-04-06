@@ -313,11 +313,35 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    console.log("📦 Webhook body:", JSON.stringify(body).substring(0, 500));
+    console.log("📦 Webhook body (full):", JSON.stringify(body).substring(0, 2000));
 
-    // Uazapi webhook - try multiple possible field locations
-    const message = body?.message?.text || body?.text?.message || body?.text || body?.mensagem || body?.body || "";
-    const senderPhone = body?.message?.from || body?.from || body?.sender || body?.phone || body?.number || body?.telefone || body?.key?.remoteJid?.replace("@s.whatsapp.net", "") || "";
+    // Uazapi webhook - extract message text from various possible locations
+    const message = 
+      body?.message?.message?.conversation ||
+      body?.message?.message?.extendedTextMessage?.text ||
+      body?.message?.body ||
+      body?.message?.text ||
+      body?.text?.message ||
+      body?.text ||
+      body?.mensagem ||
+      body?.body ||
+      "";
+
+    // Uazapi webhook - extract sender phone from various possible locations
+    const rawPhone = 
+      body?.message?.key?.remoteJid ||
+      body?.chat?.id ||
+      body?.key?.remoteJid ||
+      body?.message?.from ||
+      body?.from ||
+      body?.sender ||
+      body?.phone ||
+      body?.number ||
+      body?.telefone ||
+      "";
+    const senderPhone = rawPhone.replace("@s.whatsapp.net", "").replace("@c.us", "");
+    
+    console.log("📱 Extracted phone:", senderPhone, "📝 Extracted message:", message);
 
     if (!message) {
       return new Response(
