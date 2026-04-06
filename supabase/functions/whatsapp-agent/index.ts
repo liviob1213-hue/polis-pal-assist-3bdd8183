@@ -313,10 +313,11 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
+    console.log("📦 Webhook body:", JSON.stringify(body).substring(0, 500));
 
-    // Uazapi webhook format
-    const message = body?.message?.text || body?.text || body?.mensagem || "";
-    const senderPhone = body?.message?.from || body?.from || body?.telefone || "";
+    // Uazapi webhook - try multiple possible field locations
+    const message = body?.message?.text || body?.text?.message || body?.text || body?.mensagem || body?.body || "";
+    const senderPhone = body?.message?.from || body?.from || body?.sender || body?.phone || body?.number || body?.telefone || body?.key?.remoteJid?.replace("@s.whatsapp.net", "") || "";
 
     if (!message) {
       return new Response(
