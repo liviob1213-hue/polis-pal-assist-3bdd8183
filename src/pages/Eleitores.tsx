@@ -69,6 +69,7 @@ const Eleitores = () => {
 
   const upsertMutation = useMutation({
     mutationFn: async (payload: { id?: string; nome: string; endereco: string; telefone: string; interesse: string }) => {
+      let eleitorId = payload.id;
       if (payload.id) {
         const { error } = await supabase.from("eleitores").update({
           nome: payload.nome,
@@ -78,17 +79,30 @@ const Eleitores = () => {
         }).eq("id", payload.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("eleitores").insert({
+        const { data, error } = await supabase.from("eleitores").insert({
           nome: payload.nome,
           endereco: payload.endereco || null,
           telefone: payload.telefone || null,
           interesse: payload.interesse || null,
-        });
+        }).select("id").single();
         if (error) throw error;
+        eleitorId = data.id;
+      }
+
+      // Trigger geocoding if address is provided
+      if (payload.endereco && eleitorId) {
+        try {
+          await supabase.functions.invoke("geocode", {
+            body: { eleitor_id: eleitorId, endereco: payload.endereco },
+          });
+        } catch (geoErr) {
+          console.warn("Geocoding failed:", geoErr);
+        }
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["eleitores"] });
+      queryClient.invalidateQueries({ queryKey: ["eleitores-mapa"] });
       toast({ title: editingId ? "Eleitor atualizado!" : "Eleitor adicionado!" });
       setForm({ nome: "", endereco: "", telefone: "", interesse: "" });
       setEditingId(null);
