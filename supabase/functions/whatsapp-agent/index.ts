@@ -18,14 +18,40 @@ function supabaseAdmin() {
   return createClient(getEnv("SUPABASE_URL"), getEnv("SUPABASE_SERVICE_ROLE_KEY"));
 }
 
+// ─── Formatação de telefone para Uazapi ─────────────────────
+// Formato Uazapi: 55 + DDD + número SEM o 9 (ex: 553184752052)
+
+function formatPhoneForUazapi(phone: string): string {
+  let digits = phone.replace(/\D/g, "");
+  if (!digits.startsWith("55")) digits = `55${digits}`;
+  // Se tem 13 dígitos (55 + DDD + 9 + 8 dígitos), remover o 9
+  if (digits.length === 13 && digits[4] === "9") {
+    digits = digits.slice(0, 4) + digits.slice(5);
+  }
+  return digits;
+}
+
+// ─── Números autorizados ────────────────────────────────────
+
+function getAuthorizedNumbers(): string[] {
+  const adminPhone = Deno.env.get("ADMIN_WHATSAPP") || "";
+  const hardcoded = ["553184752052"];
+  const all = [...hardcoded];
+  if (adminPhone) all.push(formatPhoneForUazapi(adminPhone));
+  return [...new Set(all)];
+}
+
+function isAuthorized(phone: string): boolean {
+  const formatted = formatPhoneForUazapi(phone);
+  return getAuthorizedNumbers().includes(formatted);
+}
+
 // ─── Uazapi ─────────────────────────────────────────────────
 
 async function sendMessage(phone: string, text: string) {
   const url = getEnv("UAZAPI_URL");
   const token = getEnv("UAZAPI_TOKEN");
-  const fullPhone = phone.replace(/\D/g, "").startsWith("55")
-    ? phone.replace(/\D/g, "")
-    : `55${phone.replace(/\D/g, "")}`;
+  const fullPhone = formatPhoneForUazapi(phone);
 
   const res = await fetch(`${url}/sendText`, {
     method: "POST",
