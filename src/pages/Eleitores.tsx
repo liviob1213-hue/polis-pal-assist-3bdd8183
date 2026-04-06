@@ -20,6 +20,8 @@ interface Eleitor {
   endereco: string | null;
   telefone: string | null;
   interesse: string | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 const interesses = ["Saúde", "Obras", "Educação", "Segurança", "Transporte", "Meio Ambiente"];
