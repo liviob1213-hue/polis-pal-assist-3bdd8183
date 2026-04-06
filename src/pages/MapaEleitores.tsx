@@ -55,8 +55,8 @@ const MapContent = ({ eleitores }: { eleitores: Eleitor[] }) => {
           onClick={() => setSelectedEleitor(eleitor)}
           title={eleitor.nome}
         >
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground shadow-lg border-2 border-white cursor-pointer hover:scale-110 transition-transform">
-            <MapPin className="h-4 w-4" />
+          <div className="flex items-center justify-center w-9 h-9 rounded-full bg-accent text-accent-foreground shadow-lg border-2 border-white cursor-pointer hover:scale-110 transition-transform drop-shadow-md">
+            <MapPin className="h-5 w-5" />
           </div>
         </AdvancedMarker>
       ))}
