@@ -102,6 +102,8 @@ const MapContent = ({ eleitores }: { eleitores: Eleitor[] }) => {
 };
 
 const MapaEleitores = () => {
+  const { data: mapsApiKey = "", isLoading: keyLoading } = useGoogleMapsKey();
+
   const { data: eleitores = [], isLoading } = useQuery({
     queryKey: ["eleitores-mapa"],
     queryFn: async () => {
@@ -117,14 +119,22 @@ const MapaEleitores = () => {
   const geoCount = eleitores.filter((e) => e.latitude && e.longitude).length;
   const noGeoCount = eleitores.length - geoCount;
 
-  if (!GOOGLE_MAPS_API_KEY) {
+  if (keyLoading || isLoading) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-center py-24">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </motion.div>
+    );
+  }
+
+  if (!mapsApiKey) {
     return (
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
         <h1 className="text-2xl font-bold tracking-tight">Mapa de Eleitores</h1>
         <Card className="glass-card">
           <CardContent className="p-8 text-center">
             <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">Configure a variável <code className="bg-muted px-1 rounded">VITE_GOOGLE_MAPS_API_KEY</code> para usar o mapa.</p>
+            <p className="text-muted-foreground">Google Maps API Key não configurada.</p>
           </CardContent>
         </Card>
       </motion.div>
