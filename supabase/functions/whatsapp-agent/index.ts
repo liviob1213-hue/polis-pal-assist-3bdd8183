@@ -301,6 +301,15 @@ Deno.serve(async (req) => {
 
     console.log(`📩 Mensagem de ${senderPhone}: ${message}`);
 
+    // Verificar autorização
+    if (!isAuthorized(senderPhone)) {
+      console.log(`🚫 Número não autorizado: ${senderPhone}`);
+      return new Response(
+        JSON.stringify({ status: "unauthorized", phone: senderPhone }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Classify intent
     const systemPrompt = `Você é um assistente de gabinete parlamentar. Analise a mensagem do usuário e extraia a intenção e dados relevantes.
 Hoje é: ${new Date().toISOString()}
