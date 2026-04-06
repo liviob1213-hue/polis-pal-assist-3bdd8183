@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,70 +10,114 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Calendar, Clock, GripVertical, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Tarefa {
   id: string;
   titulo: string;
-  descricao: string;
-  prioridade: "Alta" | "Média" | "Baixa";
-  data: string;
-  status: "nova" | "andamento" | "finalizada";
+  descricao: string | null;
+  prazo: string | null;
+  status: string;
+  created_at: string;
 }
 
-const initialTarefas: Tarefa[] = [
-  { id: "1", titulo: "Preparar discurso da sessão", descricao: "", prioridade: "Alta", data: "02/03/2026", status: "nova" },
-  { id: "2", titulo: "Reunião de alinhamento com equipe", descricao: "", prioridade: "Média", data: "02/03/2026", status: "andamento" },
-  { id: "3", titulo: "Visita ao Bairro Novo Horizonte", descricao: "", prioridade: "Baixa", data: "02/03/2026", status: "finalizada" },
-];
+type StatusKey = "Novas Tarefas" | "Em Andamento" | "Finalizadas";
 
-const columns = [
-  { key: "nova" as const, title: "Novas Tarefas", dotColor: "bg-warning" },
-  { key: "andamento" as const, title: "Em Andamento", dotColor: "bg-info" },
-  { key: "finalizada" as const, title: "Finalizadas", dotColor: "bg-success" },
+const columns: { key: StatusKey; title: string; dotColor: string }[] = [
+  { key: "Novas Tarefas", title: "Novas Tarefas", dotColor: "bg-warning" },
+  { key: "Em Andamento", title: "Em Andamento", dotColor: "bg-info" },
+  { key: "Finalizadas", title: "Finalizadas", dotColor: "bg-success" },
 ];
-
-const prioridadeBadge: Record<string, string> = {
-  Alta: "bg-destructive/10 text-destructive border-destructive/20",
-  Média: "bg-warning/10 text-warning border-warning/20",
-  Baixa: "bg-success/10 text-success border-success/20",
-};
 
 const Tarefas = () => {
-  const [tarefas, setTarefas] = useState<Tarefa[]>(initialTarefas);
+  const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTarefa, setEditingTarefa] = useState<Tarefa | null>(null);
-  const [form, setForm] = useState({ titulo: "", descricao: "", prioridade: "Média" });
+  const [form, setForm] = useState({ titulo: "", descricao: "", prazo: "" });
   const [dragId, setDragId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const handleSave = () => {
-    if (!form.titulo) { toast({ title: "Preencha o título", variant: "destructive" }); return; }
+  const fetchTarefas = async () => {
+    const { data, error } = await supabase
+      .from("tarefas")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error("Erro ao buscar tarefas:", error);
+      return;
+    }
+    setTarefas(data || []);
+  };
+
+  useEffect(() => {
+    fetchTarefas();
+
+    const channel = supabase
+      .channel("tarefas-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tarefas" }, () => {
+        fetchTarefas();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  const handleSave = async () => {
+    if (!form.titulo) {
+      toast({ title: "Preencha o título", variant: "destructive" });
+      return;
+    }
+
     if (editingTarefa) {
-      setTarefas((prev) => prev.map((t) =>
-        t.id === editingTarefa.id ? { ...t, titulo: form.titulo, descricao: form.descricao, prioridade: form.prioridade as Tarefa["prioridade"] } : t
-      ));
+      const { error } = await supabase
+        .from("tarefas")
+        .update({
+          titulo: form.titulo,
+          descricao: form.descricao || null,
+          prazo: form.prazo || null,
+        })
+        .eq("id", editingTarefa.id);
+      if (error) {
+        toast({ title: "Erro ao atualizar", variant: "destructive" });
+        return;
+      }
       toast({ title: "Tarefa atualizada!" });
     } else {
-      setTarefas((prev) => [...prev, {
-        id: Date.now().toString(), titulo: form.titulo, descricao: form.descricao,
-        prioridade: form.prioridade as Tarefa["prioridade"],
-        data: new Date().toLocaleDateString("pt-BR"), status: "nova",
-      }]);
+      const { error } = await supabase.from("tarefas").insert({
+        titulo: form.titulo,
+        descricao: form.descricao || null,
+        prazo: form.prazo || null,
+      });
+      if (error) {
+        toast({ title: "Erro ao criar", variant: "destructive" });
+        return;
+      }
       toast({ title: "Tarefa criada!" });
     }
-    setForm({ titulo: "", descricao: "", prioridade: "Média" });
+
+    setForm({ titulo: "", descricao: "", prazo: "" });
     setEditingTarefa(null);
     setDialogOpen(false);
+    fetchTarefas();
   };
 
   const openEdit = (tarefa: Tarefa) => {
     setEditingTarefa(tarefa);
-    setForm({ titulo: tarefa.titulo, descricao: tarefa.descricao || "", prioridade: tarefa.prioridade });
+    setForm({
+      titulo: tarefa.titulo,
+      descricao: tarefa.descricao || "",
+      prazo: tarefa.prazo ? tarefa.prazo.split("T")[0] : "",
+    });
     setDialogOpen(true);
   };
 
-  const moveTask = (id: string, newStatus: Tarefa["status"]) => {
-    setTarefas((prev) => prev.map((t) => (t.id === id ? { ...t, status: newStatus } : t)));
+  const moveTask = async (id: string, newStatus: StatusKey) => {
+    const { error } = await supabase.from("tarefas").update({ status: newStatus }).eq("id", id);
+    if (error) {
+      toast({ title: "Erro ao mover tarefa", variant: "destructive" });
+      return;
+    }
+    fetchTarefas();
   };
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
@@ -86,12 +130,21 @@ const Tarefas = () => {
     e.dataTransfer.dropEffect = "move";
   };
 
-  const handleDrop = (e: React.DragEvent, status: Tarefa["status"]) => {
+  const handleDrop = (e: React.DragEvent, status: StatusKey) => {
     e.preventDefault();
     if (dragId) {
       moveTask(dragId, status);
       setDragId(null);
       toast({ title: "Tarefa movida!" });
+    }
+  };
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return null;
+    try {
+      return new Date(dateStr).toLocaleDateString("pt-BR");
+    } catch {
+      return dateStr;
     }
   };
 
@@ -106,7 +159,7 @@ const Tarefas = () => {
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           <Badge variant="secondary" className="text-sm">{total} Total</Badge>
-          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingTarefa(null); setForm({ titulo: "", descricao: "", prioridade: "Média" }); } }}>
+          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingTarefa(null); setForm({ titulo: "", descricao: "", prazo: "" }); } }}>
             <DialogTrigger asChild>
               <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
                 <Plus className="h-4 w-4" /> Nova Tarefa
@@ -117,17 +170,7 @@ const Tarefas = () => {
               <div className="space-y-4 pt-2">
                 <div><Label>Título</Label><Input value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} placeholder="Título da tarefa" /></div>
                 <div><Label>Descrição</Label><Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} placeholder="Descreva a tarefa (opcional)" rows={3} /></div>
-                <div>
-                  <Label>Prioridade</Label>
-                  <Select value={form.prioridade} onValueChange={(v) => setForm({ ...form, prioridade: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Alta">Alta</SelectItem>
-                      <SelectItem value="Média">Média</SelectItem>
-                      <SelectItem value="Baixa">Baixa</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <div><Label>Prazo</Label><Input type="date" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} /></div>
                 <Button onClick={handleSave} className="w-full gradient-primary text-primary-foreground">
                   {editingTarefa ? "Salvar Alterações" : "Criar Tarefa"}
                 </Button>
@@ -141,12 +184,7 @@ const Tarefas = () => {
         {columns.map((col) => {
           const colTarefas = tarefas.filter((t) => t.status === col.key);
           return (
-            <div
-              key={col.key}
-              className="space-y-3"
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, col.key)}
-            >
+            <div key={col.key} className="space-y-3" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, col.key)}>
               <div className="flex items-center gap-2 pb-2">
                 <div className={`h-2.5 w-2.5 rounded-full ${col.dotColor}`} />
                 <h3 className="font-semibold text-sm">{col.title}</h3>
@@ -179,20 +217,21 @@ const Tarefas = () => {
                           {tarefa.descricao && (
                             <p className="text-xs text-muted-foreground line-clamp-2">{tarefa.descricao}</p>
                           )}
-                          <Badge variant="outline" className={prioridadeBadge[tarefa.prioridade]}>{tarefa.prioridade}</Badge>
                           <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{tarefa.data}</span>
-                            {tarefa.status === "finalizada" && (
+                            {tarefa.prazo && (
+                              <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{formatDate(tarefa.prazo)}</span>
+                            )}
+                            {tarefa.status === "Finalizadas" && (
                               <span className="flex items-center gap-1 text-success"><Clock className="h-3 w-3" />Concluído</span>
                             )}
                           </div>
-                          {tarefa.status !== "finalizada" && (
+                          {tarefa.status !== "Finalizadas" && (
                             <div className="flex gap-1 pt-1">
-                              {tarefa.status === "nova" && (
-                                <Button size="sm" variant="ghost" className="text-xs h-7 text-info hover:text-info" onClick={() => moveTask(tarefa.id, "andamento")}>Iniciar</Button>
+                              {tarefa.status === "Novas Tarefas" && (
+                                <Button size="sm" variant="ghost" className="text-xs h-7 text-info hover:text-info" onClick={() => moveTask(tarefa.id, "Em Andamento")}>Iniciar</Button>
                               )}
-                              {tarefa.status === "andamento" && (
-                                <Button size="sm" variant="ghost" className="text-xs h-7 text-success hover:text-success" onClick={() => moveTask(tarefa.id, "finalizada")}>Concluir</Button>
+                              {tarefa.status === "Em Andamento" && (
+                                <Button size="sm" variant="ghost" className="text-xs h-7 text-success hover:text-success" onClick={() => moveTask(tarefa.id, "Finalizadas")}>Concluir</Button>
                               )}
                             </div>
                           )}
