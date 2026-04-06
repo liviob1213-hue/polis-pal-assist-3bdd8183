@@ -38,7 +38,7 @@ const AddressAutocomplete = ({ value, onChange, placeholder = "Digite o endereç
   useEffect(() => {
     if (!loaded || !inputRef.current || autocompleteRef.current) return;
 
-    const autocomplete = new google.maps.places.Autocomplete(inputRef.current, {
+    const autocomplete = new (window as any).google.maps.places.Autocomplete(inputRef.current, {
       types: ["address"],
       componentRestrictions: { country: "br" },
     });

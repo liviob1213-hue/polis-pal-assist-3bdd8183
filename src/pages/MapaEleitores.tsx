@@ -38,7 +38,7 @@ const MapContent = ({ eleitores }: { eleitores: Eleitor[] }) => {
   // Fit bounds when markers are available
   const fitBounds = useCallback(() => {
     if (!map || geoEleitores.length === 0) return;
-    const bounds = new google.maps.LatLngBounds();
+    const bounds = new (window as any).google.maps.LatLngBounds();
     geoEleitores.forEach((e) => bounds.extend({ lat: e.latitude!, lng: e.longitude! }));
     map.fitBounds(bounds, 60);
   }, [map, geoEleitores]);
