@@ -93,7 +93,7 @@ const Eleitores = () => {
       if (endereco && eleitorId) {
         try {
           await supabase.functions.invoke("geocode", {
-            body: { eleitor_id: eleitorId, endereco: payload.endereco },
+            body: { eleitor_id: eleitorId, endereco },
           });
         } catch (geoErr) {
           console.warn("Geocoding failed:", geoErr);
