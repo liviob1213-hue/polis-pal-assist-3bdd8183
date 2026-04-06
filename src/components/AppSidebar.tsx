@@ -22,6 +22,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import logoDemocrat from "@/assets/logo-democrat.jpeg";
 
 const menuItems = [
   { title: "Painel de Controle", url: "/", icon: LayoutDashboard },
