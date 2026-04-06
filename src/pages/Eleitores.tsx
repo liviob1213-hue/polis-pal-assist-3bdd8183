@@ -41,7 +41,7 @@ const Eleitores = () => {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ nome: "", endereco: "", telefone: "", interesse: "" });
+  const [form, setForm] = useState({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "" });
   const [whatsappDialog, setWhatsappDialog] = useState<Eleitor | null>(null);
   const [whatsappMsg, setWhatsappMsg] = useState("");
   const [savedMessages, setSavedMessages] = useState<{ id: string; label: string; text: string }[]>(() => {
@@ -68,12 +68,13 @@ const Eleitores = () => {
   });
 
   const upsertMutation = useMutation({
-    mutationFn: async (payload: { id?: string; nome: string; endereco: string; telefone: string; interesse: string }) => {
+    mutationFn: async (payload: { id?: string; nome: string; rua: string; numero: string; complemento: string; bairro: string; cidade: string; estado: string; cep: string; telefone: string; interesse: string }) => {
+      const endereco = [payload.rua, payload.numero, payload.complemento, payload.bairro, payload.cidade, payload.estado, payload.cep].filter(Boolean).join(", ");
       let eleitorId = payload.id;
       if (payload.id) {
         const { error } = await supabase.from("eleitores").update({
           nome: payload.nome,
-          endereco: payload.endereco || null,
+           endereco: endereco || null,
           telefone: payload.telefone || null,
           interesse: payload.interesse || null,
         }).eq("id", payload.id);
@@ -81,7 +82,7 @@ const Eleitores = () => {
       } else {
         const { data, error } = await supabase.from("eleitores").insert({
           nome: payload.nome,
-          endereco: payload.endereco || null,
+          endereco: endereco || null,
           telefone: payload.telefone || null,
           interesse: payload.interesse || null,
         }).select("id").single();
@@ -89,11 +90,10 @@ const Eleitores = () => {
         eleitorId = data.id;
       }
 
-      // Trigger geocoding if address is provided
-      if (payload.endereco && eleitorId) {
+      if (endereco && eleitorId) {
         try {
           await supabase.functions.invoke("geocode", {
-            body: { eleitor_id: eleitorId, endereco: payload.endereco },
+            body: { eleitor_id: eleitorId, endereco },
           });
         } catch (geoErr) {
           console.warn("Geocoding failed:", geoErr);
@@ -104,7 +104,7 @@ const Eleitores = () => {
       queryClient.invalidateQueries({ queryKey: ["eleitores"] });
       queryClient.invalidateQueries({ queryKey: ["eleitores-mapa"] });
       toast({ title: editingId ? "Eleitor atualizado!" : "Eleitor adicionado!" });
-      setForm({ nome: "", endereco: "", telefone: "", interesse: "" });
+      setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "" });
       setEditingId(null);
       setDialogOpen(false);
     },
@@ -156,7 +156,19 @@ const Eleitores = () => {
   };
 
   const handleEdit = (eleitor: Eleitor) => {
-    setForm({ nome: eleitor.nome, endereco: eleitor.endereco || "", telefone: eleitor.telefone || "", interesse: eleitor.interesse || "" });
+    const parts = (eleitor.endereco || "").split(", ");
+    setForm({
+      nome: eleitor.nome,
+      rua: parts[0] || "",
+      numero: parts[1] || "",
+      complemento: "",
+      bairro: parts[2] || "",
+      cidade: parts[3] || "",
+      estado: parts[4] || "",
+      cep: parts[5] || "",
+      telefone: eleitor.telefone || "",
+      interesse: eleitor.interesse || "",
+    });
     setEditingId(eleitor.id);
     setDialogOpen(true);
   };
@@ -184,7 +196,7 @@ const Eleitores = () => {
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Base de Eleitores</h1>
           <p className="text-muted-foreground text-xs sm:text-sm mt-1">Gerencie os contatos e interesses da sua base.</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingId(null); setForm({ nome: "", endereco: "", telefone: "", interesse: "" }); } }}>
+        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingId(null); setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "" }); } }}>
           <DialogTrigger asChild>
             <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
               <Plus className="h-4 w-4" /> Novo Eleitor
@@ -194,9 +206,24 @@ const Eleitores = () => {
             <DialogHeader>
               <DialogTitle>{editingId ? "Editar Eleitor" : "Novo Eleitor"}</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 pt-2">
+            <div className="space-y-4 pt-2 max-h-[70vh] overflow-y-auto pr-1">
               <div><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Nome completo" /></div>
-              <div><Label>Endereço</Label><AddressAutocomplete apiKey={mapsApiKey} value={form.endereco} onChange={(v) => setForm({ ...form, endereco: v })} placeholder="Digite o endereço completo" /></div>
+              
+              <div className="space-y-3 p-3 rounded-lg bg-secondary/30 border border-border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Endereço</p>
+                <div><Label>Rua / Logradouro</Label><AddressAutocomplete apiKey={mapsApiKey} value={form.rua} onChange={(v) => setForm({ ...form, rua: v })} placeholder="Ex: Rua das Flores" /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label>Número</Label><Input value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} placeholder="Nº" /></div>
+                  <div><Label>Complemento</Label><Input value={form.complemento} onChange={(e) => setForm({ ...form, complemento: e.target.value })} placeholder="Apto, Bloco..." /></div>
+                </div>
+                <div><Label>Bairro</Label><Input value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} placeholder="Bairro" /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label>Cidade</Label><Input value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} placeholder="Cidade" /></div>
+                  <div><Label>Estado</Label><Input value={form.estado} onChange={(e) => setForm({ ...form, estado: e.target.value })} placeholder="UF" maxLength={2} /></div>
+                </div>
+                <div className="w-1/2"><Label>CEP</Label><Input value={form.cep} onChange={(e) => setForm({ ...form, cep: e.target.value })} placeholder="00000-000" /></div>
+              </div>
+
               <div><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} placeholder="(00) 00000-0000" /></div>
               <div>
                 <Label>Interesse</Label>
