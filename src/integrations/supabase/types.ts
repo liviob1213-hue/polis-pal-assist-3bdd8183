@@ -14,6 +14,74 @@ export type Database = {
   }
   public: {
     Tables: {
+      agenda: {
+        Row: {
+          created_at: string
+          data_hora: string
+          descricao: string | null
+          id: string
+          tarefa_id: string | null
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data_hora: string
+          descricao?: string | null
+          id?: string
+          tarefa_id?: string | null
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data_hora?: string
+          descricao?: string | null
+          id?: string
+          tarefa_id?: string | null
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agenda_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      demandas: {
+        Row: {
+          created_at: string
+          descricao: string | null
+          id: string
+          localizacao: string | null
+          status: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          localizacao?: string | null
+          status?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          localizacao?: string | null
+          status?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       eleitores: {
         Row: {
           created_at: string
@@ -40,6 +108,71 @@ export type Database = {
           interesse?: string | null
           nome?: string
           telefone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      projetos_lei: {
+        Row: {
+          created_at: string
+          demanda_id: string | null
+          id: string
+          texto_completo: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          demanda_id?: string | null
+          id?: string
+          texto_completo: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          demanda_id?: string | null
+          id?: string
+          texto_completo?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projetos_lei_demanda_id_fkey"
+            columns: ["demanda_id"]
+            isOneToOne: false
+            referencedRelation: "demandas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tarefas: {
+        Row: {
+          created_at: string
+          descricao: string | null
+          id: string
+          prazo: string | null
+          status: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          prazo?: string | null
+          status?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          prazo?: string | null
+          status?: string
+          titulo?: string
           updated_at?: string
         }
         Relationships: []
