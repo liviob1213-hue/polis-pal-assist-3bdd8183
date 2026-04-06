@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.uazapi-disparo-massa]
 verify_jwt = false
+
+[functions.whatsapp-agent]
+verify_jwt = false
+
+[functions.daily-reminder]
+verify_jwt = false
