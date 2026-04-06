@@ -13,6 +13,9 @@ import { Plus, Search, Pencil, MessageCircle, Trash2, Send, Save, Star, Loader2 
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
+
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 
 interface Eleitor {
   id: string;
