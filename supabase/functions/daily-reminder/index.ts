@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
     if (fullPhone.length === 13 && fullPhone[4] === "9") {
       fullPhone = fullPhone.slice(0, 4) + fullPhone.slice(5);
     }
-    const uazRes = await fetch(`${uazapiUrl}/sendText`, {
+    const uazRes = await fetch(`${uazapiUrl}/send/text`, {
       method: "POST",
       headers: { "Content-Type": "application/json", token: uazapiToken },
       body: JSON.stringify({ number: fullPhone, text: msg }),
