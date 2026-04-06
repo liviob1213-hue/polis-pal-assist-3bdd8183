@@ -74,7 +74,7 @@ const Eleitores = () => {
       if (payload.id) {
         const { error } = await supabase.from("eleitores").update({
           nome: payload.nome,
-          endereco: payload.endereco || null,
+           endereco: endereco || null,
           telefone: payload.telefone || null,
           interesse: payload.interesse || null,
         }).eq("id", payload.id);
