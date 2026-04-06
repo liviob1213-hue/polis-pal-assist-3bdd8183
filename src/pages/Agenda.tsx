@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
@@ -10,44 +10,96 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Clock, CalendarDays } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
 
-interface Compromisso {
+interface AgendaItem {
   id: string;
   titulo: string;
-  tipo: string;
-  horario: string;
-  data: Date;
+  descricao: string | null;
+  data_hora: string;
+  tarefa_id: string | null;
 }
 
-const initialCompromissos: Compromisso[] = [
-  { id: "1", titulo: "Reunião com Secretário de Obras", tipo: "Reunião", horario: "09:00", data: new Date(2026, 2, 3) },
-  { id: "2", titulo: "Sessão Plenária Ordinária", tipo: "Sessão", horario: "14:00", data: new Date(2026, 2, 3) },
-];
+interface TarefaItem {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  status: string;
+  prazo: string | null;
+}
 
 const Agenda = () => {
   const [date, setDate] = useState<Date>(new Date());
-  const [compromissos, setCompromissos] = useState<Compromisso[]>(initialCompromissos);
+  const [agendaItems, setAgendaItems] = useState<AgendaItem[]>([]);
+  const [tarefas, setTarefas] = useState<TarefaItem[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ titulo: "", tipo: "Reunião", horario: "" });
   const { toast } = useToast();
 
-  const dayCompromissos = compromissos.filter(
-    (c) => c.data.toDateString() === date.toDateString()
-  );
+  const fetchData = async () => {
+    const [agendaRes, tarefasRes] = await Promise.all([
+      supabase.from("agenda").select("*").order("data_hora", { ascending: true }),
+      supabase.from("tarefas").select("*").order("created_at", { ascending: false }),
+    ]);
+    setAgendaItems(agendaRes.data || []);
+    setTarefas(tarefasRes.data || []);
+  };
 
-  const handleAdd = () => {
-    if (!form.titulo || !form.horario) { toast({ title: "Preencha título e horário", variant: "destructive" }); return; }
-    setCompromissos((prev) => [...prev, {
-      id: Date.now().toString(), titulo: form.titulo, tipo: form.tipo, horario: form.horario, data: date,
-    }]);
+  useEffect(() => {
+    fetchData();
+    const ch1 = supabase.channel("agenda-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "agenda" }, () => fetchData())
+      .subscribe();
+    const ch2 = supabase.channel("tarefas-agenda-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tarefas" }, () => fetchData())
+      .subscribe();
+    return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); };
+  }, []);
+
+  // Compromissos da agenda para o dia selecionado
+  const dayAgenda = agendaItems.filter((a) => isSameDay(new Date(a.data_hora), date));
+
+  // Tarefas com prazo para o dia selecionado
+  const dayTarefas = tarefas.filter((t) => t.prazo && isSameDay(new Date(t.prazo), date));
+
+  // Datas com eventos (para highlight no calendário)
+  const datesWithEvents = [
+    ...agendaItems.map((a) => new Date(a.data_hora)),
+    ...tarefas.filter((t) => t.prazo).map((t) => new Date(t.prazo!)),
+  ];
+
+  const handleAdd = async () => {
+    if (!form.titulo || !form.horario) {
+      toast({ title: "Preencha título e horário", variant: "destructive" });
+      return;
+    }
+    const [hours, minutes] = form.horario.split(":").map(Number);
+    const dataHora = new Date(date);
+    dataHora.setHours(hours || 0, minutes || 0, 0, 0);
+
+    const { error } = await supabase.from("agenda").insert({
+      titulo: form.titulo,
+      descricao: form.tipo,
+      data_hora: dataHora.toISOString(),
+    });
+
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      return;
+    }
+
     setForm({ titulo: "", tipo: "Reunião", horario: "" });
     setDialogOpen(false);
     toast({ title: "Compromisso adicionado!" });
   };
 
-  const datesWithEvents = compromissos.map((c) => c.data);
+  const statusBadge: Record<string, string> = {
+    "Novas Tarefas": "bg-warning/10 text-warning border-warning/20",
+    "Em Andamento": "bg-info/10 text-info border-info/20",
+    "Finalizadas": "bg-success/10 text-success border-success/20",
+  };
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 sm:space-y-6">
@@ -110,20 +162,22 @@ const Agenda = () => {
 
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Compromissos</h3>
-            {dayCompromissos.length === 0 ? (
+            {dayAgenda.length === 0 ? (
               <p className="text-sm text-muted-foreground italic">Nenhum compromisso para esta data.</p>
             ) : (
               <div className="space-y-3">
-                {dayCompromissos.map((c) => (
+                {dayAgenda.map((c) => (
                   <Card key={c.id} className="glass-card hover:shadow-[var(--shadow-md)] transition-shadow">
                     <CardContent className="flex items-center gap-4 p-4">
                       <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-primary/5 min-w-[60px]">
                         <Clock className="h-4 w-4 text-primary mb-1" />
-                        <span className="text-sm font-bold text-primary">{c.horario}</span>
+                        <span className="text-sm font-bold text-primary">
+                          {format(new Date(c.data_hora), "HH:mm")}
+                        </span>
                       </div>
                       <div>
                         <p className="font-semibold text-sm">{c.titulo}</p>
-                        <Badge variant="secondary" className="text-xs mt-1">{c.tipo}</Badge>
+                        {c.descricao && <Badge variant="secondary" className="text-xs mt-1">{c.descricao}</Badge>}
                       </div>
                     </CardContent>
                   </Card>
@@ -134,12 +188,25 @@ const Agenda = () => {
 
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Tarefas para Hoje</h3>
-            <p className="text-sm text-muted-foreground italic">Nenhuma tarefa com prazo para hoje.</p>
-          </div>
-
-          <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Demandas Recebidas</h3>
-            <p className="text-sm text-muted-foreground italic">Nenhuma demanda registrada nesta data.</p>
+            {dayTarefas.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">Nenhuma tarefa com prazo para hoje.</p>
+            ) : (
+              <div className="space-y-3">
+                {dayTarefas.map((t) => (
+                  <Card key={t.id} className="glass-card hover:shadow-[var(--shadow-md)] transition-shadow">
+                    <CardContent className="flex items-center justify-between p-4">
+                      <div>
+                        <p className="font-semibold text-sm">{t.titulo}</p>
+                        {t.descricao && <p className="text-xs text-muted-foreground mt-1">{t.descricao}</p>}
+                      </div>
+                      <Badge variant="outline" className={statusBadge[t.status] || ""}>
+                        {t.status}
+                      </Badge>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
