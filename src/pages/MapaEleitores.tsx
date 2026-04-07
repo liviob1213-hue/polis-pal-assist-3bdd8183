@@ -19,6 +19,19 @@ interface Eleitor {
   longitude: number | null;
 }
 
+// Color map for interesse
+const interesseColors: Record<string, string> = {
+  "Saúde": "bg-green-500",
+  "Educação": "bg-blue-500",
+  "Segurança": "bg-yellow-500",
+};
+const defaultPinColor = "bg-accent";
+
+function getPinColor(interesse: string | null) {
+  if (!interesse) return defaultPinColor;
+  return interesseColors[interesse] || defaultPinColor;
+}
+
 // Helper: group eleitores by a street/region key
 function groupByStreet(eleitores: Eleitor[]) {
   const map = new window.Map<string, number>();
@@ -97,7 +110,7 @@ const MapContent = ({ eleitores, searchQuery }: { eleitores: Eleitor[]; searchQu
           onClick={() => setSelectedEleitor(eleitor)}
           title={eleitor.nome}
         >
-          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-accent text-accent-foreground shadow-md border-[1.5px] border-white cursor-pointer hover:scale-125 transition-transform">
+          <div className={`flex items-center justify-center w-6 h-6 rounded-full ${getPinColor(eleitor.interesse)} text-white shadow-md border-[1.5px] border-white cursor-pointer hover:scale-125 transition-transform`}>
             <span className="text-[10px] font-bold leading-none">E</span>
           </div>
         </AdvancedMarker>
