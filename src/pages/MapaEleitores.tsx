@@ -19,6 +19,19 @@ interface Eleitor {
   longitude: number | null;
 }
 
+// Color map for interesse
+const interesseColors: Record<string, string> = {
+  "Saúde": "bg-green-500",
+  "Educação": "bg-blue-500",
+  "Segurança": "bg-yellow-500",
+};
+const defaultPinColor = "bg-accent";
+
+function getPinColor(interesse: string | null) {
+  if (!interesse) return defaultPinColor;
+  return interesseColors[interesse] || defaultPinColor;
+}
+
 // Helper: group eleitores by a street/region key
 function groupByStreet(eleitores: Eleitor[]) {
   const map = new window.Map<string, number>();
