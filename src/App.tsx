@@ -15,6 +15,7 @@ import Agenda from "./pages/Agenda";
 import Assistente from "./pages/Assistente";
 import Configuracoes from "./pages/Configuracoes";
 import DisparoMassa from "./pages/DisparoMassa";
+import Assessores from "./pages/Assessores";
 import Login from "./pages/Login";
 import Cadastro from "./pages/Cadastro";
 import NotFound from "./pages/NotFound";
@@ -25,6 +26,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
   if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+function PoliticoRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading, role } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
+  if (!user) return <Navigate to="/login" replace />;
+  if (role !== "politico") return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -50,6 +59,7 @@ const AnimatedRoutes = () => {
         <Route path="/agenda" element={<ProtectedRoute><AppLayout><Agenda /></AppLayout></ProtectedRoute>} />
         <Route path="/assistente" element={<ProtectedRoute><AppLayout><Assistente /></AppLayout></ProtectedRoute>} />
         <Route path="/disparo-massa" element={<ProtectedRoute><AppLayout><DisparoMassa /></AppLayout></ProtectedRoute>} />
+        <Route path="/assessores" element={<PoliticoRoute><AppLayout><Assessores /></AppLayout></PoliticoRoute>} />
         <Route path="/configuracoes" element={<ProtectedRoute><AppLayout><Configuracoes /></AppLayout></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>

@@ -9,6 +9,7 @@ import {
   Send,
   Settings,
   LogOut,
+  UserCheck,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -25,9 +26,10 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import logoDemocrat from "@/assets/logo-democrat.png";
 
-const menuItems = [
+const baseMenuItems = [
   { title: "Painel de Controle", url: "/", icon: LayoutDashboard },
   { title: "Base de Eleitores", url: "/eleitores", icon: Users },
   { title: "Mapa de Eleitores", url: "/mapa-eleitores", icon: MapPin },
@@ -36,6 +38,13 @@ const menuItems = [
   { title: "Agenda Oficial", url: "/agenda", icon: CalendarDays },
   { title: "Assistente Legislativo", url: "/assistente", icon: Bot },
   { title: "Disparo em Massa", url: "/disparo-massa", icon: Send },
+];
+
+const politicoOnlyItems = [
+  { title: "Assessores", url: "/assessores", icon: UserCheck },
+];
+
+const commonFooterItems = [
   { title: "Configurações", url: "/configuracoes", icon: Settings },
 ];
 
@@ -43,9 +52,17 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
-  const { user, signOut } = useAuth();
+  const { user, signOut, role } = useAuth();
   const userName = user?.user_metadata?.nome || "Usuário";
   const initials = userName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
+
+  const menuItems = [
+    ...baseMenuItems,
+    ...(role === "politico" ? politicoOnlyItems : []),
+    ...commonFooterItems,
+  ];
+
+  const roleLabel = role === "assessor" ? "Assessor" : "Político";
 
   return (
     <Sidebar collapsible="icon" className="gradient-sidebar border-r-0">
@@ -93,7 +110,9 @@ export function AppSidebar() {
               <span className="text-sm font-semibold text-sidebar-accent-foreground truncate">
                 {userName}
               </span>
-              <span className="text-xs text-sidebar-foreground/50 truncate">{user?.email}</span>
+              <div className="flex items-center gap-1">
+                <Badge variant="secondary" className="text-[9px] px-1.5 py-0">{roleLabel}</Badge>
+              </div>
             </div>
           )}
           {!collapsed && (
