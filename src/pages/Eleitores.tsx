@@ -211,7 +211,7 @@ const Eleitores = () => {
               
               <div className="space-y-3 p-3 rounded-lg bg-secondary/30 border border-border">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Endereço</p>
-                <div><Label>Rua / Logradouro</Label><AddressAutocomplete apiKey={mapsApiKey} value={form.rua} onChange={(v) => setForm({ ...form, rua: v })} placeholder="Ex: Rua das Flores" /></div>
+                <div><Label>Rua / Logradouro</Label><AddressAutocomplete apiKey={mapsApiKey} value={form.rua} onChange={(v) => setForm((prev) => ({ ...prev, rua: v }))} onAddressSelect={(c) => setForm((prev) => ({ ...prev, rua: c.rua, bairro: c.bairro, cidade: c.cidade, estado: c.estado, cep: c.cep }))} placeholder="Ex: Rua das Flores" /></div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><Label>Número</Label><Input value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} placeholder="Nº" /></div>
                   <div><Label>Complemento</Label><Input value={form.complemento} onChange={(e) => setForm({ ...form, complemento: e.target.value })} placeholder="Apto, Bloco..." /></div>

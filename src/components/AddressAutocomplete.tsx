@@ -1,19 +1,49 @@
 import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 
+interface AddressComponents {
+  rua: string;
+  bairro: string;
+  cidade: string;
+  estado: string;
+  cep: string;
+}
+
 interface AddressAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
+  onAddressSelect?: (components: AddressComponents) => void;
   placeholder?: string;
   apiKey: string;
 }
 
-const AddressAutocomplete = ({ value, onChange, placeholder = "Digite o endereço...", apiKey }: AddressAutocompleteProps) => {
+function extractComponents(place: any): AddressComponents {
+  const components: AddressComponents = { rua: "", bairro: "", cidade: "", estado: "", cep: "" };
+  const parts = place.address_components || [];
+  let streetNumber = "";
+
+  for (const c of parts) {
+    const types: string[] = c.types;
+    if (types.includes("route")) components.rua = c.long_name;
+    if (types.includes("street_number")) streetNumber = c.long_name;
+    if (types.includes("sublocality_level_1") || types.includes("sublocality")) components.bairro = c.long_name;
+    if (types.includes("administrative_area_level_2")) components.cidade = c.long_name;
+    if (types.includes("administrative_area_level_1")) components.estado = c.short_name;
+    if (types.includes("postal_code")) components.cep = c.long_name;
+  }
+
+  if (streetNumber && components.rua) {
+    components.rua = `${components.rua}, ${streetNumber}`;
+  }
+
+  return components;
+}
+
+const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "Digite o endereço...", apiKey }: AddressAutocompleteProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
   const [loaded, setLoaded] = useState(false);
 
-  // Load Google Maps script if not yet loaded
   useEffect(() => {
     if (!apiKey) return;
     if ((window as any).google?.maps?.places) {
@@ -34,7 +64,6 @@ const AddressAutocomplete = ({ value, onChange, placeholder = "Digite o endereç
     document.head.appendChild(script);
   }, [apiKey]);
 
-  // Initialize autocomplete
   useEffect(() => {
     if (!loaded || !inputRef.current || autocompleteRef.current) return;
 
@@ -45,15 +74,21 @@ const AddressAutocomplete = ({ value, onChange, placeholder = "Digite o endereç
 
     autocomplete.addListener("place_changed", () => {
       const place = autocomplete.getPlace();
-      if (place?.formatted_address) {
+      if (!place) return;
+
+      if (onAddressSelect) {
+        const components = extractComponents(place);
+        onAddressSelect(components);
+        onChange(components.rua);
+      } else if (place.formatted_address) {
         onChange(place.formatted_address);
-      } else if (place?.name) {
+      } else if (place.name) {
         onChange(place.name);
       }
     });
 
     autocompleteRef.current = autocomplete;
-  }, [loaded, onChange]);
+  }, [loaded, onChange, onAddressSelect]);
 
   return (
     <Input
