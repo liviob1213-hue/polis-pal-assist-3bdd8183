@@ -1,48 +1,14 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trophy, Clock, CheckCircle2, Users, TrendingUp } from "lucide-react";
+import { Plus, Clock, CheckCircle2, Users, TrendingUp, CalendarDays } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-
-const monthlyData = [
-  { name: "Jan", value: 12 }, { name: "Fev", value: 19 },
-  { name: "Mar", value: 45 }, { name: "Abr", value: 52 },
-  { name: "Mai", value: 68 }, { name: "Jun", value: 85 },
-  { name: "Jul", value: 102 },
-];
-
-const bairroData = [
-  { name: "Jan", value: 25 }, { name: "Fev", value: 40 },
-  { name: "Mar", value: 55 }, { name: "Abr", value: 70 },
-  { name: "Mai", value: 95 }, { name: "Jun", value: 130 },
-];
-
-const teamData = [
-  { name: "Jan", value: 120 }, { name: "Fev", value: 200 },
-  { name: "Mar", value: 380 }, { name: "Abr", value: 500 },
-  { name: "Mai", value: 620 }, { name: "Jun", value: 850 },
-];
-
-const stats = [
-  { label: "Demandas Abertas", value: "24", icon: TrendingUp, color: "text-info" },
-  { label: "Eleitores Ativos", value: "1.247", icon: Users, color: "text-success" },
-  { label: "Tarefas Pendentes", value: "8", icon: Clock, color: "text-warning" },
-  { label: "Resolvidas este mês", value: "42", icon: CheckCircle2, color: "text-success" },
-];
-
-const agendaItems = [
-  { title: "Reunião com Secretário de Obras", type: "Reunião", time: "09:00" },
-  { title: "Sessão Plenária Ordinária", type: "Sessão", time: "14:00" },
-];
-
-const tarefasPendentes = [
-  { title: "Preparar discurso da sessão", priority: "Alta Prioridade" },
-  { title: "Reunião de alinhamento com equipe", priority: "Normal", status: "Em andamento" },
-];
+import { supabase } from "@/integrations/supabase/client";
 
 const container = {
   hidden: { opacity: 0 },
@@ -54,8 +20,72 @@ const item = {
   show: { opacity: 1, y: 0 },
 };
 
+const MONTH_NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+function groupByMonth(rows: { created_at: string }[]) {
+  const counts: Record<string, number> = {};
+  rows.forEach((r) => {
+    const d = new Date(r.created_at);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    counts[key] = (counts[key] || 0) + 1;
+  });
+  const sorted = Object.entries(counts).sort((a, b) => a[0].localeCompare(b[0])).slice(-6);
+  return sorted.map(([key, value]) => ({
+    name: MONTH_NAMES[parseInt(key.split("-")[1])],
+    value,
+  }));
+}
+
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [stats, setStats] = useState({ demandas: 0, eleitores: 0, tarefasPendentes: 0, tarefasFinalizadas: 0 });
+  const [demandasChart, setDemandasChart] = useState<{ name: string; value: number }[]>([]);
+  const [eleitoresChart, setEleitoresChart] = useState<{ name: string; value: number }[]>([]);
+  const [agendaItems, setAgendaItems] = useState<{ titulo: string; data_hora: string }[]>([]);
+  const [tarefasPendentes, setTarefasPendentes] = useState<{ id: string; titulo: string; status: string }[]>([]);
+
+  useEffect(() => {
+    const fetchAll = async () => {
+      const [demRes, eleRes, tarRes, agendaRes] = await Promise.all([
+        supabase.from("demandas").select("id, status, created_at"),
+        supabase.from("eleitores").select("id, created_at"),
+        supabase.from("tarefas").select("id, titulo, status, created_at"),
+        supabase.from("agenda").select("titulo, data_hora").gte("data_hora", new Date().toISOString().split("T")[0]).order("data_hora", { ascending: true }).limit(5),
+      ]);
+
+      const demandas = demRes.data || [];
+      const eleitores = eleRes.data || [];
+      const tarefas = tarRes.data || [];
+      const agenda = agendaRes.data || [];
+
+      const abertas = demandas.filter((d) => d.status !== "Resolvida" && d.status !== "Finalizada").length;
+      const pendentes = tarefas.filter((t) => t.status !== "Finalizadas");
+      const finalizadas = tarefas.filter((t) => t.status === "Finalizadas").length;
+
+      setStats({ demandas: abertas, eleitores: eleitores.length, tarefasPendentes: pendentes.length, tarefasFinalizadas: finalizadas });
+      setDemandasChart(groupByMonth(demandas));
+      setEleitoresChart(groupByMonth(eleitores));
+      setAgendaItems(agenda);
+      setTarefasPendentes(pendentes.slice(0, 5));
+    };
+
+    fetchAll();
+  }, []);
+
+  const statCards = [
+    { label: "Demandas Abertas", value: stats.demandas.toString(), icon: TrendingUp, color: "text-info" },
+    { label: "Eleitores Cadastrados", value: stats.eleitores.toString(), icon: Users, color: "text-success" },
+    { label: "Tarefas Pendentes", value: stats.tarefasPendentes.toString(), icon: Clock, color: "text-warning" },
+    { label: "Tarefas Finalizadas", value: stats.tarefasFinalizadas.toString(), icon: CheckCircle2, color: "text-success" },
+  ];
+
+  const formatTime = (dateStr: string) => {
+    try {
+      return new Date(dateStr).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    } catch {
+      return "";
+    }
+  };
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
@@ -65,20 +95,14 @@ const Dashboard = () => {
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Painel de Controle</h1>
           <p className="text-muted-foreground text-xs sm:text-sm mt-1">Visão geral do gabinete</p>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <Badge variant="outline" className="border-accent text-accent gap-1.5 px-2.5 py-1 text-xs sm:px-3 sm:py-1.5">
-            <Trophy className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-            Ranking: 20%
-          </Badge>
-          <Button onClick={() => navigate("/demandas")} size="sm" className="gradient-primary text-primary-foreground gap-1.5 sm:gap-2 shadow-[var(--shadow-md)] text-xs sm:text-sm">
-            <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Nova Demanda
-          </Button>
-        </div>
+        <Button onClick={() => navigate("/demandas")} size="sm" className="gradient-primary text-primary-foreground gap-1.5 sm:gap-2 shadow-[var(--shadow-md)] text-xs sm:text-sm">
+          <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Nova Demanda
+        </Button>
       </motion.div>
 
       {/* Stats */}
       <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
-        {stats.map((stat) => (
+        {statCards.map((stat) => (
           <Card key={stat.label} className="glass-card">
             <CardContent className="flex items-center gap-2 sm:gap-3 md:gap-4 p-3 sm:p-4 md:p-5">
               <div className={`p-1.5 sm:p-2 md:p-2.5 rounded-lg sm:rounded-xl bg-secondary ${stat.color}`}>
@@ -96,53 +120,41 @@ const Dashboard = () => {
       {/* Charts + Quick View */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-6">
         <div className="xl:col-span-2 space-y-4 md:space-y-6">
-          <motion.div variants={item}>
-            <Card className="glass-card">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-base font-semibold">Desempenho Mensal</CardTitle>
-                <Badge variant="secondary" className="text-xs">Este Mês</Badge>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={180}>
-                  <LineChart data={monthlyData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-                    <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-                    <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: 12 }} />
-                    <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ fill: "hsl(var(--primary))", r: 4 }} activeDot={{ r: 6, fill: "hsl(var(--accent))" }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </motion.div>
-
           <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             <Card className="glass-card">
-              <CardHeader className="pb-2"><CardTitle className="text-base font-semibold">Atendimentos por Bairro</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-base font-semibold">Demandas por Mês</CardTitle></CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={bairroData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                    <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                    <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: 12 }} />
-                    <Bar dataKey="value" fill="hsl(var(--info))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                {demandasChart.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={demandasChart}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                      <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" allowDecimals={false} />
+                      <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: 12 }} />
+                      <Bar dataKey="value" fill="hsl(var(--info))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-10">Nenhuma demanda registrada</p>
+                )}
               </CardContent>
             </Card>
             <Card className="glass-card">
-              <CardHeader className="pb-2"><CardTitle className="text-base font-semibold">Tarefas da Equipe</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-base font-semibold">Eleitores por Mês</CardTitle></CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={teamData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                    <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                    <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: 12 }} />
-                    <Bar dataKey="value" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                {eleitoresChart.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={eleitoresChart}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                      <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" allowDecimals={false} />
+                      <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: 12 }} />
+                      <Bar dataKey="value" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-10">Nenhum eleitor registrado</p>
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -157,17 +169,18 @@ const Dashboard = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              {agendaItems.map((event) => (
-                <div key={event.title} className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors">
+              {agendaItems.length > 0 ? agendaItems.map((event) => (
+                <div key={event.titulo + event.data_hora} className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors">
                   <div className="flex flex-col items-center">
-                    <span className="text-sm font-bold text-primary">{event.time}</span>
+                    <span className="text-sm font-bold text-primary">{formatTime(event.data_hora)}</span>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{event.title}</p>
-                    <Badge variant="secondary" className="text-[10px] mt-1">{event.type}</Badge>
+                    <p className="text-sm font-medium truncate">{event.titulo}</p>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <p className="text-sm text-muted-foreground text-center py-4">Nenhum evento hoje</p>
+              )}
             </CardContent>
           </Card>
 
@@ -179,20 +192,17 @@ const Dashboard = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              {tarefasPendentes.map((tarefa) => (
-                <div key={tarefa.title} className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50">
+              {tarefasPendentes.length > 0 ? tarefasPendentes.map((tarefa) => (
+                <div key={tarefa.id} className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50">
                   <div className="mt-0.5 h-4 w-4 rounded border-2 border-muted-foreground/30 shrink-0" />
                   <div>
-                    <p className="text-sm font-medium">{tarefa.title}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant={tarefa.priority === "Alta Prioridade" ? "destructive" : "secondary"} className="text-[10px]">{tarefa.priority}</Badge>
-                      {tarefa.status && (
-                        <Badge variant="outline" className="text-[10px] border-info text-info">{tarefa.status}</Badge>
-                      )}
-                    </div>
+                    <p className="text-sm font-medium">{tarefa.titulo}</p>
+                    <Badge variant="secondary" className="text-[10px] mt-1">{tarefa.status}</Badge>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <p className="text-sm text-muted-foreground text-center py-4">Nenhuma tarefa pendente</p>
+              )}
             </CardContent>
           </Card>
         </motion.div>
