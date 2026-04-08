@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Phone, Mail, User, Lock, ArrowRight, CheckCircle } from "lucide-react";
+import { Eye, EyeOff, Phone, Mail, User, Lock, ArrowRight, CheckCircle, Briefcase } from "lucide-react";
 import logoDemocrat from "@/assets/logo-democrat.png";
 
 function formatPhoneDisplay(value: string): string {
@@ -33,6 +34,7 @@ export default function Cadastro() {
   const [senha, setSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
   const [telefone, setTelefone] = useState("");
+  const [role, setRole] = useState<"politico" | "assessor">("politico");
   const [code, setCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -99,20 +101,20 @@ export default function Cadastro() {
             nome,
             email,
             password: senha,
+            role,
           }),
         }
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro na verificação");
 
-      // Sign in the user
       const { error: signInErr } = await supabase.auth.signInWithPassword({
         email,
         password: senha,
       });
       if (signInErr) throw new Error(signInErr.message);
 
-      toast({ title: "Cadastro realizado!", description: "Bem-vindo ao DEMOCRAT.AI!" });
+      toast({ title: "Cadastro realizado!", description: `Bem-vindo ao DEMOCRAT.AI como ${role === "assessor" ? "Assessor" : "Político"}!` });
       navigate("/");
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
@@ -142,16 +144,26 @@ export default function Cadastro() {
           {step === "form" ? (
             <>
               <div className="space-y-2">
+                <Label>Tipo de Conta</Label>
+                <div className="relative">
+                  <Briefcase className="absolute left-3 top-3 h-4 w-4 text-muted-foreground z-10" />
+                  <Select value={role} onValueChange={(v) => setRole(v as "politico" | "assessor")}>
+                    <SelectTrigger className="pl-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="politico">🏛️ Político</SelectItem>
+                      <SelectItem value="assessor">📋 Assessor</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="nome">Nome completo</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="nome"
-                    placeholder="Seu nome completo"
-                    value={nome}
-                    onChange={(e) => setNome(e.target.value)}
-                    className="pl-10"
-                  />
+                  <Input id="nome" placeholder="Seu nome completo" value={nome} onChange={(e) => setNome(e.target.value)} className="pl-10" />
                 </div>
               </div>
 
@@ -159,14 +171,7 @@ export default function Cadastro() {
                 <Label htmlFor="email">E-mail</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
-                  />
+                  <Input id="email" type="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-10" />
                 </div>
               </div>
 
@@ -174,14 +179,7 @@ export default function Cadastro() {
                 <Label htmlFor="telefone">WhatsApp</Label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="telefone"
-                    placeholder="(31) 99999-9999"
-                    value={formatPhoneDisplay(telefone.replace(/\D/g, ""))}
-                    onChange={(e) => setTelefone(e.target.value)}
-                    className="pl-10"
-                    maxLength={15}
-                  />
+                  <Input id="telefone" placeholder="(31) 99999-9999" value={formatPhoneDisplay(telefone.replace(/\D/g, ""))} onChange={(e) => setTelefone(e.target.value)} className="pl-10" maxLength={15} />
                 </div>
                 {telefone.replace(/\D/g, "").length >= 10 && (
                   <p className="text-xs text-muted-foreground">
@@ -194,19 +192,8 @@ export default function Cadastro() {
                 <Label htmlFor="senha">Senha</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="senha"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Mínimo 6 caracteres"
-                    value={senha}
-                    onChange={(e) => setSenha(e.target.value)}
-                    className="pl-10 pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
-                  >
+                  <Input id="senha" type={showPassword ? "text" : "password"} placeholder="Mínimo 6 caracteres" value={senha} onChange={(e) => setSenha(e.target.value)} className="pl-10 pr-10" />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-muted-foreground hover:text-foreground">
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
@@ -216,19 +203,8 @@ export default function Cadastro() {
                 <Label htmlFor="confirmar-senha">Confirmar senha</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="confirmar-senha"
-                    type={showConfirmPassword ? "text" : "password"}
-                    placeholder="Repita a senha"
-                    value={confirmarSenha}
-                    onChange={(e) => setConfirmarSenha(e.target.value)}
-                    className="pl-10 pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
-                  >
+                  <Input id="confirmar-senha" type={showConfirmPassword ? "text" : "password"} placeholder="Repita a senha" value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)} className="pl-10 pr-10" />
+                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-3 text-muted-foreground hover:text-foreground">
                     {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
@@ -244,44 +220,22 @@ export default function Cadastro() {
 
               <p className="text-center text-sm text-muted-foreground">
                 Já tem conta?{" "}
-                <Link to="/login" className="text-primary hover:underline font-medium">
-                  Fazer login
-                </Link>
+                <Link to="/login" className="text-primary hover:underline font-medium">Fazer login</Link>
               </p>
             </>
           ) : (
             <>
               <div className="space-y-2">
                 <Label htmlFor="code">Código de verificação</Label>
-                <Input
-                  id="code"
-                  placeholder="000000"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  className="text-center text-2xl tracking-[0.5em] font-mono"
-                  maxLength={6}
-                />
+                <Input id="code" placeholder="000000" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} className="text-center text-2xl tracking-[0.5em] font-mono" maxLength={6} />
               </div>
-
               <Button onClick={handleVerify} disabled={loading || code.length !== 6} className="w-full" size="lg">
                 {loading ? "Verificando..." : "Verificar e criar conta"}
                 <CheckCircle className="ml-2 h-4 w-4" />
               </Button>
-
               <div className="flex justify-between">
-                <button
-                  onClick={() => setStep("form")}
-                  className="text-sm text-muted-foreground hover:text-foreground"
-                >
-                  ← Voltar
-                </button>
-                <button
-                  onClick={handleSendCode}
-                  disabled={loading}
-                  className="text-sm text-primary hover:underline"
-                >
-                  Reenviar código
-                </button>
+                <button onClick={() => setStep("form")} className="text-sm text-muted-foreground hover:text-foreground">← Voltar</button>
+                <button onClick={handleSendCode} disabled={loading} className="text-sm text-primary hover:underline">Reenviar código</button>
               </div>
             </>
           )}
