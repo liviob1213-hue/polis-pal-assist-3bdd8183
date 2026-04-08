@@ -81,12 +81,10 @@ function extractSenderPhone(body: any): string {
 // ─── Números autorizados ────────────────────────────────────
 
 async function getAuthorizedNumbers(): Promise<string[]> {
-  const adminPhone = Deno.env.get("ADMIN_WHATSAPP") || "";
   const hardcoded = ["553184752052", "553181096698"];
   const all = [...hardcoded];
-  if (adminPhone) all.push(formatPhoneForUazapi(adminPhone));
 
-  // Also fetch authorized users from profiles table
+  // Fetch authorized users from profiles table (registered users)
   try {
     const sb = supabaseAdmin();
     const { data } = await sb
