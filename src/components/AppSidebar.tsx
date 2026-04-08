@@ -43,6 +43,10 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const { user, signOut } = useAuth();
+  const userName = user?.user_metadata?.nome || "Usuário";
+  const initials = userName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
+  const location = useLocation();
 
   return (
     <Sidebar collapsible="icon" className="gradient-sidebar border-r-0">
