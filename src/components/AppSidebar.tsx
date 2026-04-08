@@ -8,9 +8,11 @@ import {
   Bot,
   Send,
   Settings,
+  LogOut,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Sidebar,
   SidebarContent,
@@ -41,6 +43,9 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const { user, signOut } = useAuth();
+  const userName = user?.user_metadata?.nome || "Usuário";
+  const initials = userName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
 
   return (
     <Sidebar collapsible="icon" className="gradient-sidebar border-r-0">
@@ -48,7 +53,7 @@ export function AppSidebar() {
         <img
           src={logoDemocrat}
           alt="Democrat.IA"
-          className={`shrink-0 object-contain transition-all duration-200 ${collapsed ? 'h-10 w-10' : 'h-14 w-auto max-w-[180px]'}`}
+          className={`shrink-0 object-contain transition-all duration-200 ${collapsed ? 'h-12 w-12' : 'h-20 w-auto max-w-[220px]'}`}
         />
       </div>
 
@@ -80,16 +85,25 @@ export function AppSidebar() {
         <div className="flex items-center gap-3">
           <Avatar className="h-9 w-9 border-2 border-sidebar-primary">
             <AvatarFallback className="gradient-accent text-accent-foreground text-xs font-bold">
-              CM
+              {initials}
             </AvatarFallback>
           </Avatar>
           {!collapsed && (
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-sidebar-accent-foreground">
-                Carlos Mendes
+            <div className="flex flex-col flex-1 min-w-0">
+              <span className="text-sm font-semibold text-sidebar-accent-foreground truncate">
+                {userName}
               </span>
-              <span className="text-xs text-sidebar-foreground/50">Vereador</span>
+              <span className="text-xs text-sidebar-foreground/50 truncate">{user?.email}</span>
             </div>
+          )}
+          {!collapsed && (
+            <button
+              onClick={signOut}
+              className="text-sidebar-foreground/50 hover:text-destructive transition-colors"
+              title="Sair"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           )}
         </div>
       </SidebarFooter>
