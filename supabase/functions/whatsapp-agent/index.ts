@@ -26,13 +26,11 @@ function jsonResponse(payload: unknown, status = 200) {
 }
 
 // ─── Formatação de telefone para Uazapi ─────────────────────
-// Formato Uazapi: 55 + DDD + número SEM o 9 (ex: 553184752052)
 
 function formatPhoneForUazapi(phone: string): string {
   let digits = String(phone || "").replace(/\D/g, "");
   if (!digits) return "";
   if (!digits.startsWith("55")) digits = `55${digits}`;
-  // Se tem 13 dígitos (55 + DDD + 9 + 8 dígitos), remover o 9
   if (digits.length === 13 && digits[4] === "9") {
     digits = digits.slice(0, 4) + digits.slice(5);
   }
@@ -52,7 +50,6 @@ function extractMessageFromWebhook(body: any): string {
     body?.mensagem,
     body?.body,
   ];
-
   const message = candidates.find((value) => typeof value === "string" && value.trim().length > 0);
   return typeof message === "string" ? message.trim() : "";
 }
@@ -73,15 +70,11 @@ function extractSenderPhone(body: any): string {
     body?.chat?.wa_fastid?.split?.(":")?.[1],
     body?.chat?.id,
   ];
-
   for (const candidate of candidates) {
     if (!candidate) continue;
     const digits = String(candidate).replace(/\D/g, "");
-    if (digits.length >= 10) {
-      return formatPhoneForUazapi(digits);
-    }
+    if (digits.length >= 10) return formatPhoneForUazapi(digits);
   }
-
   return "";
 }
 
@@ -96,8 +89,7 @@ function getAuthorizedNumbers(): string[] {
 }
 
 function isAuthorized(phone: string): boolean {
-  const formatted = formatPhoneForUazapi(phone);
-  return getAuthorizedNumbers().includes(formatted);
+  return getAuthorizedNumbers().includes(formatPhoneForUazapi(phone));
 }
 
 // ─── Uazapi ─────────────────────────────────────────────────
@@ -106,13 +98,11 @@ async function sendMessage(phone: string, text: string) {
   const url = getEnv("UAZAPI_URL");
   const token = getEnv("UAZAPI_TOKEN");
   const fullPhone = formatPhoneForUazapi(phone);
-
   const res = await fetch(`${url}/send/text`, {
     method: "POST",
     headers: { "Content-Type": "application/json", token },
     body: JSON.stringify({ number: fullPhone, text }),
   });
-
   if (!res.ok) {
     const t = await res.text();
     console.error("Uazapi error:", res.status, t);
@@ -127,10 +117,7 @@ async function callAI(systemPrompt: string, userMessage: string): Promise<string
   const key = getEnv("LOVABLE_API_KEY");
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "google/gemini-3-flash-preview",
       messages: [
@@ -139,13 +126,11 @@ async function callAI(systemPrompt: string, userMessage: string): Promise<string
       ],
     }),
   });
-
   if (!res.ok) {
     const t = await res.text();
     console.error("AI error:", res.status, t);
     throw new Error(`AI gateway ${res.status}`);
   }
-
   const data = await res.json();
   return data.choices?.[0]?.message?.content ?? "";
 }
@@ -154,10 +139,7 @@ async function extractJSON(systemPrompt: string, userMessage: string): Promise<a
   const key = getEnv("LOVABLE_API_KEY");
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "google/gemini-3-flash-preview",
       messages: [
@@ -176,10 +158,14 @@ async function extractJSON(systemPrompt: string, userMessage: string): Promise<a
                 type: "string",
                 enum: [
                   "cadastrar_eleitor",
+                  "consultar_eleitor",
                   "criar_demanda",
                   "consultar_demanda",
+                  "concluir_demanda",
+                  "mover_demanda",
                   "criar_projeto_lei",
                   "criar_tarefa",
+                  "mover_tarefa",
                   "concluir_tarefa",
                   "disparo_massa",
                   "conversa_geral",
@@ -193,6 +179,7 @@ async function extractJSON(systemPrompt: string, userMessage: string): Promise<a
               descricao: { type: "string" },
               localizacao: { type: "string" },
               status_filtro: { type: "string" },
+              novo_status: { type: "string", description: "Novo status para mover demanda ou tarefa. Para demandas: Aberto, Em Análise, Em Andamento, Resolvido. Para tarefas: Novas Tarefas, Em Andamento, Finalizadas." },
               busca_texto: { type: "string" },
               data_hora: { type: "string", description: "ISO 8601 datetime" },
               tarefa_busca: { type: "string" },
@@ -205,13 +192,11 @@ async function extractJSON(systemPrompt: string, userMessage: string): Promise<a
       tool_choice: { type: "function", function: { name: "extract_data" } },
     }),
   });
-
   if (!res.ok) {
     const t = await res.text();
     console.error("AI extract error:", res.status, t);
     throw new Error(`AI gateway ${res.status}`);
   }
-
   const data = await res.json();
   const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
   if (!toolCall) throw new Error("No tool call returned");
@@ -230,6 +215,37 @@ async function handleCadastrarEleitor(params: any): Promise<string> {
   });
   if (error) throw new Error(`DB error: ${error.message}`);
   return `✅ Eleitor *${params.nome}* cadastrado com sucesso!`;
+}
+
+async function handleConsultarEleitor(params: any): Promise<string> {
+  const sb = supabaseAdmin();
+  let query = sb.from("eleitores").select("*").order("nome", { ascending: true });
+
+  if (params.localizacao) {
+    query = query.ilike("endereco", `%${params.localizacao}%`);
+  }
+  if (params.interesse) {
+    query = query.ilike("interesse", `%${params.interesse}%`);
+  }
+  if (params.busca_texto && !params.localizacao && !params.interesse) {
+    query = query.or(
+      `nome.ilike.%${params.busca_texto}%,endereco.ilike.%${params.busca_texto}%,interesse.ilike.%${params.busca_texto}%`
+    );
+  }
+
+  const { data, error } = await query.limit(20);
+  if (error) throw new Error(`DB error: ${error.message}`);
+  if (!data || data.length === 0) {
+    const filtro = params.localizacao || params.interesse || params.busca_texto || "";
+    return `📋 Nenhum eleitor encontrado${filtro ? ` para "${filtro}"` : ""}.`;
+  }
+
+  const lines = data.map(
+    (e: any, i: number) =>
+      `${i + 1}. *${e.nome}*\n   📍 ${e.endereco || "Sem endereço"}\n   📞 ${e.telefone || "Sem telefone"}\n   🎯 ${e.interesse || "Sem interesse"}`
+  );
+  const filtroLabel = params.localizacao ? `em ${params.localizacao}` : params.interesse ? `com interesse em ${params.interesse}` : "";
+  return `👥 *${data.length} eleitor(es) encontrado(s)${filtroLabel ? ` ${filtroLabel}` : ""}:*\n\n${lines.join("\n\n")}`;
 }
 
 async function handleCriarDemanda(params: any): Promise<string> {
@@ -255,6 +271,10 @@ async function handleConsultarDemanda(params: any): Promise<string> {
       `titulo.ilike.%${params.busca_texto}%,descricao.ilike.%${params.busca_texto}%`
     );
   }
+  if (params.data_hora) {
+    const dateStr = params.data_hora.split("T")[0];
+    query = query.gte("created_at", `${dateStr}T00:00:00`).lte("created_at", `${dateStr}T23:59:59`);
+  }
 
   const { data, error } = await query.limit(10);
   if (error) throw new Error(`DB error: ${error.message}`);
@@ -267,10 +287,55 @@ async function handleConsultarDemanda(params: any): Promise<string> {
   return `📋 *Demandas encontradas:*\n\n${lines.join("\n\n")}`;
 }
 
+async function handleConcluirDemanda(params: any): Promise<string> {
+  const sb = supabaseAdmin();
+  const busca = params.busca_texto || params.titulo || "";
+
+  // Search by title text
+  const { data, error: fErr } = await sb
+    .from("demandas")
+    .select("id, titulo, status")
+    .ilike("titulo", `%${busca}%`)
+    .neq("status", "Resolvido")
+    .limit(1)
+    .single();
+
+  if (fErr || !data) return `❌ Demanda "${busca}" não encontrada ou já resolvida.`;
+
+  const { error: uErr } = await sb
+    .from("demandas")
+    .update({ status: "Resolvido" })
+    .eq("id", data.id);
+  if (uErr) throw new Error(`DB error: ${uErr.message}`);
+
+  return `✅ Demanda *${data.titulo}* marcada como Resolvida!`;
+}
+
+async function handleMoverDemanda(params: any): Promise<string> {
+  const sb = supabaseAdmin();
+  const busca = params.busca_texto || params.titulo || "";
+  const novoStatus = params.novo_status || "Em Andamento";
+
+  const { data, error: fErr } = await sb
+    .from("demandas")
+    .select("id, titulo, status")
+    .ilike("titulo", `%${busca}%`)
+    .limit(1)
+    .single();
+
+  if (fErr || !data) return `❌ Demanda "${busca}" não encontrada.`;
+
+  const { error: uErr } = await sb
+    .from("demandas")
+    .update({ status: novoStatus })
+    .eq("id", data.id);
+  if (uErr) throw new Error(`DB error: ${uErr.message}`);
+
+  return `✅ Demanda *${data.titulo}* movida para *${novoStatus}*!`;
+}
+
 async function handleCriarProjetoLei(params: any): Promise<string> {
   const sb = supabaseAdmin();
-
-  // Buscar demanda relacionada
   let demandaContext = "";
   let demandaId: string | null = null;
 
@@ -281,7 +346,6 @@ async function handleCriarProjetoLei(params: any): Promise<string> {
       .or(`titulo.ilike.%${params.busca_texto}%,descricao.ilike.%${params.busca_texto}%`)
       .limit(1)
       .single();
-
     if (data) {
       demandaContext = `Título: ${data.titulo}\nDescrição: ${data.descricao}\nLocal: ${data.localizacao}`;
       demandaId = data.id;
@@ -293,7 +357,6 @@ Use formato oficial: EMENTA, JUSTIFICATIVA, e os ARTIGOS numerados.
 Demanda: ${demandaContext || params.descricao || params.titulo || "demanda geral"}`;
 
   const textoLei = await callAI(prompt, "Gere o projeto de lei completo.");
-
   const titulo = params.titulo || `PL - ${params.busca_texto || "Novo Projeto"}`;
   const { error } = await sb.from("projetos_lei").insert({
     titulo,
@@ -302,7 +365,6 @@ Demanda: ${demandaContext || params.descricao || params.titulo || "demanda geral
   });
   if (error) throw new Error(`DB error: ${error.message}`);
 
-  // WhatsApp has a 4096 char limit per message
   if (textoLei.length > 3500) {
     return `📜 *Projeto de Lei gerado:* ${titulo}\n\n${textoLei.substring(0, 3500)}...\n\n_(Texto completo salvo no sistema)_`;
   }
@@ -321,7 +383,6 @@ async function handleCriarTarefa(params: any): Promise<string> {
     .single();
   if (tErr) throw new Error(`DB error: ${tErr.message}`);
 
-  // Se tiver data/hora, criar também na agenda
   if (prazo) {
     await sb.from("agenda").insert({
       titulo,
@@ -333,6 +394,31 @@ async function handleCriarTarefa(params: any): Promise<string> {
 
   const prazoStr = prazo ? `\n📅 Prazo: ${new Date(prazo).toLocaleString("pt-BR")}` : "";
   return `✅ Tarefa *${titulo}* criada com sucesso!${prazoStr}\n📌 Status: Novas Tarefas`;
+}
+
+async function handleMoverTarefa(params: any): Promise<string> {
+  const sb = supabaseAdmin();
+  const busca = params.tarefa_busca || params.busca_texto || params.titulo || "";
+  const novoStatus = params.novo_status || "Em Andamento";
+
+  const { data, error: fErr } = await sb
+    .from("tarefas")
+    .select("id, titulo, status")
+    .ilike("titulo", `%${busca}%`)
+    .limit(1)
+    .single();
+
+  if (fErr || !data) return `❌ Tarefa "${busca}" não encontrada.`;
+
+  if (data.status === novoStatus) return `ℹ️ Tarefa *${data.titulo}* já está em *${novoStatus}*.`;
+
+  const { error: uErr } = await sb
+    .from("tarefas")
+    .update({ status: novoStatus })
+    .eq("id", data.id);
+  if (uErr) throw new Error(`DB error: ${uErr.message}`);
+
+  return `✅ Tarefa *${data.titulo}* movida de *${data.status}* para *${novoStatus}*!`;
 }
 
 async function handleConcluirTarefa(params: any): Promise<string> {
@@ -380,24 +466,31 @@ Deno.serve(async (req) => {
 
     console.log(`📩 Mensagem de ${senderPhone}: ${message}`);
 
-    // Verificar autorização
     if (!isAuthorized(senderPhone)) {
       console.log(`🚫 Número não autorizado: ${senderPhone}`);
       return jsonResponse({ status: "unauthorized", phone: senderPhone });
     }
 
-    // Classify intent
     const systemPrompt = `Você é um assistente de gabinete parlamentar. Analise a mensagem do usuário e extraia a intenção e dados relevantes.
 Hoje é: ${new Date().toISOString()}
 
 Intenções possíveis:
 - cadastrar_eleitor: quando querem cadastrar/registrar um eleitor/cidadão
-- criar_demanda: quando querem registrar uma demanda/reclamação/solicitação
-- consultar_demanda: quando querem saber status ou listar demandas
+- consultar_eleitor: quando querem buscar/listar/consultar eleitores da BASE DE DADOS. Se perguntam "quais eleitores tenho em [cidade]" ou "eleitores com interesse em [tema]", use esta intenção. Extraia a cidade/local no campo "localizacao" e o interesse no campo "interesse".
+- criar_demanda: quando querem registrar uma nova demanda/reclamação/solicitação
+- consultar_demanda: quando querem saber status ou listar demandas existentes
+- concluir_demanda: quando querem marcar uma demanda como resolvida/concluída. Extraia o texto de busca no campo "busca_texto".
+- mover_demanda: quando querem alterar o status de uma demanda (mover para outra etapa). Extraia o novo status no campo "novo_status" (opções: Aberto, Em Análise, Em Andamento, Resolvido).
 - criar_projeto_lei: quando querem gerar um projeto de lei
-- criar_tarefa: quando querem criar uma tarefa ou compromisso na agenda
-- concluir_tarefa: quando querem finalizar/concluir uma tarefa
-- conversa_geral: para qualquer outra coisa`;
+- criar_tarefa: quando querem criar uma NOVA tarefa ou compromisso na agenda
+- mover_tarefa: quando querem MOVER uma tarefa existente para outro status (ex: "a reunião está em andamento", "mova a tarefa X para em andamento"). NÃO crie uma nova tarefa. Extraia o texto de busca no campo "tarefa_busca" ou "busca_texto" e o novo status no campo "novo_status" (opções: Novas Tarefas, Em Andamento, Finalizadas).
+- concluir_tarefa: quando querem FINALIZAR/CONCLUIR uma tarefa existente
+- conversa_geral: para qualquer outra coisa
+
+IMPORTANTE: 
+- Se o usuário diz que algo "está em andamento" ou "foi concluído" referindo-se a uma tarefa ou demanda EXISTENTE, a intenção é MOVER (mover_tarefa ou mover_demanda), NÃO criar uma nova.
+- Se o usuário pergunta sobre eleitores em uma cidade ou por interesse, SEMPRE use consultar_eleitor, NUNCA conversa_geral.
+- Se o usuário quer concluir/resolver uma demanda, use concluir_demanda.`;
 
     const extracted = await extractJSON(systemPrompt, message);
     console.log("🧠 Intent:", JSON.stringify(extracted));
@@ -408,17 +501,29 @@ Intenções possíveis:
       case "cadastrar_eleitor":
         reply = await handleCadastrarEleitor(extracted);
         break;
+      case "consultar_eleitor":
+        reply = await handleConsultarEleitor(extracted);
+        break;
       case "criar_demanda":
         reply = await handleCriarDemanda(extracted);
         break;
       case "consultar_demanda":
         reply = await handleConsultarDemanda(extracted);
         break;
+      case "concluir_demanda":
+        reply = await handleConcluirDemanda(extracted);
+        break;
+      case "mover_demanda":
+        reply = await handleMoverDemanda(extracted);
+        break;
       case "criar_projeto_lei":
         reply = await handleCriarProjetoLei(extracted);
         break;
       case "criar_tarefa":
         reply = await handleCriarTarefa(extracted);
+        break;
+      case "mover_tarefa":
+        reply = await handleMoverTarefa(extracted);
         break;
       case "concluir_tarefa":
         reply = await handleConcluirTarefa(extracted);
@@ -430,7 +535,6 @@ Intenções possíveis:
         );
     }
 
-    // Enviar resposta via WhatsApp
     if (senderPhone) {
       try {
         await sendMessage(senderPhone, reply);
