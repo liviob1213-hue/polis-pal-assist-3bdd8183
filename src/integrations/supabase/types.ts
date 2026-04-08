@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       agenda: {
         Row: {
+          assessor_id: string | null
           created_at: string
           data_hora: string
           descricao: string | null
@@ -25,6 +26,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assessor_id?: string | null
           created_at?: string
           data_hora: string
           descricao?: string | null
@@ -34,6 +36,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assessor_id?: string | null
           created_at?: string
           data_hora?: string
           descricao?: string | null
@@ -54,6 +57,7 @@ export type Database = {
       }
       demandas: {
         Row: {
+          assessor_id: string | null
           created_at: string
           descricao: string | null
           id: string
@@ -63,6 +67,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assessor_id?: string | null
           created_at?: string
           descricao?: string | null
           id?: string
@@ -72,6 +77,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assessor_id?: string | null
           created_at?: string
           descricao?: string | null
           id?: string
@@ -118,6 +124,27 @@ export type Database = {
         }
         Relationships: []
       }
+      politician_assessors: {
+        Row: {
+          assessor_id: string
+          created_at: string
+          id: string
+          politician_id: string
+        }
+        Insert: {
+          assessor_id: string
+          created_at?: string
+          id?: string
+          politician_id: string
+        }
+        Update: {
+          assessor_id?: string
+          created_at?: string
+          id?: string
+          politician_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -125,6 +152,7 @@ export type Database = {
           id: string
           is_authorized: boolean
           nome: string
+          role: string
           telefone: string
           updated_at: string
           user_id: string
@@ -136,6 +164,7 @@ export type Database = {
           id?: string
           is_authorized?: boolean
           nome: string
+          role?: string
           telefone: string
           updated_at?: string
           user_id: string
@@ -147,6 +176,7 @@ export type Database = {
           id?: string
           is_authorized?: boolean
           nome?: string
+          role?: string
           telefone?: string
           updated_at?: string
           user_id?: string
@@ -191,6 +221,7 @@ export type Database = {
       }
       tarefas: {
         Row: {
+          assessor_id: string | null
           created_at: string
           descricao: string | null
           id: string
@@ -200,6 +231,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assessor_id?: string | null
           created_at?: string
           descricao?: string | null
           id?: string
@@ -209,6 +241,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assessor_id?: string | null
           created_at?: string
           descricao?: string | null
           id?: string
@@ -216,6 +249,27 @@ export type Database = {
           status?: string
           titulo?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
         }
         Relationships: []
       }
@@ -251,10 +305,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_politician_id: {
+        Args: { _assessor_user_id: string }
+        Returns: string
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "politico" | "assessor"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -381,6 +445,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["politico", "assessor"],
+    },
   },
 } as const
