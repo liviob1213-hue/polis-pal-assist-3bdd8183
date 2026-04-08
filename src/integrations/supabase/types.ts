@@ -118,6 +118,42 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          is_authorized: boolean
+          nome: string
+          telefone: string
+          updated_at: string
+          user_id: string
+          whatsapp_verified: boolean
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          is_authorized?: boolean
+          nome: string
+          telefone: string
+          updated_at?: string
+          user_id: string
+          whatsapp_verified?: boolean
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          is_authorized?: boolean
+          nome?: string
+          telefone?: string
+          updated_at?: string
+          user_id?: string
+          whatsapp_verified?: boolean
+        }
+        Relationships: []
+      }
       projetos_lei: {
         Row: {
           created_at: string
@@ -180,6 +216,33 @@ export type Database = {
           status?: string
           titulo?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      verification_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string
+          id: string
+          telefone: string
+          used: boolean
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          telefone: string
+          used?: boolean
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          telefone?: string
+          used?: boolean
         }
         Relationships: []
       }
