@@ -80,16 +80,35 @@ function extractSenderPhone(body: any): string {
 
 // ─── Números autorizados ────────────────────────────────────
 
-function getAuthorizedNumbers(): string[] {
+async function getAuthorizedNumbers(): Promise<string[]> {
   const adminPhone = Deno.env.get("ADMIN_WHATSAPP") || "";
   const hardcoded = ["553184752052", "553181096698"];
   const all = [...hardcoded];
   if (adminPhone) all.push(formatPhoneForUazapi(adminPhone));
+
+  // Also fetch authorized users from profiles table
+  try {
+    const sb = supabaseAdmin();
+    const { data } = await sb
+      .from("profiles")
+      .select("telefone")
+      .eq("is_authorized", true)
+      .eq("whatsapp_verified", true);
+    if (data) {
+      for (const p of data) {
+        if (p.telefone) all.push(formatPhoneForUazapi(p.telefone));
+      }
+    }
+  } catch (e) {
+    console.error("Error fetching authorized numbers:", e);
+  }
+
   return [...new Set(all.filter(Boolean))];
 }
 
-function isAuthorized(phone: string): boolean {
-  return getAuthorizedNumbers().includes(formatPhoneForUazapi(phone));
+async function isAuthorized(phone: string): Promise<boolean> {
+  const authorized = await getAuthorizedNumbers();
+  return authorized.includes(formatPhoneForUazapi(phone));
 }
 
 // ─── Uazapi ─────────────────────────────────────────────────
