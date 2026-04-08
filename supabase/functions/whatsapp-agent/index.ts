@@ -485,7 +485,7 @@ Deno.serve(async (req) => {
 
     console.log(`📩 Mensagem de ${senderPhone}: ${message}`);
 
-    if (!isAuthorized(senderPhone)) {
+    if (!(await isAuthorized(senderPhone))) {
       console.log(`🚫 Número não autorizado: ${senderPhone}`);
       return jsonResponse({ status: "unauthorized", phone: senderPhone });
     }
