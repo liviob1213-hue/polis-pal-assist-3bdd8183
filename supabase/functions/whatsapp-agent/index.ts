@@ -81,8 +81,7 @@ function extractSenderPhone(body: any): string {
 // ─── Números autorizados ────────────────────────────────────
 
 async function getAuthorizedNumbers(): Promise<string[]> {
-  const hardcoded = ["553184752052", "553181096698"];
-  const all = [...hardcoded];
+  const all: string[] = [];
 
   // Fetch authorized users from profiles table (registered users)
   try {
