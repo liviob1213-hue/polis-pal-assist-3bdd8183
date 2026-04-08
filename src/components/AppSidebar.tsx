@@ -85,16 +85,25 @@ export function AppSidebar() {
         <div className="flex items-center gap-3">
           <Avatar className="h-9 w-9 border-2 border-sidebar-primary">
             <AvatarFallback className="gradient-accent text-accent-foreground text-xs font-bold">
-              CM
+              {initials}
             </AvatarFallback>
           </Avatar>
           {!collapsed && (
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-sidebar-accent-foreground">
-                Carlos Mendes
+            <div className="flex flex-col flex-1 min-w-0">
+              <span className="text-sm font-semibold text-sidebar-accent-foreground truncate">
+                {userName}
               </span>
-              <span className="text-xs text-sidebar-foreground/50">Vereador</span>
+              <span className="text-xs text-sidebar-foreground/50 truncate">{user?.email}</span>
             </div>
+          )}
+          {!collapsed && (
+            <button
+              onClick={signOut}
+              className="text-sidebar-foreground/50 hover:text-destructive transition-colors"
+              title="Sair"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           )}
         </div>
       </SidebarFooter>
