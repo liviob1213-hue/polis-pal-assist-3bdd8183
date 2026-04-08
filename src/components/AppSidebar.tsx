@@ -48,7 +48,7 @@ export function AppSidebar() {
         <img
           src={logoDemocrat}
           alt="Democrat.IA"
-          className={`shrink-0 object-contain transition-all duration-200 ${collapsed ? 'h-10 w-10' : 'h-14 w-auto max-w-[180px]'}`}
+          className={`shrink-0 object-contain transition-all duration-200 ${collapsed ? 'h-12 w-12' : 'h-20 w-auto max-w-[220px]'}`}
         />
       </div>
 
