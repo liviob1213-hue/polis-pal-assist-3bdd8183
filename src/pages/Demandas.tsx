@@ -205,15 +205,34 @@ const Demandas = () => {
                             </div>
                             <div className="flex items-center justify-between text-xs text-muted-foreground border-t border-border pt-2">
                               <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{dias} dias</span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 px-2 gap-1 text-[10px] text-accent hover:bg-accent/10 hover:text-accent"
-                                onClick={() => handleCreatePL(demanda)}
-                              >
-                                <Sparkles className="h-3 w-3" />
-                                Criar PL
-                              </Button>
+                              <div className="flex items-center gap-1">
+                                {demanda.status !== "Resolvido" && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 px-2 gap-1 text-[10px] text-info hover:bg-info/10 hover:text-info"
+                                    onClick={() => {
+                                      const nextStatus: Record<string, StatusKey> = {
+                                        "Aberto": "Em Análise",
+                                        "Em Análise": "Em Andamento",
+                                        "Em Andamento": "Resolvido",
+                                      };
+                                      moveTask(demanda.id, nextStatus[demanda.status]);
+                                    }}
+                                  >
+                                    Avançar →
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2 gap-1 text-[10px] text-accent hover:bg-accent/10 hover:text-accent"
+                                  onClick={() => handleCreatePL(demanda)}
+                                >
+                                  <Sparkles className="h-3 w-3" />
+                                  Criar PL
+                                </Button>
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
