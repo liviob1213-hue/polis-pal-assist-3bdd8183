@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Plus, Calendar, Clock, GripVertical, Pencil, UserCheck, AlertTriangle, Filter, X } from "lucide-react";
+import { Plus, Calendar, Clock, GripVertical, Pencil, UserCheck, AlertTriangle, Filter, X, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -149,6 +149,13 @@ const Tarefas = () => {
       assessor_id: tarefa.assessor_id || "",
     });
     setDialogOpen(true);
+  };
+
+  const deleteTarefa = async (id: string) => {
+    const { error } = await supabase.from("tarefas").delete().eq("id", id);
+    if (error) { toast({ title: "Erro ao excluir", variant: "destructive" }); return; }
+    toast({ title: "Tarefa excluída!" });
+    fetchTarefas();
   };
 
   const moveTask = async (id: string, newStatus: StatusKey) => {
@@ -304,6 +311,9 @@ const Tarefas = () => {
                               <div className="flex items-center gap-1 shrink-0">
                                 <Button variant="ghost" size="icon" className="h-7 w-7 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground" onClick={() => openEdit(tarefa)}>
                                   <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => { if (confirm("Excluir esta tarefa?")) deleteTarefa(tarefa.id); }}>
+                                  <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                                 <GripVertical className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors hidden md:block" />
                               </div>

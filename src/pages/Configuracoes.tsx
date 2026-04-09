@@ -6,6 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
+import { Send, Bot, CalendarDays, ChevronRight, UserCheck } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const Configuracoes = () => {
   const [form, setForm] = useState({
@@ -16,17 +19,51 @@ const Configuracoes = () => {
   const [notifDemandas, setNotifDemandas] = useState(true);
   const [notifRelatorio, setNotifRelatorio] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { role } = useAuth();
 
   const handleSave = () => {
     toast({ title: "Configurações salvas com sucesso!" });
   };
 
+  const toolItems = [
+    { title: "Agenda Oficial", description: "Gerencie compromissos e eventos", icon: CalendarDays, url: "/agenda" },
+    { title: "Assistente Legislativo", description: "IA para projetos de lei e consultas", icon: Bot, url: "/assistente" },
+    { title: "Disparo em Massa", description: "Envie mensagens para múltiplos contatos", icon: Send, url: "/disparo-massa" },
+    ...(role === "politico" ? [{ title: "Assessores", description: "Gerencie seus assessores", icon: UserCheck, url: "/assessores" }] : []),
+  ];
+
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 sm:space-y-6 max-w-2xl">
       <div>
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Configurações</h1>
-        <p className="text-muted-foreground text-xs sm:text-sm mt-1">Gerencie as preferências do gabinete.</p>
+        <p className="text-muted-foreground text-xs sm:text-sm mt-1">Gerencie preferências e acesse ferramentas.</p>
       </div>
+
+      <Card className="glass-card">
+        <CardHeader>
+          <CardTitle className="text-lg">Ferramentas</CardTitle>
+          <p className="text-sm text-muted-foreground">Acesse recursos adicionais do gabinete.</p>
+        </CardHeader>
+        <CardContent className="space-y-1 p-2">
+          {toolItems.map((item) => (
+            <button
+              key={item.url}
+              onClick={() => navigate(item.url)}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-secondary/50 transition-colors text-left"
+            >
+              <div className="h-10 w-10 rounded-lg gradient-primary flex items-center justify-center shrink-0">
+                <item.icon className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">{item.title}</p>
+                <p className="text-xs text-muted-foreground">{item.description}</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+            </button>
+          ))}
+        </CardContent>
+      </Card>
 
       <Card className="glass-card">
         <CardHeader>
