@@ -233,17 +233,19 @@ async function callAI(systemPrompt: string, userMessage: string, history: Array<
   return data.choices?.[0]?.message?.content ?? "";
 }
 
-async function extractJSON(systemPrompt: string, userMessage: string): Promise<any> {
+async function extractJSON(systemPrompt: string, userMessage: string, history: Array<{role: string, message: string}> = []): Promise<any> {
   const key = getEnv("LOVABLE_API_KEY");
+  const messages: any[] = [{ role: "system", content: systemPrompt }];
+  for (const h of history) {
+    messages.push({ role: h.role === "assistant" ? "assistant" : "user", content: h.message });
+  }
+  messages.push({ role: "user", content: userMessage });
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "google/gemini-3-flash-preview",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage },
-      ],
+      messages,
       tools: [{
         type: "function",
         function: {
