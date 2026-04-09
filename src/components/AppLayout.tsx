@@ -12,6 +12,7 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -32,18 +33,17 @@ export function AppLayout({ children }: AppLayoutProps) {
               <h1 className="text-sm font-semibold md:hidden">Democrat.IA</h1>
             </div>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground" onClick={() => navigate("/configuracoes")}>
-                <Settings className="h-5 w-5 md:hidden" />
-                <Bell className="h-5 w-5 hidden md:block" />
-                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-accent hidden md:block" />
-              </Button>
-              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground hidden md:flex">
+              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
                 <Bell className="h-5 w-5" />
                 <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-accent" />
               </Button>
-              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground md:hidden">
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-accent" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground hover:text-foreground md:hidden"
+                onClick={() => navigate("/configuracoes")}
+              >
+                <Settings className="h-5 w-5" />
               </Button>
             </div>
           </header>
