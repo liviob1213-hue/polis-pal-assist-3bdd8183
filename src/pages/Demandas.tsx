@@ -152,6 +152,13 @@ const Demandas = () => {
     setDialogOpen(true);
   };
 
+  const deleteDemanda = async (id: string) => {
+    const { error } = await supabase.from("demandas").delete().eq("id", id);
+    if (error) { toast({ title: "Erro ao excluir", variant: "destructive" }); return; }
+    toast({ title: "Demanda excluída!" });
+    fetchDemandas();
+  };
+
   const moveTask = async (id: string, newStatus: StatusKey) => {
     const { error } = await supabase.from("demandas").update({ status: newStatus }).eq("id", id);
     if (error) { toast({ title: "Erro ao mover demanda", variant: "destructive" }); return; }
