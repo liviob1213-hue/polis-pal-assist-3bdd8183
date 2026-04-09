@@ -624,12 +624,40 @@ Deno.serve(async (req) => {
       return jsonResponse({ status: "unauthorized", phone: senderPhone });
     }
 
+    // Save user message to history
+    await saveChatMessage(senderPhone, "user", message);
+
+    // Get chat history and pending context
+    const history = await getChatHistory(senderPhone, 10);
+    const pendingCtx = await getPendingContext(senderPhone);
+    
+    console.log("📜 History length:", history.length, "Pending context:", pendingCtx ? JSON.stringify(pendingCtx).substring(0, 200) : "none");
+
     const senderProfile = await getSenderProfile(senderPhone);
     const isAssessor = senderProfile?.role === "assessor";
+
+    // Build conversation history for AI
+    const chatMessages = history.slice(0, -1).map(h => ({ role: h.role, message: h.message }));
+
+    // Build context instruction if there's a pending operation
+    let pendingInstruction = "";
+    if (pendingCtx?.pending) {
+      const p = pendingCtx;
+      pendingInstruction = `
+CONTEXTO PENDENTE: O assistente estava no meio de uma operação "${p.pendingIntent}" com os seguintes dados já coletados:
+${JSON.stringify(p.pendingData, null, 2)}
+Campos que faltavam: ${(p.pendingMissing || []).join(", ")}
+
+A mensagem atual do usuário provavelmente é uma RESPOSTA com os dados faltantes. 
+- Se a resposta contém os dados faltantes, use a MESMA intenção "${p.pendingIntent}" e COMBINE os dados anteriores com os novos.
+- Se o usuário diz "criar assim mesmo" ou "sem prazo" ou "não precisa", use a mesma intenção mas NÃO preencha campos_faltantes.
+- NÃO crie uma nova demanda/tarefa separada, é a CONTINUAÇÃO da mesma operação.`;
+    }
 
     const systemPrompt = `Você é um assistente de gabinete parlamentar. Analise a mensagem do usuário e extraia a intenção e dados relevantes.
 Hoje é: ${new Date().toISOString()}
 O remetente é um ${isAssessor ? "ASSESSOR" : "POLÍTICO"} chamado ${senderProfile?.nome || "desconhecido"}.
+${pendingInstruction}
 
 Intenções possíveis:
 - cadastrar_eleitor: quando querem cadastrar/registrar um eleitor/cidadão
@@ -654,48 +682,81 @@ IMPORTANTE:
 - Para criar_tarefa: os campos importantes são titulo, descricao e prazo. Se FALTAREM campos, preencha "campos_faltantes".
 - Se o usuário responder "criar assim mesmo" ou similar, NÃO preencha campos_faltantes (deixe vazio) para que o cadastro prossiga.`;
 
-    const extracted = await extractJSON(systemPrompt, message);
-    console.log("🧠 Intent:", JSON.stringify(extracted));
+    const extracted = await extractJSON(systemPrompt, message, chatMessages);
+    
+    // If there's pending context and the AI returned the same intent, merge data
+    let finalExtracted = extracted;
+    if (pendingCtx?.pending && extracted.intent === pendingCtx.pendingIntent) {
+      const merged = { ...pendingCtx.pendingData, ...extracted };
+      // Keep non-empty values from pending data if new extraction is empty
+      for (const [key, value] of Object.entries(pendingCtx.pendingData)) {
+        if (value && !merged[key]) {
+          merged[key] = value;
+        }
+      }
+      merged.intent = extracted.intent;
+      // If user provided the missing fields, clear campos_faltantes
+      if (!extracted.campos_faltantes || extracted.campos_faltantes.length === 0) {
+        merged.campos_faltantes = [];
+      }
+      finalExtracted = merged;
+      console.log("🔗 Merged with pending context:", JSON.stringify(finalExtracted).substring(0, 500));
+    }
+    
+    console.log("🧠 Intent:", JSON.stringify(finalExtracted));
 
     let reply: string;
 
-    switch (extracted.intent) {
+    switch (finalExtracted.intent) {
       case "cadastrar_eleitor":
-        reply = await handleCadastrarEleitor(extracted);
+        reply = await handleCadastrarEleitor(finalExtracted);
         break;
       case "consultar_eleitor":
-        reply = await handleConsultarEleitor(extracted);
+        reply = await handleConsultarEleitor(finalExtracted);
         break;
       case "criar_demanda":
-        reply = await handleCriarDemanda(extracted, senderProfile);
+        reply = await handleCriarDemanda(finalExtracted, senderProfile);
         break;
       case "consultar_demanda":
-        reply = await handleConsultarDemanda(extracted, senderProfile);
+        reply = await handleConsultarDemanda(finalExtracted, senderProfile);
         break;
       case "concluir_demanda":
-        reply = await handleConcluirDemanda(extracted);
+        reply = await handleConcluirDemanda(finalExtracted);
         break;
       case "mover_demanda":
-        reply = await handleMoverDemanda(extracted);
+        reply = await handleMoverDemanda(finalExtracted);
         break;
       case "criar_projeto_lei":
-        reply = await handleCriarProjetoLei(extracted);
+        reply = await handleCriarProjetoLei(finalExtracted);
         break;
       case "criar_tarefa":
-        reply = await handleCriarTarefa(extracted, senderProfile);
+        reply = await handleCriarTarefa(finalExtracted, senderProfile);
         break;
       case "mover_tarefa":
-        reply = await handleMoverTarefa(extracted, senderProfile);
+        reply = await handleMoverTarefa(finalExtracted, senderProfile);
         break;
       case "concluir_tarefa":
-        reply = await handleConcluirTarefa(extracted, senderProfile);
+        reply = await handleConcluirTarefa(finalExtracted, senderProfile);
         break;
       default:
         reply = await callAI(
           "Você é o assistente do gabinete DEMOCRAT.AI. Responda de forma amigável e útil em português. Seja conciso.",
-          message
+          message,
+          chatMessages
         );
     }
+
+    // Determine if this reply is asking for missing fields (pending operation)
+    const isPending = reply.includes("faltam algumas informações") || reply.includes("Deseja adicionar");
+    const contextToSave = isPending ? {
+      pending: true,
+      pendingIntent: finalExtracted.intent,
+      pendingData: finalExtracted,
+      pendingMissing: finalExtracted.campos_faltantes || [],
+    } : null;
+
+    // Save assistant reply to history
+    await saveChatMessage(senderPhone, "assistant", reply, contextToSave);
 
     if (senderPhone) {
       try {
@@ -705,7 +766,7 @@ IMPORTANTE:
       }
     }
 
-    return jsonResponse({ success: true, intent: extracted.intent, reply });
+    return jsonResponse({ success: true, intent: finalExtracted.intent, reply });
   } catch (error) {
     console.error("whatsapp-agent error:", error);
     const message = error instanceof Error ? error.message : "Erro interno";
