@@ -164,20 +164,65 @@ async function sendMessage(phone: string, text: string) {
   return res.json();
 }
 
+// ─── Chat History ───────────────────────────────────────────
+
+async function getChatHistory(phone: string, limit = 10): Promise<Array<{role: string, message: string, context: any}>> {
+  const sb = supabaseAdmin();
+  const { data } = await sb
+    .from("chat_history")
+    .select("role, message, context")
+    .eq("telefone", phone)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return (data || []).reverse();
+}
+
+async function saveChatMessage(phone: string, role: string, message: string, context: any = null) {
+  const sb = supabaseAdmin();
+  await sb.from("chat_history").insert({ telefone: phone, role, message, context });
+  // Clean old messages (keep last 30)
+  const { data: old } = await sb
+    .from("chat_history")
+    .select("id")
+    .eq("telefone", phone)
+    .order("created_at", { ascending: false })
+    .range(30, 100);
+  if (old && old.length > 0) {
+    await sb.from("chat_history").delete().in("id", old.map((o: any) => o.id));
+  }
+}
+
+async function getPendingContext(phone: string): Promise<any | null> {
+  const sb = supabaseAdmin();
+  const { data } = await sb
+    .from("chat_history")
+    .select("context")
+    .eq("telefone", phone)
+    .eq("role", "assistant")
+    .not("context", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (data && data.length > 0 && data[0].context?.pending) {
+    return data[0].context;
+  }
+  return null;
+}
+
 // ─── AI (Lovable AI Gateway) ────────────────────────────────
 
-async function callAI(systemPrompt: string, userMessage: string): Promise<string> {
+async function callAI(systemPrompt: string, userMessage: string, history: Array<{role: string, message: string}> = []): Promise<string> {
   const key = getEnv("LOVABLE_API_KEY");
+  const messages: any[] = [{ role: "system", content: systemPrompt }];
+  // Add history
+  for (const h of history) {
+    messages.push({ role: h.role === "assistant" ? "assistant" : "user", content: h.message });
+  }
+  messages.push({ role: "user", content: userMessage });
+  
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage },
-      ],
-    }),
+    body: JSON.stringify({ model: "google/gemini-3-flash-preview", messages }),
   });
   if (!res.ok) {
     const t = await res.text();
