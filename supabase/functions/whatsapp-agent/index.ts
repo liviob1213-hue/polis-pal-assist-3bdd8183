@@ -455,7 +455,7 @@ async function handleCriarTarefa(params: any, senderProfile: any): Promise<strin
 async function handleMoverTarefa(params: any): Promise<string> {
   const sb = supabaseAdmin();
   const busca = params.tarefa_busca || params.busca_texto || params.titulo || "";
-  const novoStatus = params.novo_status || "Em Andamento";
+  const novoStatus = normalizeTarefaStatus(params.novo_status || "Em Andamento");
   const { data, error: fErr } = await sb.from("tarefas").select("id, titulo, status").ilike("titulo", `%${busca}%`).limit(1).single();
   if (fErr || !data) return `❌ Tarefa "${busca}" não encontrada.`;
   if (data.status === novoStatus) return `ℹ️ Tarefa *${data.titulo}* já está em *${novoStatus}*.`;
