@@ -7,9 +7,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, MapPin, Calendar, Clock, Sparkles, GripVertical, Pencil } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, MapPin, Calendar, Clock, Sparkles, GripVertical, Pencil, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInDays } from "date-fns";
 
@@ -19,7 +21,13 @@ interface Demanda {
   descricao: string | null;
   status: string;
   localizacao: string | null;
+  assessor_id: string | null;
   created_at: string;
+}
+
+interface AssessorOption {
+  user_id: string;
+  nome: string;
 }
 
 type StatusKey = "Aberto" | "Em Análise" | "Em Andamento" | "Resolvido";
@@ -39,13 +47,36 @@ const statusStyles: Record<string, string> = {
 };
 
 const Demandas = () => {
+  const { user, role } = useAuth();
   const [demandas, setDemandas] = useState<Demanda[]>([]);
+  const [assessores, setAssessores] = useState<AssessorOption[]>([]);
+  const [assessorMap, setAssessorMap] = useState<Record<string, string>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingDemanda, setEditingDemanda] = useState<Demanda | null>(null);
-  const [form, setForm] = useState({ titulo: "", descricao: "", localizacao: "" });
+  const [form, setForm] = useState({ titulo: "", descricao: "", localizacao: "", assessor_id: "" });
   const [dragId, setDragId] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const fetchAssessores = async () => {
+    if (!user || role !== "politico") return;
+    const { data: links } = await supabase
+      .from("politician_assessors")
+      .select("assessor_id")
+      .eq("politician_id", user.id);
+    if (!links || links.length === 0) return;
+    const ids = links.map((l) => l.assessor_id);
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("user_id, nome")
+      .in("user_id", ids);
+    if (profiles) {
+      setAssessores(profiles);
+      const map: Record<string, string> = {};
+      profiles.forEach((p) => { map[p.user_id] = p.nome; });
+      setAssessorMap(map);
+    }
+  };
 
   const fetchDemandas = async () => {
     const { data } = await supabase.from("demandas").select("*").order("created_at", { ascending: false });
@@ -54,41 +85,51 @@ const Demandas = () => {
 
   useEffect(() => {
     fetchDemandas();
+    fetchAssessores();
     const channel = supabase.channel("demandas-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "demandas" }, () => fetchDemandas())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [user, role]);
 
   const handleSave = async () => {
     if (!form.titulo) { toast({ title: "Preencha o título", variant: "destructive" }); return; }
 
+    const payload: any = {
+      titulo: form.titulo,
+      descricao: form.descricao || null,
+      localizacao: form.localizacao || null,
+    };
+    if (role === "politico") {
+      payload.assessor_id = form.assessor_id || null;
+    }
+
     if (editingDemanda) {
-      const { error } = await supabase.from("demandas").update({
-        titulo: form.titulo,
-        descricao: form.descricao || null,
-        localizacao: form.localizacao || null,
-      }).eq("id", editingDemanda.id);
+      const { error } = await supabase.from("demandas").update(payload).eq("id", editingDemanda.id);
       if (error) { toast({ title: "Erro ao atualizar", variant: "destructive" }); return; }
       toast({ title: "Demanda atualizada!" });
     } else {
-      const { error } = await supabase.from("demandas").insert({
-        titulo: form.titulo,
-        descricao: form.descricao || null,
-        localizacao: form.localizacao || null,
-      });
+      if (role === "assessor" && user) {
+        payload.assessor_id = user.id;
+      }
+      const { error } = await supabase.from("demandas").insert(payload);
       if (error) { toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Demanda criada!" });
     }
 
-    setForm({ titulo: "", descricao: "", localizacao: "" });
+    setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "" });
     setEditingDemanda(null);
     setDialogOpen(false);
   };
 
   const openEdit = (demanda: Demanda) => {
     setEditingDemanda(demanda);
-    setForm({ titulo: demanda.titulo, descricao: demanda.descricao || "", localizacao: demanda.localizacao || "" });
+    setForm({
+      titulo: demanda.titulo,
+      descricao: demanda.descricao || "",
+      localizacao: demanda.localizacao || "",
+      assessor_id: demanda.assessor_id || "",
+    });
     setDialogOpen(true);
   };
 
@@ -133,7 +174,7 @@ const Demandas = () => {
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           <Badge variant="secondary" className="text-sm">{total} Total</Badge>
-          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingDemanda(null); setForm({ titulo: "", descricao: "", localizacao: "" }); } }}>
+          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingDemanda(null); setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "" }); } }}>
             <DialogTrigger asChild>
               <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
                 <Plus className="h-4 w-4" /> Nova Demanda
@@ -145,6 +186,22 @@ const Demandas = () => {
                 <div><Label>Título</Label><Input value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} placeholder="Título da demanda" /></div>
                 <div><Label>Descrição</Label><Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} placeholder="Descreva a demanda" /></div>
                 <div><Label>Localização</Label><Input value={form.localizacao} onChange={(e) => setForm({ ...form, localizacao: e.target.value })} placeholder="Local da demanda" /></div>
+                {role === "politico" && assessores.length > 0 && (
+                  <div>
+                    <Label>Atribuir a Assessor</Label>
+                    <Select value={form.assessor_id} onValueChange={(v) => setForm({ ...form, assessor_id: v === "none" ? "" : v })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sem atribuição" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sem atribuição</SelectItem>
+                        {assessores.map((a) => (
+                          <SelectItem key={a.user_id} value={a.user_id}>{a.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <Button onClick={handleSave} className="w-full gradient-primary text-primary-foreground">
                   {editingDemanda ? "Salvar Alterações" : "Criar Demanda"}
                 </Button>
@@ -168,6 +225,7 @@ const Demandas = () => {
                 <AnimatePresence>
                   {colDemandas.map((demanda) => {
                     const dias = differenceInDays(new Date(), new Date(demanda.created_at));
+                    const assessorNome = demanda.assessor_id ? assessorMap[demanda.assessor_id] : null;
                     return (
                       <motion.div
                         key={demanda.id}
@@ -194,7 +252,7 @@ const Demandas = () => {
                               <h3 className="font-semibold text-xs sm:text-sm">{demanda.titulo}</h3>
                               {demanda.descricao && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{demanda.descricao}</p>}
                             </div>
-                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                               {demanda.localizacao && (
                                 <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{demanda.localizacao}</span>
                               )}
@@ -202,6 +260,11 @@ const Demandas = () => {
                                 <Calendar className="h-3 w-3" />
                                 {format(new Date(demanda.created_at), "dd/MM/yyyy")}
                               </span>
+                              {assessorNome && (
+                                <span className="flex items-center gap-1 text-primary">
+                                  <UserCheck className="h-3 w-3" />{assessorNome}
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center justify-between text-xs text-muted-foreground border-t border-border pt-2">
                               <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{dias} dias</span>
