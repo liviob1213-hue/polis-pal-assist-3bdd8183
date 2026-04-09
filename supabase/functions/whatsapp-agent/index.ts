@@ -54,6 +54,69 @@ function extractMessageFromWebhook(body: any): string {
   return typeof message === "string" ? message.trim() : "";
 }
 
+function extractAudioUrl(body: any): string | null {
+  // UAZAPI audio message formats
+  const candidates = [
+    body?.message?.message?.audioMessage?.url,
+    body?.message?.mediaUrl,
+    body?.message?.media?.url,
+    body?.message?.message?.documentMessage?.url,
+    body?.mediaUrl,
+    body?.media?.url,
+    body?.audio?.url,
+    body?.message?.audio?.url,
+  ];
+  const url = candidates.find((v) => typeof v === "string" && v.startsWith("http"));
+  if (url) return url;
+  
+  // Check if it's an audio message type
+  const msgType = body?.message?.messageType || body?.message?.type || body?.messageType || "";
+  const isAudio = msgType === "audioMessage" || msgType === "audio" || msgType === "ptt";
+  if (isAudio) {
+    // Try base64 audio
+    const b64 = body?.message?.message?.audioMessage?.base64 || body?.message?.base64 || body?.base64;
+    if (b64) return `base64:${b64}`;
+  }
+  return null;
+}
+
+async function transcribeAudio(audioUrl: string): Promise<string> {
+  const openaiKey = Deno.env.get("OPENAI_API_KEY");
+  if (!openaiKey) throw new Error("OPENAI_API_KEY not configured");
+
+  let audioBlob: Blob;
+  
+  if (audioUrl.startsWith("base64:")) {
+    const b64 = audioUrl.slice(7);
+    const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    audioBlob = new Blob([bytes], { type: "audio/ogg" });
+  } else {
+    const audioRes = await fetch(audioUrl);
+    if (!audioRes.ok) throw new Error(`Failed to download audio: ${audioRes.status}`);
+    audioBlob = await audioRes.blob();
+  }
+
+  const formData = new FormData();
+  formData.append("file", audioBlob, "audio.ogg");
+  formData.append("model", "whisper-1");
+  formData.append("language", "pt");
+
+  const whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${openaiKey}` },
+    body: formData,
+  });
+
+  if (!whisperRes.ok) {
+    const errText = await whisperRes.text();
+    console.error("Whisper error:", whisperRes.status, errText);
+    throw new Error(`Whisper API ${whisperRes.status}`);
+  }
+
+  const result = await whisperRes.json();
+  return result.text || "";
+}
+
 function extractSenderPhone(body: any): string {
   const candidates = [
     body?.message?.chatid,
@@ -635,10 +698,26 @@ Deno.serve(async (req) => {
     const body = await req.json();
     console.log("📦 Webhook body (full):", JSON.stringify(body).substring(0, 2500));
 
-    const message = extractMessageFromWebhook(body);
+    let message = extractMessageFromWebhook(body);
     const senderPhone = extractSenderPhone(body);
+    const audioUrl = extractAudioUrl(body);
 
-    console.log("📱 Extracted phone:", senderPhone, "📝 Extracted message:", message);
+    console.log("📱 Extracted phone:", senderPhone, "📝 Extracted message:", message, "🎤 Audio:", audioUrl ? "yes" : "no");
+
+    // If audio message, transcribe with Whisper
+    if (audioUrl && !message) {
+      try {
+        console.log("🎤 Transcribing audio...");
+        message = await transcribeAudio(audioUrl);
+        console.log("🎤 Transcribed:", message);
+      } catch (e) {
+        console.error("Audio transcription error:", e);
+        if (senderPhone && (await isAuthorized(senderPhone))) {
+          await sendMessage(senderPhone, "❌ Não consegui entender o áudio. Tente enviar como texto ou gravar novamente.");
+        }
+        return jsonResponse({ status: "audio_error", error: e.message });
+      }
+    }
 
     if (!message) {
       return jsonResponse({ status: "ignored", reason: "no message" });
