@@ -523,18 +523,31 @@ async function handleCriarTarefa(params: any, senderProfile: any): Promise<strin
   }
 
   if (params.assessor_nome && senderProfile?.role === "politico") {
-    const assessor = await findAssessorByName(params.assessor_nome, senderProfile.user_id);
-    if (assessor) {
-      assessorId = assessor.user_id;
-      try {
-        await sendMessage(assessor.telefone, `✅ *Nova tarefa atribuída a você!*\n\n📌 ${titulo}\n${params.descricao ? `📝 ${params.descricao}` : ""}\n${prazo ? `📅 Prazo: ${new Date(prazo).toLocaleString("pt-BR")}` : ""}\n\n_Atribuída por ${senderProfile.nome}_`);
-        assessorNotification = `\n📨 Notificação enviada para o assessor *${assessor.nome}*!`;
-      } catch (e) {
-        console.error("Error notifying assessor:", e);
-      }
+    const selfNames = ["eu", "mim", "eu mesmo", "pra mim", "para mim", "meu", "si mesmo", "próprio", "proprio"];
+    const isSelfAssign = selfNames.some(s => normalizeText(params.assessor_nome).includes(s));
+    
+    if (isSelfAssign) {
+      assessorId = senderProfile.user_id;
+      assessorNotification = `\n📌 Atribuída a você mesmo.`;
     } else {
-      return `❌ Assessor "${params.assessor_nome}" não encontrado entre seus assessores cadastrados.`;
+      const assessor = await findAssessorByName(params.assessor_nome, senderProfile.user_id);
+      if (assessor) {
+        assessorId = assessor.user_id;
+        try {
+          await sendMessage(assessor.telefone, `✅ *Nova tarefa atribuída a você!*\n\n📌 ${titulo}\n${params.descricao ? `📝 ${params.descricao}` : ""}\n${prazo ? `📅 Prazo: ${new Date(prazo).toLocaleString("pt-BR")}` : ""}\n\n_Atribuída por ${senderProfile.nome}_`);
+          assessorNotification = `\n📨 Notificação enviada para o assessor *${assessor.nome}*!`;
+        } catch (e) {
+          console.error("Error notifying assessor:", e);
+        }
+      } else {
+        return `❌ Assessor "${params.assessor_nome}" não encontrado entre seus assessores cadastrados.`;
+      }
     }
+  }
+
+  // Politician without assessor_nome → assign to self
+  if (senderProfile?.role === "politico" && !assessorId && !params.assessor_nome) {
+    assessorId = senderProfile.user_id;
   }
 
   if (senderProfile?.role === "assessor" && !assessorId) {
