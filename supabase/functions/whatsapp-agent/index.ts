@@ -342,12 +342,42 @@ async function handleConcluirDemanda(params: any): Promise<string> {
   return `✅ Demanda *${data.titulo}* marcada como Resolvida!`;
 }
 
+// ─── Status normalization ────────────────────────────────────
+
+const DEMANDA_STATUS_MAP: Record<string, string> = {
+  "aberto": "Aberto",
+  "em análise": "Em Análise",
+  "em analise": "Em Análise",
+  "em andamento": "Em Andamento",
+  "resolvido": "Resolvido",
+  "resolvida": "Resolvido",
+};
+
+const TAREFA_STATUS_MAP: Record<string, string> = {
+  "novas tarefas": "Novas Tarefas",
+  "nova tarefa": "Novas Tarefas",
+  "em andamento": "Em Andamento",
+  "finalizadas": "Finalizadas",
+  "finalizada": "Finalizadas",
+  "concluída": "Finalizadas",
+  "concluida": "Finalizadas",
+};
+
+function normalizeDemandaStatus(raw: string): string {
+  return DEMANDA_STATUS_MAP[raw.toLowerCase().trim()] || raw;
+}
+
+function normalizeTarefaStatus(raw: string): string {
+  return TAREFA_STATUS_MAP[raw.toLowerCase().trim()] || raw;
+}
+
 async function handleMoverDemanda(params: any): Promise<string> {
   const sb = supabaseAdmin();
   const busca = params.busca_texto || params.titulo || "";
-  const novoStatus = params.novo_status || "Em Andamento";
+  const novoStatus = normalizeDemandaStatus(params.novo_status || "Em Andamento");
   const { data, error: fErr } = await sb.from("demandas").select("id, titulo, status").ilike("titulo", `%${busca}%`).limit(1).single();
   if (fErr || !data) return `❌ Demanda "${busca}" não encontrada.`;
+  if (data.status === novoStatus) return `ℹ️ Demanda *${data.titulo}* já está em *${novoStatus}*.`;
   const { error: uErr } = await sb.from("demandas").update({ status: novoStatus }).eq("id", data.id);
   if (uErr) throw new Error(`DB error: ${uErr.message}`);
   return `✅ Demanda *${data.titulo}* movida para *${novoStatus}*!`;
@@ -425,7 +455,7 @@ async function handleCriarTarefa(params: any, senderProfile: any): Promise<strin
 async function handleMoverTarefa(params: any): Promise<string> {
   const sb = supabaseAdmin();
   const busca = params.tarefa_busca || params.busca_texto || params.titulo || "";
-  const novoStatus = params.novo_status || "Em Andamento";
+  const novoStatus = normalizeTarefaStatus(params.novo_status || "Em Andamento");
   const { data, error: fErr } = await sb.from("tarefas").select("id, titulo, status").ilike("titulo", `%${busca}%`).limit(1).single();
   if (fErr || !data) return `❌ Tarefa "${busca}" não encontrada.`;
   if (data.status === novoStatus) return `ℹ️ Tarefa *${data.titulo}* já está em *${novoStatus}*.`;

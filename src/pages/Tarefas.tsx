@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Calendar, Clock, GripVertical, Pencil } from "lucide-react";
+import { Plus, Calendar, Clock, GripVertical, Pencil, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Tarefa {
@@ -18,7 +19,13 @@ interface Tarefa {
   descricao: string | null;
   prazo: string | null;
   status: string;
+  assessor_id: string | null;
   created_at: string;
+}
+
+interface AssessorOption {
+  user_id: string;
+  nome: string;
 }
 
 type StatusKey = "Novas Tarefas" | "Em Andamento" | "Finalizadas";
@@ -30,12 +37,35 @@ const columns: { key: StatusKey; title: string; dotColor: string }[] = [
 ];
 
 const Tarefas = () => {
+  const { user, role } = useAuth();
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
+  const [assessores, setAssessores] = useState<AssessorOption[]>([]);
+  const [assessorMap, setAssessorMap] = useState<Record<string, string>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTarefa, setEditingTarefa] = useState<Tarefa | null>(null);
-  const [form, setForm] = useState({ titulo: "", descricao: "", prazo: "" });
+  const [form, setForm] = useState({ titulo: "", descricao: "", prazo: "", assessor_id: "" });
   const [dragId, setDragId] = useState<string | null>(null);
   const { toast } = useToast();
+
+  const fetchAssessores = async () => {
+    if (!user || role !== "politico") return;
+    const { data: links } = await supabase
+      .from("politician_assessors")
+      .select("assessor_id")
+      .eq("politician_id", user.id);
+    if (!links || links.length === 0) return;
+    const ids = links.map((l) => l.assessor_id);
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("user_id, nome")
+      .in("user_id", ids);
+    if (profiles) {
+      setAssessores(profiles);
+      const map: Record<string, string> = {};
+      profiles.forEach((p) => { map[p.user_id] = p.nome; });
+      setAssessorMap(map);
+    }
+  };
 
   const fetchTarefas = async () => {
     const { data, error } = await supabase
@@ -51,6 +81,7 @@ const Tarefas = () => {
 
   useEffect(() => {
     fetchTarefas();
+    fetchAssessores();
 
     const channel = supabase
       .channel("tarefas-realtime")
@@ -60,7 +91,7 @@ const Tarefas = () => {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [user, role]);
 
   const handleSave = async () => {
     if (!form.titulo) {
@@ -68,14 +99,19 @@ const Tarefas = () => {
       return;
     }
 
+    const payload: any = {
+      titulo: form.titulo,
+      descricao: form.descricao || null,
+      prazo: form.prazo || null,
+    };
+    if (role === "politico") {
+      payload.assessor_id = form.assessor_id || null;
+    }
+
     if (editingTarefa) {
       const { error } = await supabase
         .from("tarefas")
-        .update({
-          titulo: form.titulo,
-          descricao: form.descricao || null,
-          prazo: form.prazo || null,
-        })
+        .update(payload)
         .eq("id", editingTarefa.id);
       if (error) {
         toast({ title: "Erro ao atualizar", variant: "destructive" });
@@ -83,11 +119,10 @@ const Tarefas = () => {
       }
       toast({ title: "Tarefa atualizada!" });
     } else {
-      const { error } = await supabase.from("tarefas").insert({
-        titulo: form.titulo,
-        descricao: form.descricao || null,
-        prazo: form.prazo || null,
-      });
+      if (role === "assessor" && user) {
+        payload.assessor_id = user.id;
+      }
+      const { error } = await supabase.from("tarefas").insert(payload);
       if (error) {
         toast({ title: "Erro ao criar", variant: "destructive" });
         return;
@@ -95,7 +130,7 @@ const Tarefas = () => {
       toast({ title: "Tarefa criada!" });
     }
 
-    setForm({ titulo: "", descricao: "", prazo: "" });
+    setForm({ titulo: "", descricao: "", prazo: "", assessor_id: "" });
     setEditingTarefa(null);
     setDialogOpen(false);
     fetchTarefas();
@@ -107,6 +142,7 @@ const Tarefas = () => {
       titulo: tarefa.titulo,
       descricao: tarefa.descricao || "",
       prazo: tarefa.prazo ? tarefa.prazo.split("T")[0] : "",
+      assessor_id: tarefa.assessor_id || "",
     });
     setDialogOpen(true);
   };
@@ -159,7 +195,7 @@ const Tarefas = () => {
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           <Badge variant="secondary" className="text-sm">{total} Total</Badge>
-          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingTarefa(null); setForm({ titulo: "", descricao: "", prazo: "" }); } }}>
+          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingTarefa(null); setForm({ titulo: "", descricao: "", prazo: "", assessor_id: "" }); } }}>
             <DialogTrigger asChild>
               <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
                 <Plus className="h-4 w-4" /> Nova Tarefa
@@ -171,6 +207,20 @@ const Tarefas = () => {
                 <div><Label>Título</Label><Input value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} placeholder="Título da tarefa" /></div>
                 <div><Label>Descrição</Label><Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} placeholder="Descreva a tarefa (opcional)" rows={3} /></div>
                 <div><Label>Prazo</Label><Input type="date" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} /></div>
+                {role === "politico" && assessores.length > 0 && (
+                  <div>
+                    <Label>Atribuir a Assessor</Label>
+                    <Select value={form.assessor_id} onValueChange={(v) => setForm({ ...form, assessor_id: v === "none" ? "" : v })}>
+                      <SelectTrigger><SelectValue placeholder="Selecione um assessor (opcional)" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhum</SelectItem>
+                        {assessores.map((a) => (
+                          <SelectItem key={a.user_id} value={a.user_id}>{a.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <Button onClick={handleSave} className="w-full gradient-primary text-primary-foreground">
                   {editingTarefa ? "Salvar Alterações" : "Criar Tarefa"}
                 </Button>
@@ -217,9 +267,12 @@ const Tarefas = () => {
                           {tarefa.descricao && (
                             <p className="text-xs text-muted-foreground line-clamp-2">{tarefa.descricao}</p>
                           )}
-                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-1">
                             {tarefa.prazo && (
                               <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{formatDate(tarefa.prazo)}</span>
+                            )}
+                            {tarefa.assessor_id && assessorMap[tarefa.assessor_id] && (
+                              <span className="flex items-center gap-1 text-primary"><UserCheck className="h-3 w-3" />{assessorMap[tarefa.assessor_id]}</span>
                             )}
                             {tarefa.status === "Finalizadas" && (
                               <span className="flex items-center gap-1 text-success"><Clock className="h-3 w-3" />Concluído</span>
