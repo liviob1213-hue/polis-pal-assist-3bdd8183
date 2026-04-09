@@ -701,7 +701,9 @@ Intenções possíveis:
 
 IMPORTANTE:
 - Se o usuário diz "demanda para João: ..." ou "tarefa para Maria: ...", extraia o nome (João/Maria) no campo "assessor_nome" para atribuição.
-- ${isAssessor ? "Como assessor, ele só pode criar demandas e tarefas para si mesmo. Não pode atribuir a outros." : "Como político, ele pode atribuir demandas e tarefas a assessores pelo nome."}
+- Se o usuário NÃO menciona nenhum nome de assessor e simplesmente pede para criar demanda/tarefa, NÃO preencha assessor_nome. A demanda/tarefa será automaticamente atribuída a ele mesmo.
+- Se o usuário diz "pra mim", "para mim mesmo", "eu mesmo", extraia assessor_nome como "eu mesmo".
+- ${isAssessor ? "Como assessor, ele só pode criar demandas e tarefas para si mesmo. Não pode atribuir a outros." : "Como político, ele pode atribuir demandas e tarefas a assessores pelo nome, ou criar para si mesmo (sem nome = para si)."}
 - Se o usuário diz que algo "está em andamento" ou "foi concluído" referindo-se a uma tarefa ou demanda EXISTENTE, a intenção é MOVER (mover_tarefa ou mover_demanda), NÃO criar uma nova. 
 - EXEMPLOS DE MOVER: "relatorio da semana em andamento" = mover_tarefa, "tapar buracos resolvido" = concluir_demanda
 - Se o usuário pergunta sobre eleitores em uma cidade ou por interesse, SEMPRE use consultar_eleitor.
