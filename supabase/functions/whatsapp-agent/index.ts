@@ -698,10 +698,26 @@ Deno.serve(async (req) => {
     const body = await req.json();
     console.log("📦 Webhook body (full):", JSON.stringify(body).substring(0, 2500));
 
-    const message = extractMessageFromWebhook(body);
+    let message = extractMessageFromWebhook(body);
     const senderPhone = extractSenderPhone(body);
+    const audioUrl = extractAudioUrl(body);
 
-    console.log("📱 Extracted phone:", senderPhone, "📝 Extracted message:", message);
+    console.log("📱 Extracted phone:", senderPhone, "📝 Extracted message:", message, "🎤 Audio:", audioUrl ? "yes" : "no");
+
+    // If audio message, transcribe with Whisper
+    if (audioUrl && !message) {
+      try {
+        console.log("🎤 Transcribing audio...");
+        message = await transcribeAudio(audioUrl);
+        console.log("🎤 Transcribed:", message);
+      } catch (e) {
+        console.error("Audio transcription error:", e);
+        if (senderPhone && (await isAuthorized(senderPhone))) {
+          await sendMessage(senderPhone, "❌ Não consegui entender o áudio. Tente enviar como texto ou gravar novamente.");
+        }
+        return jsonResponse({ status: "audio_error", error: e.message });
+      }
+    }
 
     if (!message) {
       return jsonResponse({ status: "ignored", reason: "no message" });
