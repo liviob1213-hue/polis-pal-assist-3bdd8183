@@ -30,10 +30,10 @@ Deno.serve(async (req) => {
     const sb = createClient(supabaseUrl, supabaseKey);
     const now = new Date();
 
-    // Fetch overdue tarefas and demandas
+    // Fetch ALL pending tarefas and demandas (not just overdue)
     const [tarefasRes, demandasRes, profilesRes] = await Promise.all([
-      sb.from("tarefas").select("titulo, status, prazo, assessor_id").neq("status", "Finalizadas").not("prazo", "is", null),
-      sb.from("demandas").select("titulo, status, prazo, assessor_id").neq("status", "Resolvido").not("prazo", "is", null),
+      sb.from("tarefas").select("titulo, status, prazo, assessor_id, created_at").neq("status", "Finalizadas"),
+      sb.from("demandas").select("titulo, status, prazo, assessor_id, created_at").neq("status", "Resolvido"),
       sb.from("profiles").select("user_id, nome, telefone, role"),
     ]);
 
@@ -43,36 +43,41 @@ Deno.serve(async (req) => {
 
     const phoneMap: Record<string, string> = {};
     const nameMap: Record<string, string> = {};
+    const roleMap: Record<string, string> = {};
     profiles.forEach((p: any) => {
       if (p.telefone) phoneMap[p.user_id] = p.telefone;
       nameMap[p.user_id] = p.nome;
+      roleMap[p.user_id] = p.role;
     });
 
-    // Find overdue items
-    const overdueTarefas = tarefas.filter((t: any) => t.prazo && new Date(t.prazo) < now);
-    const overdueDemandas = demandas.filter((d: any) => d.prazo && new Date(d.prazo) < now);
+    // Group items by assessor_id (owner)
+    const itemsByUser: Record<string, { tarefas: any[], demandas: any[], overdueTarefas: any[], overdueDemandas: any[] }> = {};
 
-    // Group overdue items by assessor
-    const alertsByUser: Record<string, string[]> = {};
-    
-    const addAlert = (userId: string | null, msg: string) => {
-      const key = userId || "admin";
-      if (!alertsByUser[key]) alertsByUser[key] = [];
-      alertsByUser[key].push(msg);
+    const ensureUser = (userId: string) => {
+      if (!itemsByUser[userId]) {
+        itemsByUser[userId] = { tarefas: [], demandas: [], overdueTarefas: [], overdueDemandas: [] };
+      }
     };
 
-    overdueTarefas.forEach((t: any) => {
-      const prazoStr = new Date(t.prazo).toLocaleDateString("pt-BR");
-      addAlert(t.assessor_id, `⏰ Tarefa *${t.titulo}* está com prazo vencido (${prazoStr}) - Status: ${t.status}`);
+    tarefas.forEach((t: any) => {
+      if (!t.assessor_id) return;
+      ensureUser(t.assessor_id);
+      itemsByUser[t.assessor_id].tarefas.push(t);
+      if (t.prazo && new Date(t.prazo) < now) {
+        itemsByUser[t.assessor_id].overdueTarefas.push(t);
+      }
     });
 
-    overdueDemandas.forEach((d: any) => {
-      const prazoStr = new Date(d.prazo).toLocaleDateString("pt-BR");
-      addAlert(d.assessor_id, `⏰ Demanda *${d.titulo}* está com prazo vencido (${prazoStr}) - Status: ${d.status}`);
+    demandas.forEach((d: any) => {
+      if (!d.assessor_id) return;
+      ensureUser(d.assessor_id);
+      itemsByUser[d.assessor_id].demandas.push(d);
+      if (d.prazo && new Date(d.prazo) < now) {
+        itemsByUser[d.assessor_id].overdueDemandas.push(d);
+      }
     });
 
-    // Send alerts to each user
-    const sendMessage = async (phone: string, text: string) => {
+    const sendMessageFn = async (phone: string, text: string) => {
       const fullPhone = formatPhoneForUazapi(phone);
       await fetch(`${uazapiUrl}/send/text`, {
         method: "POST",
@@ -83,38 +88,83 @@ Deno.serve(async (req) => {
 
     let totalAlerts = 0;
 
-    for (const [userId, alerts] of Object.entries(alertsByUser)) {
-      if (alerts.length === 0) continue;
-      
-      const phone = userId === "admin" ? null : phoneMap[userId];
+    // Send individual summary to each user (politician or assessor) with pending items
+    for (const [userId, items] of Object.entries(itemsByUser)) {
+      const phone = phoneMap[userId];
       if (!phone) continue;
 
       const nome = nameMap[userId] || "Usuário";
-      const msg = `🚨 *Alerta de Prazos Vencidos*\n\nOlá ${nome}, você tem ${alerts.length} item(ns) com prazo vencido:\n\n${alerts.join("\n\n")}\n\n_Por favor, atualize o status ou solicite uma extensão de prazo._`;
-      
+      const lines: string[] = [];
+
+      if (items.overdueTarefas.length > 0) {
+        lines.push(`🔴 *${items.overdueTarefas.length} tarefa(s) com prazo vencido:*`);
+        items.overdueTarefas.forEach((t: any) => {
+          const prazoStr = new Date(t.prazo).toLocaleDateString("pt-BR");
+          lines.push(`  ⏰ ${t.titulo} (prazo: ${prazoStr})`);
+        });
+      }
+
+      if (items.overdueDemandas.length > 0) {
+        lines.push(`🔴 *${items.overdueDemandas.length} demanda(s) com prazo vencido:*`);
+        items.overdueDemandas.forEach((d: any) => {
+          const prazoStr = new Date(d.prazo).toLocaleDateString("pt-BR");
+          lines.push(`  ⏰ ${d.titulo} (prazo: ${prazoStr})`);
+        });
+      }
+
+      const pendingTarefas = items.tarefas.filter((t: any) => !items.overdueTarefas.includes(t));
+      const pendingDemandas = items.demandas.filter((d: any) => !items.overdueDemandas.includes(d));
+
+      if (pendingTarefas.length > 0) {
+        lines.push(`🟡 *${pendingTarefas.length} tarefa(s) pendente(s):*`);
+        pendingTarefas.slice(0, 5).forEach((t: any) => {
+          const prazoStr = t.prazo ? ` (prazo: ${new Date(t.prazo).toLocaleDateString("pt-BR")})` : "";
+          lines.push(`  📌 ${t.titulo} - ${t.status}${prazoStr}`);
+        });
+        if (pendingTarefas.length > 5) lines.push(`  _...e mais ${pendingTarefas.length - 5}_`);
+      }
+
+      if (pendingDemandas.length > 0) {
+        lines.push(`🟡 *${pendingDemandas.length} demanda(s) pendente(s):*`);
+        pendingDemandas.slice(0, 5).forEach((d: any) => {
+          const prazoStr = d.prazo ? ` (prazo: ${new Date(d.prazo).toLocaleDateString("pt-BR")})` : "";
+          lines.push(`  📌 ${d.titulo} - ${d.status}${prazoStr}`);
+        });
+        if (pendingDemandas.length > 5) lines.push(`  _...e mais ${pendingDemandas.length - 5}_`);
+      }
+
+      if (lines.length === 0) continue;
+
+      const msg = `📊 *Resumo Diário - ${now.toLocaleDateString("pt-BR")}*\n\nOlá ${nome}!\n\n${lines.join("\n")}\n\n_Atualize os status pelo WhatsApp ou pelo sistema._`;
+
       try {
-        await sendMessage(phone, msg);
+        await sendMessageFn(phone, msg);
         totalAlerts++;
       } catch (e) {
         console.error(`Error sending alert to ${userId}:`, e);
       }
     }
 
-    // Also send summary to all politicians
-    if (overdueTarefas.length > 0 || overdueDemandas.length > 0) {
-      const politicians = profiles.filter((p: any) => p.role === "politico" && p.telefone);
-      for (const pol of politicians) {
-        const summary = `📊 *Resumo Diário - ${now.toLocaleDateString("pt-BR")}*\n\n⚠️ ${overdueTarefas.length} tarefa(s) com prazo vencido\n⚠️ ${overdueDemandas.length} demanda(s) com prazo vencido\n\n_Total pendente: ${tarefas.length} tarefas, ${demandas.length} demandas_`;
-        try {
-          await sendMessage(pol.telefone, summary);
-        } catch (e) {
-          console.error(`Error sending summary to politician:`, e);
-        }
+    // Send global summary to politicians (overview of ALL items)
+    const allOverdueTarefas = tarefas.filter((t: any) => t.prazo && new Date(t.prazo) < now);
+    const allOverdueDemandas = demandas.filter((d: any) => d.prazo && new Date(d.prazo) < now);
+
+    const politicians = profiles.filter((p: any) => p.role === "politico" && p.telefone);
+    for (const pol of politicians) {
+      // Skip if politician already received individual alert above
+      const alreadySent = itemsByUser[pol.user_id];
+
+      const summary = `📊 *Visão Geral do Gabinete - ${now.toLocaleDateString("pt-BR")}*\n\n📋 ${tarefas.length} tarefa(s) pendente(s)\n📋 ${demandas.length} demanda(s) pendente(s)\n${allOverdueTarefas.length > 0 ? `⚠️ ${allOverdueTarefas.length} tarefa(s) com prazo vencido\n` : ""}${allOverdueDemandas.length > 0 ? `⚠️ ${allOverdueDemandas.length} demanda(s) com prazo vencido` : "✅ Nenhum prazo vencido"}`;
+
+      try {
+        await sendMessageFn(pol.telefone, summary);
+      } catch (e) {
+        console.error(`Error sending summary to politician:`, e);
       }
     }
 
     return new Response(
-      JSON.stringify({ success: true, overdueTarefas: overdueTarefas.length, overdueDemandas: overdueDemandas.length, alertsSent: totalAlerts }),
+      JSON.stringify({ success: true, pendingTarefas: tarefas.length, pendingDemandas: demandas.length, alertsSent: totalAlerts }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
