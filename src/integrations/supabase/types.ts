@@ -62,6 +62,7 @@ export type Database = {
           descricao: string | null
           id: string
           localizacao: string | null
+          prazo: string | null
           status: string
           titulo: string
           updated_at: string
@@ -72,6 +73,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           localizacao?: string | null
+          prazo?: string | null
           status?: string
           titulo: string
           updated_at?: string
@@ -82,6 +84,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           localizacao?: string | null
+          prazo?: string | null
           status?: string
           titulo?: string
           updated_at?: string
@@ -316,6 +319,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      unaccent: { Args: { "": string }; Returns: string }
     }
     Enums: {
       app_role: "politico" | "assessor"
