@@ -151,6 +151,13 @@ const Tarefas = () => {
     setDialogOpen(true);
   };
 
+  const deleteTarefa = async (id: string) => {
+    const { error } = await supabase.from("tarefas").delete().eq("id", id);
+    if (error) { toast({ title: "Erro ao excluir", variant: "destructive" }); return; }
+    toast({ title: "Tarefa excluída!" });
+    fetchTarefas();
+  };
+
   const moveTask = async (id: string, newStatus: StatusKey) => {
     const { error } = await supabase.from("tarefas").update({ status: newStatus }).eq("id", id);
     if (error) { toast({ title: "Erro ao mover tarefa", variant: "destructive" }); return; }
