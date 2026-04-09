@@ -8,12 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, MapPin, Calendar, Clock, Sparkles, GripVertical, Pencil, UserCheck } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Plus, MapPin, Calendar, Clock, Sparkles, GripVertical, Pencil, UserCheck, AlertTriangle, Filter, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { format, differenceInDays } from "date-fns";
+import { format, differenceInDays, isSameDay, isWithinInterval, startOfDay, endOfDay, isPast } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 interface Demanda {
   id: string;
@@ -22,6 +26,7 @@ interface Demanda {
   status: string;
   localizacao: string | null;
   assessor_id: string | null;
+  prazo: string | null;
   created_at: string;
 }
 
@@ -53,8 +58,11 @@ const Demandas = () => {
   const [assessorMap, setAssessorMap] = useState<Record<string, string>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingDemanda, setEditingDemanda] = useState<Demanda | null>(null);
-  const [form, setForm] = useState({ titulo: "", descricao: "", localizacao: "", assessor_id: "" });
+  const [form, setForm] = useState({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "" });
   const [dragId, setDragId] = useState<string | null>(null);
+  const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
+  const [filterDateEnd, setFilterDateEnd] = useState<Date | undefined>(undefined);
+  const [filterOpen, setFilterOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -92,6 +100,15 @@ const Demandas = () => {
     return () => { supabase.removeChannel(channel); };
   }, [user, role]);
 
+  const filteredDemandas = demandas.filter((d) => {
+    if (!filterDate) return true;
+    const createdAt = new Date(d.created_at);
+    if (filterDateEnd) {
+      return isWithinInterval(createdAt, { start: startOfDay(filterDate), end: endOfDay(filterDateEnd) });
+    }
+    return isSameDay(createdAt, filterDate);
+  });
+
   const handleSave = async () => {
     if (!form.titulo) { toast({ title: "Preencha o título", variant: "destructive" }); return; }
 
@@ -99,6 +116,7 @@ const Demandas = () => {
       titulo: form.titulo,
       descricao: form.descricao || null,
       localizacao: form.localizacao || null,
+      prazo: form.prazo ? new Date(form.prazo).toISOString() : null,
     };
     if (role === "politico") {
       payload.assessor_id = form.assessor_id || null;
@@ -117,7 +135,7 @@ const Demandas = () => {
       toast({ title: "Demanda criada!" });
     }
 
-    setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "" });
+    setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "" });
     setEditingDemanda(null);
     setDialogOpen(false);
   };
@@ -129,6 +147,7 @@ const Demandas = () => {
       descricao: demanda.descricao || "",
       localizacao: demanda.localizacao || "",
       assessor_id: demanda.assessor_id || "",
+      prazo: demanda.prazo ? demanda.prazo.split("T")[0] : "",
     });
     setDialogOpen(true);
   };
@@ -163,7 +182,12 @@ const Demandas = () => {
     navigate("/assistente", { state: { prefill: msg } });
   };
 
-  const total = demandas.length;
+  const isPrazoExpired = (prazo: string | null, status: string) => {
+    if (!prazo || status === "Resolvido") return false;
+    return isPast(new Date(prazo));
+  };
+
+  const total = filteredDemandas.length;
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 sm:space-y-6">
@@ -172,9 +196,42 @@ const Demandas = () => {
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Gestão de Demandas</h1>
           <p className="text-muted-foreground text-xs sm:text-sm mt-1">Acompanhe e resolva as solicitações da população.</p>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn("gap-2", filterDate && "border-primary text-primary")}>
+                <Filter className="h-4 w-4" />
+                {filterDate ? (filterDateEnd ? `${format(filterDate, "dd/MM")} - ${format(filterDateEnd, "dd/MM")}` : format(filterDate, "dd/MM/yyyy")) : "Filtrar por data"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-3" align="end">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">Filtrar por período</p>
+                  {filterDate && (
+                    <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => { setFilterDate(undefined); setFilterDateEnd(undefined); setFilterOpen(false); }}>
+                      <X className="h-3 w-3 mr-1" />Limpar
+                    </Button>
+                  )}
+                </div>
+                <CalendarComponent
+                  mode="range"
+                  selected={filterDate && filterDateEnd ? { from: filterDate, to: filterDateEnd } : filterDate ? { from: filterDate, to: filterDate } : undefined}
+                  onSelect={(range: any) => {
+                    setFilterDate(range?.from);
+                    setFilterDateEnd(range?.to);
+                  }}
+                  locale={ptBR}
+                  className="pointer-events-auto"
+                />
+                <Button size="sm" variant="outline" className="w-full text-xs" onClick={() => { setFilterDate(new Date()); setFilterDateEnd(undefined); }}>
+                  Hoje
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
           <Badge variant="secondary" className="text-sm">{total} Total</Badge>
-          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingDemanda(null); setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "" }); } }}>
+          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingDemanda(null); setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "" }); } }}>
             <DialogTrigger asChild>
               <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
                 <Plus className="h-4 w-4" /> Nova Demanda
@@ -186,13 +243,12 @@ const Demandas = () => {
                 <div><Label>Título</Label><Input value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} placeholder="Título da demanda" /></div>
                 <div><Label>Descrição</Label><Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} placeholder="Descreva a demanda" /></div>
                 <div><Label>Localização</Label><Input value={form.localizacao} onChange={(e) => setForm({ ...form, localizacao: e.target.value })} placeholder="Local da demanda" /></div>
+                <div><Label>Prazo</Label><Input type="date" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} /></div>
                 {role === "politico" && assessores.length > 0 && (
                   <div>
                     <Label>Atribuir a Assessor</Label>
                     <Select value={form.assessor_id} onValueChange={(v) => setForm({ ...form, assessor_id: v === "none" ? "" : v })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sem atribuição" />
-                      </SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Sem atribuição" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Sem atribuição</SelectItem>
                         {assessores.map((a) => (
@@ -213,7 +269,7 @@ const Demandas = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
         {columns.map((col) => {
-          const colDemandas = demandas.filter((d) => d.status === col.key);
+          const colDemandas = filteredDemandas.filter((d) => d.status === col.key);
           return (
             <div key={col.key} className="space-y-3" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, col.key)}>
               <div className="flex items-center gap-2 pb-2">
@@ -226,6 +282,7 @@ const Demandas = () => {
                   {colDemandas.map((demanda) => {
                     const dias = differenceInDays(new Date(), new Date(demanda.created_at));
                     const assessorNome = demanda.assessor_id ? assessorMap[demanda.assessor_id] : null;
+                    const prazoExpirado = isPrazoExpired(demanda.prazo, demanda.status);
                     return (
                       <motion.div
                         key={demanda.id}
@@ -237,10 +294,17 @@ const Demandas = () => {
                         onDragStart={(e: any) => handleDragStart(e, demanda.id)}
                         onDragEnd={() => setDragId(null)}
                       >
-                        <Card className={`glass-card hover:shadow-[var(--shadow-md)] transition-all cursor-grab active:cursor-grabbing group ${dragId === demanda.id ? "opacity-50 scale-95" : ""}`}>
+                        <Card className={cn(
+                          "glass-card hover:shadow-[var(--shadow-md)] transition-all cursor-grab active:cursor-grabbing group",
+                          dragId === demanda.id && "opacity-50 scale-95",
+                          prazoExpirado && "border-destructive/50 bg-destructive/5"
+                        )}>
                           <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
                             <div className="flex items-start justify-between">
-                              <Badge variant="outline" className={`text-[10px] ${statusStyles[demanda.status] || ""}`}>{demanda.status}</Badge>
+                              <div className="flex items-center gap-1.5">
+                                <Badge variant="outline" className={`text-[10px] ${statusStyles[demanda.status] || ""}`}>{demanda.status}</Badge>
+                                {prazoExpirado && <AlertTriangle className="h-3.5 w-3.5 text-destructive" />}
+                              </div>
                               <div className="flex items-center gap-1 shrink-0">
                                 <Button variant="ghost" size="icon" className="h-7 w-7 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground" onClick={() => openEdit(demanda)}>
                                   <Pencil className="h-3.5 w-3.5" />
@@ -260,6 +324,12 @@ const Demandas = () => {
                                 <Calendar className="h-3 w-3" />
                                 {format(new Date(demanda.created_at), "dd/MM/yyyy")}
                               </span>
+                              {demanda.prazo && (
+                                <span className={cn("flex items-center gap-1", prazoExpirado ? "text-destructive font-semibold" : "text-warning")}>
+                                  <Clock className="h-3 w-3" />
+                                  Prazo: {format(new Date(demanda.prazo), "dd/MM/yyyy")}
+                                </span>
+                              )}
                               {assessorNome && (
                                 <span className="flex items-center gap-1 text-primary">
                                   <UserCheck className="h-3 w-3" />{assessorNome}
