@@ -122,7 +122,6 @@ async function getSenderProfile(phone: string) {
 
 async function findAssessorByName(name: string, politicianId: string) {
   const sb = supabaseAdmin();
-  // Get linked assessors
   const { data: links } = await sb
     .from("politician_assessors")
     .select("assessor_id")
@@ -135,11 +134,15 @@ async function findAssessorByName(name: string, politicianId: string) {
   const { data: profiles } = await sb
     .from("profiles")
     .select("user_id, nome, telefone")
-    .in("user_id", assessorIds)
-    .ilike("nome", `%${name}%`)
-    .limit(1);
+    .in("user_id", assessorIds);
   
-  return profiles && profiles.length > 0 ? profiles[0] : null;
+  if (!profiles || profiles.length === 0) return null;
+  
+  // Fuzzy match: normalize accents and case
+  const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const needle = normalize(name);
+  const match = profiles.find((p: any) => normalize(p.nome).includes(needle));
+  return match || null;
 }
 
 // ─── Uazapi ─────────────────────────────────────────────────
@@ -231,10 +234,12 @@ async function extractJSON(systemPrompt: string, userMessage: string): Promise<a
               status_filtro: { type: "string" },
               novo_status: { type: "string", description: "Novo status para mover demanda ou tarefa." },
               busca_texto: { type: "string" },
-              data_hora: { type: "string", description: "ISO 8601 datetime" },
+              data_hora: { type: "string", description: "ISO 8601 datetime para prazo" },
+              prazo: { type: "string", description: "Prazo/deadline em ISO 8601. Ex: '2026-04-15'" },
               tarefa_busca: { type: "string" },
               mensagem_broadcast: { type: "string" },
-              assessor_nome: { type: "string", description: "Nome do assessor para atribuir a demanda/tarefa. Ex: 'para João' -> assessor_nome='João'" },
+              assessor_nome: { type: "string", description: "Nome do assessor para atribuir a demanda/tarefa." },
+              campos_faltantes: { type: "array", items: { type: "string" }, description: "Lista de campos que o usuário NÃO forneceu e são importantes" },
             },
             required: ["intent"],
           },
@@ -252,6 +257,12 @@ async function extractJSON(systemPrompt: string, userMessage: string): Promise<a
   const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
   if (!toolCall) throw new Error("No tool call returned");
   return JSON.parse(toolCall.function.arguments);
+}
+
+// ─── Fuzzy search helper (accent-insensitive) ───────────────
+
+function normalizeText(s: string): string {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
 
 // ─── Intent Handlers ────────────────────────────────────────
@@ -285,17 +296,28 @@ async function handleConsultarEleitor(params: any): Promise<string> {
 
 async function handleCriarDemanda(params: any, senderProfile: any): Promise<string> {
   const sb = supabaseAdmin();
+  
+  // Check for missing important fields and ask
+  const missing: string[] = [];
+  if (!params.descricao && !params.titulo) missing.push("descrição");
+  if (!params.localizacao) missing.push("localização");
+  if (!params.prazo && !params.data_hora) missing.push("prazo");
+  
+  if (missing.length > 0 && params.campos_faltantes && params.campos_faltantes.length > 0) {
+    // The AI detected missing fields - ask the user
+    const camposTexto = missing.join(", ");
+    return `📝 Para cadastrar a demanda *${params.titulo || params.descricao || ""}*, faltam algumas informações:\n\n${missing.map(c => `• ${c.charAt(0).toUpperCase() + c.slice(1)}`).join("\n")}\n\nDeseja adicionar esses dados? Envie as informações ou responda "criar assim mesmo" para cadastrar sem eles.`;
+  }
+  
   let assessorId: string | null = null;
   let assessorNotification = "";
 
-  // Check if there's an assessor assignment
   if (params.assessor_nome && senderProfile?.role === "politico") {
     const assessor = await findAssessorByName(params.assessor_nome, senderProfile.user_id);
     if (assessor) {
       assessorId = assessor.user_id;
-      // Send notification to assessor
       try {
-        await sendMessage(assessor.telefone, `📋 *Nova demanda atribuída a você!*\n\n📌 ${params.titulo || params.descricao || "Nova demanda"}\n${params.descricao ? `📝 ${params.descricao}` : ""}\n${params.localizacao ? `📍 ${params.localizacao}` : ""}\n\n_Atribuída por ${senderProfile.nome}_`);
+        await sendMessage(assessor.telefone, `📋 *Nova demanda atribuída a você!*\n\n📌 ${params.titulo || params.descricao || "Nova demanda"}\n${params.descricao ? `📝 ${params.descricao}` : ""}\n${params.localizacao ? `📍 ${params.localizacao}` : ""}\n${params.prazo ? `📅 Prazo: ${params.prazo}` : ""}\n\n_Atribuída por ${senderProfile.nome}_`);
         assessorNotification = `\n📨 Notificação enviada para o assessor *${assessor.nome}*!`;
       } catch (e) {
         console.error("Error notifying assessor:", e);
@@ -305,30 +327,42 @@ async function handleCriarDemanda(params: any, senderProfile: any): Promise<stri
     }
   }
 
-  // If assessor creating for themselves
   if (senderProfile?.role === "assessor" && !assessorId) {
     assessorId = senderProfile.user_id;
   }
+
+  const prazoValue = params.prazo || params.data_hora || null;
 
   const { error } = await sb.from("demandas").insert({
     titulo: params.titulo || params.descricao || "Nova demanda",
     descricao: params.descricao || null,
     localizacao: params.localizacao || null,
     assessor_id: assessorId,
+    prazo: prazoValue,
   });
   if (error) throw new Error(`DB error: ${error.message}`);
-  return `✅ Demanda *${params.titulo || "Nova demanda"}* registrada com status "Em Análise".${assessorNotification}`;
+  const prazoStr = prazoValue ? `\n📅 Prazo: ${prazoValue}` : "";
+  return `✅ Demanda *${params.titulo || "Nova demanda"}* registrada com status "Em Análise".${prazoStr}${assessorNotification}`;
 }
 
-async function handleConsultarDemanda(params: any): Promise<string> {
+async function handleConsultarDemanda(params: any, senderProfile: any): Promise<string> {
   const sb = supabaseAdmin();
   let query = sb.from("demandas").select("*").order("created_at", { ascending: false });
+  
+  // If assessor, only show their demandas
+  if (senderProfile?.role === "assessor") {
+    query = query.eq("assessor_id", senderProfile.user_id);
+  }
+  
   if (params.status_filtro) query = query.ilike("status", `%${params.status_filtro}%`);
   if (params.busca_texto) query = query.or(`titulo.ilike.%${params.busca_texto}%,descricao.ilike.%${params.busca_texto}%`);
   const { data, error } = await query.limit(10);
   if (error) throw new Error(`DB error: ${error.message}`);
   if (!data || data.length === 0) return "📋 Nenhuma demanda encontrada.";
-  const lines = data.map((d: any, i: number) => `${i + 1}. *${d.titulo}*\n   📍 ${d.localizacao || "Sem local"}\n   📌 Status: ${d.status}`);
+  const lines = data.map((d: any, i: number) => {
+    const prazoInfo = d.prazo ? `\n   📅 Prazo: ${new Date(d.prazo).toLocaleDateString("pt-BR")}` : "";
+    return `${i + 1}. *${d.titulo}*\n   📍 ${d.localizacao || "Sem local"}\n   📌 Status: ${d.status}${prazoInfo}`;
+  });
   return `📋 *Demandas encontradas:*\n\n${lines.join("\n\n")}`;
 }
 
@@ -375,12 +409,19 @@ async function handleMoverDemanda(params: any): Promise<string> {
   const sb = supabaseAdmin();
   const busca = params.busca_texto || params.titulo || "";
   const novoStatus = normalizeDemandaStatus(params.novo_status || "Em Andamento");
-  const { data, error: fErr } = await sb.from("demandas").select("id, titulo, status").ilike("titulo", `%${busca}%`).limit(1).single();
-  if (fErr || !data) return `❌ Demanda "${busca}" não encontrada.`;
-  if (data.status === novoStatus) return `ℹ️ Demanda *${data.titulo}* já está em *${novoStatus}*.`;
-  const { error: uErr } = await sb.from("demandas").update({ status: novoStatus }).eq("id", data.id);
+  
+  // Fuzzy search: get all non-resolved and match in code
+  const { data: allDemandas } = await sb.from("demandas").select("id, titulo, status").neq("status", "Resolvido").limit(50);
+  if (!allDemandas || allDemandas.length === 0) return `❌ Nenhuma demanda ativa encontrada.`;
+  
+  const needle = normalizeText(busca);
+  const match = allDemandas.find((d: any) => normalizeText(d.titulo).includes(needle));
+  if (!match) return `❌ Demanda "${busca}" não encontrada.`;
+  
+  if (match.status === novoStatus) return `ℹ️ Demanda *${match.titulo}* já está em *${novoStatus}*.`;
+  const { error: uErr } = await sb.from("demandas").update({ status: novoStatus }).eq("id", match.id);
   if (uErr) throw new Error(`DB error: ${uErr.message}`);
-  return `✅ Demanda *${data.titulo}* movida para *${novoStatus}*!`;
+  return `✅ Demanda *${match.titulo}* movida para *${novoStatus}*!`;
 }
 
 async function handleCriarProjetoLei(params: any): Promise<string> {
@@ -406,11 +447,20 @@ async function handleCriarProjetoLei(params: any): Promise<string> {
 async function handleCriarTarefa(params: any, senderProfile: any): Promise<string> {
   const sb = supabaseAdmin();
   const titulo = params.titulo || params.descricao || "Nova tarefa";
-  const prazo = params.data_hora || null;
+  const prazo = params.prazo || params.data_hora || null;
   let assessorId: string | null = null;
   let assessorNotification = "";
 
-  // Check if there's an assessor assignment
+  // Check for missing important fields
+  const missing: string[] = [];
+  if (!params.descricao) missing.push("descrição");
+  if (!prazo) missing.push("prazo");
+  
+  if (missing.length > 0 && params.campos_faltantes && params.campos_faltantes.length > 0) {
+    const camposTexto = missing.join(", ");
+    return `📝 Para criar a tarefa *${titulo}*, faltam algumas informações:\n\n${missing.map(c => `• ${c.charAt(0).toUpperCase() + c.slice(1)}`).join("\n")}\n\nDeseja adicionar? Envie as informações ou responda "criar assim mesmo" para cadastrar sem eles.`;
+  }
+
   if (params.assessor_nome && senderProfile?.role === "politico") {
     const assessor = await findAssessorByName(params.assessor_nome, senderProfile.user_id);
     if (assessor) {
@@ -426,7 +476,6 @@ async function handleCriarTarefa(params: any, senderProfile: any): Promise<strin
     }
   }
 
-  // If assessor creating for themselves
   if (senderProfile?.role === "assessor" && !assessorId) {
     assessorId = senderProfile.user_id;
   }
@@ -452,26 +501,53 @@ async function handleCriarTarefa(params: any, senderProfile: any): Promise<strin
   return `✅ Tarefa *${titulo}* criada com sucesso!${prazoStr}\n📌 Status: Novas Tarefas${assessorNotification}`;
 }
 
-async function handleMoverTarefa(params: any): Promise<string> {
+async function handleMoverTarefa(params: any, senderProfile: any): Promise<string> {
   const sb = supabaseAdmin();
   const busca = params.tarefa_busca || params.busca_texto || params.titulo || "";
   const novoStatus = normalizeTarefaStatus(params.novo_status || "Em Andamento");
-  const { data, error: fErr } = await sb.from("tarefas").select("id, titulo, status").ilike("titulo", `%${busca}%`).limit(1).single();
-  if (fErr || !data) return `❌ Tarefa "${busca}" não encontrada.`;
-  if (data.status === novoStatus) return `ℹ️ Tarefa *${data.titulo}* já está em *${novoStatus}*.`;
-  const { error: uErr } = await sb.from("tarefas").update({ status: novoStatus }).eq("id", data.id);
+  
+  // Fuzzy accent-insensitive search: get all tasks and match in code
+  let query = sb.from("tarefas").select("id, titulo, status, assessor_id").limit(50);
+  
+  // If assessor, only search their tasks
+  if (senderProfile?.role === "assessor") {
+    query = query.eq("assessor_id", senderProfile.user_id);
+  }
+  
+  const { data: allTarefas } = await query;
+  if (!allTarefas || allTarefas.length === 0) return `❌ Nenhuma tarefa encontrada.`;
+  
+  const needle = normalizeText(busca);
+  console.log(`🔍 Searching tasks: needle="${needle}", tasks=${allTarefas.map((t: any) => `"${t.titulo}"`).join(", ")}`);
+  
+  const match = allTarefas.find((t: any) => normalizeText(t.titulo).includes(needle));
+  if (!match) return `❌ Tarefa "${busca}" não encontrada. Tarefas disponíveis:\n${allTarefas.map((t: any) => `• ${t.titulo} (${t.status})`).join("\n")}`;
+  
+  if (match.status === novoStatus) return `ℹ️ Tarefa *${match.titulo}* já está em *${novoStatus}*.`;
+  const { error: uErr } = await sb.from("tarefas").update({ status: novoStatus }).eq("id", match.id);
   if (uErr) throw new Error(`DB error: ${uErr.message}`);
-  return `✅ Tarefa *${data.titulo}* movida de *${data.status}* para *${novoStatus}*!`;
+  return `✅ Tarefa *${match.titulo}* movida de *${match.status}* para *${novoStatus}*!`;
 }
 
-async function handleConcluirTarefa(params: any): Promise<string> {
+async function handleConcluirTarefa(params: any, senderProfile: any): Promise<string> {
   const sb = supabaseAdmin();
   const busca = params.tarefa_busca || params.titulo || params.busca_texto || "";
-  const { data, error: fErr } = await sb.from("tarefas").select("id, titulo").ilike("titulo", `%${busca}%`).neq("status", "Finalizadas").limit(1).single();
-  if (fErr || !data) return `❌ Tarefa "${busca}" não encontrada ou já finalizada.`;
-  const { error: uErr } = await sb.from("tarefas").update({ status: "Finalizadas" }).eq("id", data.id);
+  
+  let query = sb.from("tarefas").select("id, titulo, assessor_id").neq("status", "Finalizadas").limit(50);
+  if (senderProfile?.role === "assessor") {
+    query = query.eq("assessor_id", senderProfile.user_id);
+  }
+  
+  const { data: allTarefas } = await query;
+  if (!allTarefas || allTarefas.length === 0) return `❌ Nenhuma tarefa ativa encontrada.`;
+  
+  const needle = normalizeText(busca);
+  const match = allTarefas.find((t: any) => normalizeText(t.titulo).includes(needle));
+  if (!match) return `❌ Tarefa "${busca}" não encontrada ou já finalizada.`;
+  
+  const { error: uErr } = await sb.from("tarefas").update({ status: "Finalizadas" }).eq("id", match.id);
   if (uErr) throw new Error(`DB error: ${uErr.message}`);
-  return `✅ Tarefa *${data.titulo}* marcada como Finalizada!`;
+  return `✅ Tarefa *${match.titulo}* marcada como Finalizada!`;
 }
 
 // ─── Main Handler ───────────────────────────────────────────
@@ -501,7 +577,6 @@ Deno.serve(async (req) => {
       return jsonResponse({ status: "unauthorized", phone: senderPhone });
     }
 
-    // Get sender profile and role
     const senderProfile = await getSenderProfile(senderPhone);
     const isAssessor = senderProfile?.role === "assessor";
 
@@ -525,8 +600,12 @@ Intenções possíveis:
 IMPORTANTE:
 - Se o usuário diz "demanda para João: ..." ou "tarefa para Maria: ...", extraia o nome (João/Maria) no campo "assessor_nome" para atribuição.
 - ${isAssessor ? "Como assessor, ele só pode criar demandas e tarefas para si mesmo. Não pode atribuir a outros." : "Como político, ele pode atribuir demandas e tarefas a assessores pelo nome."}
-- Se o usuário diz que algo "está em andamento" ou "foi concluído" referindo-se a uma tarefa ou demanda EXISTENTE, a intenção é MOVER, NÃO criar uma nova.
-- Se o usuário pergunta sobre eleitores em uma cidade ou por interesse, SEMPRE use consultar_eleitor.`;
+- Se o usuário diz que algo "está em andamento" ou "foi concluído" referindo-se a uma tarefa ou demanda EXISTENTE, a intenção é MOVER (mover_tarefa ou mover_demanda), NÃO criar uma nova. 
+- EXEMPLOS DE MOVER: "relatorio da semana em andamento" = mover_tarefa, "tapar buracos resolvido" = concluir_demanda
+- Se o usuário pergunta sobre eleitores em uma cidade ou por interesse, SEMPRE use consultar_eleitor.
+- Para criar_demanda: os campos importantes são titulo, descricao, localizacao e prazo. Se FALTAREM campos, preencha "campos_faltantes" com os nomes dos campos que faltam.
+- Para criar_tarefa: os campos importantes são titulo, descricao e prazo. Se FALTAREM campos, preencha "campos_faltantes".
+- Se o usuário responder "criar assim mesmo" ou similar, NÃO preencha campos_faltantes (deixe vazio) para que o cadastro prossiga.`;
 
     const extracted = await extractJSON(systemPrompt, message);
     console.log("🧠 Intent:", JSON.stringify(extracted));
@@ -544,7 +623,7 @@ IMPORTANTE:
         reply = await handleCriarDemanda(extracted, senderProfile);
         break;
       case "consultar_demanda":
-        reply = await handleConsultarDemanda(extracted);
+        reply = await handleConsultarDemanda(extracted, senderProfile);
         break;
       case "concluir_demanda":
         reply = await handleConcluirDemanda(extracted);
@@ -559,10 +638,10 @@ IMPORTANTE:
         reply = await handleCriarTarefa(extracted, senderProfile);
         break;
       case "mover_tarefa":
-        reply = await handleMoverTarefa(extracted);
+        reply = await handleMoverTarefa(extracted, senderProfile);
         break;
       case "concluir_tarefa":
-        reply = await handleConcluirTarefa(extracted);
+        reply = await handleConcluirTarefa(extracted, senderProfile);
         break;
       default:
         reply = await callAI(

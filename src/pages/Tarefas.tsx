@@ -8,10 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Calendar, Clock, GripVertical, Pencil, UserCheck } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Plus, Calendar, Clock, GripVertical, Pencil, UserCheck, AlertTriangle, Filter, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { format, isSameDay, isWithinInterval, startOfDay, endOfDay, isPast } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 interface Tarefa {
   id: string;
@@ -45,6 +50,9 @@ const Tarefas = () => {
   const [editingTarefa, setEditingTarefa] = useState<Tarefa | null>(null);
   const [form, setForm] = useState({ titulo: "", descricao: "", prazo: "", assessor_id: "" });
   const [dragId, setDragId] = useState<string | null>(null);
+  const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
+  const [filterDateEnd, setFilterDateEnd] = useState<Date | undefined>(undefined);
+  const [filterOpen, setFilterOpen] = useState(false);
   const { toast } = useToast();
 
   const fetchAssessores = async () => {
@@ -82,16 +90,21 @@ const Tarefas = () => {
   useEffect(() => {
     fetchTarefas();
     fetchAssessores();
-
     const channel = supabase
       .channel("tarefas-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "tarefas" }, () => {
-        fetchTarefas();
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "tarefas" }, () => fetchTarefas())
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, [user, role]);
+
+  const filteredTarefas = tarefas.filter((t) => {
+    if (!filterDate) return true;
+    const createdAt = new Date(t.created_at);
+    if (filterDateEnd) {
+      return isWithinInterval(createdAt, { start: startOfDay(filterDate), end: endOfDay(filterDateEnd) });
+    }
+    return isSameDay(createdAt, filterDate);
+  });
 
   const handleSave = async () => {
     if (!form.titulo) {
@@ -109,24 +122,15 @@ const Tarefas = () => {
     }
 
     if (editingTarefa) {
-      const { error } = await supabase
-        .from("tarefas")
-        .update(payload)
-        .eq("id", editingTarefa.id);
-      if (error) {
-        toast({ title: "Erro ao atualizar", variant: "destructive" });
-        return;
-      }
+      const { error } = await supabase.from("tarefas").update(payload).eq("id", editingTarefa.id);
+      if (error) { toast({ title: "Erro ao atualizar", variant: "destructive" }); return; }
       toast({ title: "Tarefa atualizada!" });
     } else {
       if (role === "assessor" && user) {
         payload.assessor_id = user.id;
       }
       const { error } = await supabase.from("tarefas").insert(payload);
-      if (error) {
-        toast({ title: "Erro ao criar", variant: "destructive" });
-        return;
-      }
+      if (error) { toast({ title: "Erro ao criar", variant: "destructive" }); return; }
       toast({ title: "Tarefa criada!" });
     }
 
@@ -149,10 +153,7 @@ const Tarefas = () => {
 
   const moveTask = async (id: string, newStatus: StatusKey) => {
     const { error } = await supabase.from("tarefas").update({ status: newStatus }).eq("id", id);
-    if (error) {
-      toast({ title: "Erro ao mover tarefa", variant: "destructive" });
-      return;
-    }
+    if (error) { toast({ title: "Erro ao mover tarefa", variant: "destructive" }); return; }
     fetchTarefas();
   };
 
@@ -175,16 +176,17 @@ const Tarefas = () => {
     }
   };
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return null;
-    try {
-      return new Date(dateStr).toLocaleDateString("pt-BR");
-    } catch {
-      return dateStr;
-    }
+  const isPrazoExpired = (prazo: string | null, status: string) => {
+    if (!prazo || status === "Finalizadas") return false;
+    return isPast(new Date(prazo));
   };
 
-  const total = tarefas.length;
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return null;
+    try { return new Date(dateStr).toLocaleDateString("pt-BR"); } catch { return dateStr; }
+  };
+
+  const total = filteredTarefas.length;
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 sm:space-y-6">
@@ -193,7 +195,40 @@ const Tarefas = () => {
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Gestão de Tarefas</h1>
           <p className="text-muted-foreground text-xs sm:text-sm mt-1">Organize e acompanhe as atividades do gabinete.</p>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn("gap-2", filterDate && "border-primary text-primary")}>
+                <Filter className="h-4 w-4" />
+                {filterDate ? (filterDateEnd ? `${format(filterDate, "dd/MM")} - ${format(filterDateEnd, "dd/MM")}` : format(filterDate, "dd/MM/yyyy")) : "Filtrar por data"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-3" align="end">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">Filtrar por período</p>
+                  {filterDate && (
+                    <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => { setFilterDate(undefined); setFilterDateEnd(undefined); setFilterOpen(false); }}>
+                      <X className="h-3 w-3 mr-1" />Limpar
+                    </Button>
+                  )}
+                </div>
+                <CalendarComponent
+                  mode="range"
+                  selected={filterDate && filterDateEnd ? { from: filterDate, to: filterDateEnd } : filterDate ? { from: filterDate, to: filterDate } : undefined}
+                  onSelect={(range: any) => {
+                    setFilterDate(range?.from);
+                    setFilterDateEnd(range?.to);
+                  }}
+                  locale={ptBR}
+                  className="pointer-events-auto"
+                />
+                <Button size="sm" variant="outline" className="w-full text-xs" onClick={() => { setFilterDate(new Date()); setFilterDateEnd(undefined); }}>
+                  Hoje
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
           <Badge variant="secondary" className="text-sm">{total} Total</Badge>
           <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingTarefa(null); setForm({ titulo: "", descricao: "", prazo: "", assessor_id: "" }); } }}>
             <DialogTrigger asChild>
@@ -232,7 +267,7 @@ const Tarefas = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6 overflow-x-auto">
         {columns.map((col) => {
-          const colTarefas = tarefas.filter((t) => t.status === col.key);
+          const colTarefas = filteredTarefas.filter((t) => t.status === col.key);
           return (
             <div key={col.key} className="space-y-3" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, col.key)}>
               <div className="flex items-center gap-2 pb-2">
@@ -242,56 +277,73 @@ const Tarefas = () => {
               </div>
               <div className={`space-y-2 sm:space-y-3 min-h-[120px] md:min-h-[200px] p-2 sm:p-3 rounded-xl bg-secondary/30 border border-border/50 transition-colors ${dragId ? "border-primary/20 bg-primary/5" : ""}`}>
                 <AnimatePresence>
-                  {colTarefas.map((tarefa) => (
-                    <motion.div
-                      key={tarefa.id}
-                      layout
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      draggable
-                      onDragStart={(e: any) => handleDragStart(e, tarefa.id)}
-                      onDragEnd={() => setDragId(null)}
-                    >
-                      <Card className={`glass-card hover:shadow-[var(--shadow-md)] transition-all cursor-grab active:cursor-grabbing group ${dragId === tarefa.id ? "opacity-50 scale-95" : ""}`}>
-                        <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
-                          <div className="flex items-start justify-between">
-                            <p className="text-xs sm:text-sm font-medium flex-1">{tarefa.titulo}</p>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <Button variant="ghost" size="icon" className="h-7 w-7 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground" onClick={() => openEdit(tarefa)}>
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
-                              <GripVertical className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors hidden md:block" />
+                  {colTarefas.map((tarefa) => {
+                    const prazoExpirado = isPrazoExpired(tarefa.prazo, tarefa.status);
+                    return (
+                      <motion.div
+                        key={tarefa.id}
+                        layout
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        draggable
+                        onDragStart={(e: any) => handleDragStart(e, tarefa.id)}
+                        onDragEnd={() => setDragId(null)}
+                      >
+                        <Card className={cn(
+                          "glass-card hover:shadow-[var(--shadow-md)] transition-all cursor-grab active:cursor-grabbing group",
+                          dragId === tarefa.id && "opacity-50 scale-95",
+                          prazoExpirado && "border-destructive/50 bg-destructive/5"
+                        )}>
+                          <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-xs sm:text-sm font-medium flex-1">{tarefa.titulo}</p>
+                                {prazoExpirado && <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />}
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Button variant="ghost" size="icon" className="h-7 w-7 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground" onClick={() => openEdit(tarefa)}>
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <GripVertical className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors hidden md:block" />
+                              </div>
                             </div>
-                          </div>
-                          {tarefa.descricao && (
-                            <p className="text-xs text-muted-foreground line-clamp-2">{tarefa.descricao}</p>
-                          )}
-                          <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-1">
-                            {tarefa.prazo && (
-                              <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{formatDate(tarefa.prazo)}</span>
+                            {tarefa.descricao && (
+                              <p className="text-xs text-muted-foreground line-clamp-2">{tarefa.descricao}</p>
                             )}
-                            {tarefa.assessor_id && assessorMap[tarefa.assessor_id] && (
-                              <span className="flex items-center gap-1 text-primary"><UserCheck className="h-3 w-3" />{assessorMap[tarefa.assessor_id]}</span>
-                            )}
-                            {tarefa.status === "Finalizadas" && (
-                              <span className="flex items-center gap-1 text-success"><Clock className="h-3 w-3" />Concluído</span>
-                            )}
-                          </div>
-                          {tarefa.status !== "Finalizadas" && (
-                            <div className="flex gap-1 pt-1">
-                              {tarefa.status === "Novas Tarefas" && (
-                                <Button size="sm" variant="ghost" className="text-xs h-7 text-info hover:text-info" onClick={() => moveTask(tarefa.id, "Em Andamento")}>Iniciar</Button>
+                            <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-1">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {format(new Date(tarefa.created_at), "dd/MM/yyyy")}
+                              </span>
+                              {tarefa.prazo && (
+                                <span className={cn("flex items-center gap-1", prazoExpirado ? "text-destructive font-semibold" : "text-warning")}>
+                                  <Clock className="h-3 w-3" />
+                                  Prazo: {formatDate(tarefa.prazo)}
+                                </span>
                               )}
-                              {tarefa.status === "Em Andamento" && (
-                                <Button size="sm" variant="ghost" className="text-xs h-7 text-success hover:text-success" onClick={() => moveTask(tarefa.id, "Finalizadas")}>Concluir</Button>
+                              {tarefa.assessor_id && assessorMap[tarefa.assessor_id] && (
+                                <span className="flex items-center gap-1 text-primary"><UserCheck className="h-3 w-3" />{assessorMap[tarefa.assessor_id]}</span>
+                              )}
+                              {tarefa.status === "Finalizadas" && (
+                                <span className="flex items-center gap-1 text-success"><Clock className="h-3 w-3" />Concluído</span>
                               )}
                             </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
+                            {tarefa.status !== "Finalizadas" && (
+                              <div className="flex gap-1 pt-1">
+                                {tarefa.status === "Novas Tarefas" && (
+                                  <Button size="sm" variant="ghost" className="text-xs h-7 text-info hover:text-info" onClick={() => moveTask(tarefa.id, "Em Andamento")}>Iniciar</Button>
+                                )}
+                                {tarefa.status === "Em Andamento" && (
+                                  <Button size="sm" variant="ghost" className="text-xs h-7 text-success hover:text-success" onClick={() => moveTask(tarefa.id, "Finalizadas")}>Concluir</Button>
+                                )}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    );
+                  })}
                 </AnimatePresence>
               </div>
             </div>
