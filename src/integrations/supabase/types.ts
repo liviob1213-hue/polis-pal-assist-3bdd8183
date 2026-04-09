@@ -55,6 +55,33 @@ export type Database = {
           },
         ]
       }
+      chat_history: {
+        Row: {
+          context: Json | null
+          created_at: string
+          id: string
+          message: string
+          role: string
+          telefone: string
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string
+          id?: string
+          message: string
+          role?: string
+          telefone: string
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string
+          id?: string
+          message?: string
+          role?: string
+          telefone?: string
+        }
+        Relationships: []
+      }
       demandas: {
         Row: {
           assessor_id: string | null
