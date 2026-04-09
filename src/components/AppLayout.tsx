@@ -1,15 +1,18 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
-import { Bell, Search } from "lucide-react";
+import { Bell, Search, Settings } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const navigate = useNavigate();
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -29,10 +32,18 @@ export function AppLayout({ children }: AppLayoutProps) {
               </div>
               <h1 className="text-sm font-semibold md:hidden">Democrat.IA</h1>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
                 <Bell className="h-5 w-5" />
                 <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-accent" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground hover:text-foreground md:hidden"
+                onClick={() => navigate("/configuracoes")}
+              >
+                <Settings className="h-5 w-5" />
               </Button>
             </div>
           </header>
