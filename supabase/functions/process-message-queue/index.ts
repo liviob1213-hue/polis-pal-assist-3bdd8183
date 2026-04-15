@@ -36,6 +36,7 @@ async function generateVariation(originalMessage: string, recipientName: string,
 - NUNCA repita a mensagem original palavra por palavra
 - Pareça uma pessoa real digitando, com naturalidade
 - Tipo de mensagem: ${tipo}
+- OBRIGATÓRIO: Termine SEMPRE com uma pergunta curta e natural que incentive o destinatário a responder. Exemplos: "O que acha?", "Posso contar com você?", "Tem alguma dúvida?", "Como está por aí?", "Consegue me dar um retorno?". Varie a pergunta a cada mensagem.
 
 Retorne APENAS a mensagem reescrita, nada mais.`;
 
