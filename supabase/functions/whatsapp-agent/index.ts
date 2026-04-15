@@ -227,6 +227,52 @@ async function sendMessage(phone: string, text: string) {
   return res.json();
 }
 
+// ─── Queue notification with AI variation (5-min intervals) ──
+
+async function queueAssessorNotification(
+  phone: string,
+  nome: string,
+  mensagemOriginal: string,
+  tipo: "tarefa" | "demanda",
+  referenciaId?: string
+) {
+  const sb = supabaseAdmin();
+  
+  // Find latest queued message for assessor notifications to calculate next slot
+  const { data: lastQueued } = await sb
+    .from("message_queue")
+    .select("agendado_para")
+    .in("tipo", ["tarefa", "demanda"])
+    .in("status", ["pendente", "enviando"])
+    .order("agendado_para", { ascending: false })
+    .limit(1);
+  
+  const INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+  const now = new Date();
+  let scheduledTime = now;
+  
+  if (lastQueued && lastQueued.length > 0) {
+    const lastTime = new Date(lastQueued[0].agendado_para);
+    if (lastTime.getTime() > now.getTime()) {
+      scheduledTime = new Date(lastTime.getTime() + INTERVAL_MS);
+    } else {
+      scheduledTime = new Date(now.getTime() + INTERVAL_MS);
+    }
+  }
+
+  await sb.from("message_queue").insert({
+    tipo,
+    destinatario_telefone: phone,
+    destinatario_nome: nome,
+    mensagem_original: mensagemOriginal,
+    status: "pendente",
+    agendado_para: scheduledTime.toISOString(),
+    referencia_id: referenciaId || null,
+  });
+  
+  console.log(`📋 Queued ${tipo} notification for ${nome} at ${scheduledTime.toISOString()}`);
+}
+
 // ─── Chat History ───────────────────────────────────────────
 
 async function getChatHistory(phone: string, limit = 10): Promise<Array<{role: string, message: string, context: any}>> {
