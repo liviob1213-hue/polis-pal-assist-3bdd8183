@@ -238,6 +238,16 @@ const Eleitores = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <Label>Observações</Label>
+                <Textarea
+                  value={form.observacoes}
+                  onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+                  placeholder="Anotações sobre o eleitor..."
+                  rows={3}
+                  className="mt-1"
+                />
+              </div>
               <Button onClick={handleSave} disabled={upsertMutation.isPending} className="w-full gradient-primary text-primary-foreground">
                 {upsertMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 {editingId ? "Salvar Alterações" : "Adicionar Eleitor"}
