@@ -36,7 +36,8 @@ async function generateVariation(originalMessage: string, recipientName: string,
 - NUNCA repita a mensagem original palavra por palavra
 - Pareça uma pessoa real digitando, com naturalidade
 - Tipo de mensagem: ${tipo}
-- OBRIGATÓRIO: Termine SEMPRE com uma pergunta curta e natural que incentive o destinatário a responder. Exemplos: "O que acha?", "Posso contar com você?", "Tem alguma dúvida?", "Como está por aí?", "Consegue me dar um retorno?", "Que tal?", "Topa participar?", "Me conta o que pensa!". Varie a pergunta a cada mensagem. A pergunta DEVE ser a última frase.
+- Se o tipo for "demanda" ou "tarefa" (notificação para assessor), a pergunta final DEVE exigir confirmação de recebimento. Exemplos: "Você consegue assumir essa demanda?", "Pode me confirmar que recebeu?", "Consegue dar andamento hoje?", "Me confirma se está tudo certo?", "Pode me dar um retorno sobre isso?"
+- OBRIGATÓRIO: Termine SEMPRE com uma pergunta curta e natural que incentive o destinatário a responder. Exemplos: "O que acha?", "Posso contar com você?", "Tem alguma dúvida?", "Consegue me dar um retorno?", "Que tal?". Varie a pergunta a cada mensagem. A pergunta DEVE ser a última frase.
 
 Retorne APENAS a mensagem reescrita, nada mais.`;
 
