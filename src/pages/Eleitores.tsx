@@ -22,6 +22,7 @@ interface Eleitor {
   endereco: string | null;
   telefone: string | null;
   interesse: string | null;
+  observacoes: string | null;
   latitude: number | null;
   longitude: number | null;
 }
@@ -41,7 +42,7 @@ const Eleitores = () => {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "" });
+  const [form, setForm] = useState({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", observacoes: "" });
   const [whatsappDialog, setWhatsappDialog] = useState<Eleitor | null>(null);
   const [whatsappMsg, setWhatsappMsg] = useState("");
   const [savedMessages, setSavedMessages] = useState<{ id: string; label: string; text: string }[]>(() => {
@@ -60,7 +61,7 @@ const Eleitores = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("eleitores")
-        .select("id, nome, endereco, telefone, interesse, latitude, longitude")
+        .select("id, nome, endereco, telefone, interesse, observacoes, latitude, longitude")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as Eleitor[];
@@ -68,7 +69,7 @@ const Eleitores = () => {
   });
 
   const upsertMutation = useMutation({
-    mutationFn: async (payload: { id?: string; nome: string; rua: string; numero: string; complemento: string; bairro: string; cidade: string; estado: string; cep: string; telefone: string; interesse: string }) => {
+    mutationFn: async (payload: { id?: string; nome: string; rua: string; numero: string; complemento: string; bairro: string; cidade: string; estado: string; cep: string; telefone: string; interesse: string; observacoes: string }) => {
       const endereco = [payload.rua, payload.numero, payload.complemento, payload.bairro, payload.cidade, payload.estado, payload.cep].filter(Boolean).join(", ");
       let eleitorId = payload.id;
       if (payload.id) {
@@ -77,6 +78,7 @@ const Eleitores = () => {
            endereco: endereco || null,
           telefone: payload.telefone || null,
           interesse: payload.interesse || null,
+          observacoes: payload.observacoes || null,
         }).eq("id", payload.id);
         if (error) throw error;
       } else {
@@ -85,6 +87,7 @@ const Eleitores = () => {
           endereco: endereco || null,
           telefone: payload.telefone || null,
           interesse: payload.interesse || null,
+          observacoes: payload.observacoes || null,
         }).select("id").single();
         if (error) throw error;
         eleitorId = data.id;
@@ -104,7 +107,7 @@ const Eleitores = () => {
       queryClient.invalidateQueries({ queryKey: ["eleitores"] });
       queryClient.invalidateQueries({ queryKey: ["eleitores-mapa"] });
       toast({ title: editingId ? "Eleitor atualizado!" : "Eleitor adicionado!" });
-      setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "" });
+      setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", observacoes: "" });
       setEditingId(null);
       setDialogOpen(false);
     },
@@ -168,6 +171,7 @@ const Eleitores = () => {
       cep: parts[5] || "",
       telefone: eleitor.telefone || "",
       interesse: eleitor.interesse || "",
+      observacoes: (eleitor as any).observacoes || "",
     });
     setEditingId(eleitor.id);
     setDialogOpen(true);
@@ -196,7 +200,7 @@ const Eleitores = () => {
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Base de Eleitores</h1>
           <p className="text-muted-foreground text-xs sm:text-sm mt-1">Gerencie os contatos e interesses da sua base.</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingId(null); setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "" }); } }}>
+        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingId(null); setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", observacoes: "" }); } }}>
           <DialogTrigger asChild>
             <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
               <Plus className="h-4 w-4" /> Novo Eleitor
