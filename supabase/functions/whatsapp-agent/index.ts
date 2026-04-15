@@ -648,10 +648,15 @@ async function handleCriarTarefa(params: any, senderProfile: any): Promise<strin
       if (assessor) {
         assessorId = assessor.user_id;
         try {
-          await sendMessage(assessor.telefone, `✅ *Nova tarefa atribuída a você!*\n\n📌 ${titulo}\n${params.descricao ? `📝 ${params.descricao}` : ""}\n${prazo ? `📅 Prazo: ${new Date(prazo).toLocaleString("pt-BR")}` : ""}\n\n_Atribuída por ${senderProfile.nome}_`);
-          assessorNotification = `\n📨 Notificação enviada para o assessor *${assessor.nome}*!`;
+          await queueAssessorNotification(
+            assessor.telefone,
+            assessor.nome,
+            `✅ *Nova tarefa atribuída a você!*\n\n📌 ${titulo}\n${params.descricao ? `📝 ${params.descricao}` : ""}\n${prazo ? `📅 Prazo: ${new Date(prazo).toLocaleString("pt-BR")}` : ""}\n\n_Atribuída por ${senderProfile.nome}_`,
+            "tarefa"
+          );
+          assessorNotification = `\n📨 Notificação enfileirada para o assessor *${assessor.nome}*!`;
         } catch (e) {
-          console.error("Error notifying assessor:", e);
+          console.error("Error queuing assessor notification:", e);
         }
       } else {
         return `❌ Assessor "${params.assessor_nome}" não encontrado entre seus assessores cadastrados.`;
