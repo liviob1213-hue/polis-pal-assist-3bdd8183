@@ -154,6 +154,60 @@ export type Database = {
         }
         Relationships: []
       }
+      message_queue: {
+        Row: {
+          agendado_para: string
+          assessor_id: string | null
+          campanha_id: string | null
+          created_at: string
+          destinatario_nome: string | null
+          destinatario_telefone: string
+          enviado_em: string | null
+          erro_detalhe: string | null
+          id: string
+          mensagem_original: string
+          mensagem_variacao: string | null
+          referencia_id: string | null
+          status: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          agendado_para?: string
+          assessor_id?: string | null
+          campanha_id?: string | null
+          created_at?: string
+          destinatario_nome?: string | null
+          destinatario_telefone: string
+          enviado_em?: string | null
+          erro_detalhe?: string | null
+          id?: string
+          mensagem_original: string
+          mensagem_variacao?: string | null
+          referencia_id?: string | null
+          status?: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          agendado_para?: string
+          assessor_id?: string | null
+          campanha_id?: string | null
+          created_at?: string
+          destinatario_nome?: string | null
+          destinatario_telefone?: string
+          enviado_em?: string | null
+          erro_detalhe?: string | null
+          id?: string
+          mensagem_original?: string
+          mensagem_variacao?: string | null
+          referencia_id?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       politician_assessors: {
         Row: {
           assessor_id: string
