@@ -1,20 +1,91 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Loader2, MessageCircle, Clock, AlertTriangle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Send, Loader2, MessageCircle, Clock, Radio, CheckCircle2, XCircle, AlertTriangle, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
+type QueueItem = {
+  id: string;
+  tipo: string;
+  destinatario_nome: string | null;
+  destinatario_telefone: string;
+  mensagem_original: string;
+  mensagem_variacao: string | null;
+  status: string;
+  agendado_para: string;
+  enviado_em: string | null;
+  campanha_id: string | null;
+  erro_detalhe: string | null;
+  created_at: string;
+};
+
+const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+  pendente: { label: "Aguardando", color: "bg-warning/20 text-warning border-warning/30", icon: <Clock className="h-3 w-3" /> },
+  enviando: { label: "Enviando", color: "bg-info/20 text-info border-info/30", icon: <Radio className="h-3 w-3 animate-pulse" /> },
+  enviado: { label: "Enviado", color: "bg-success/20 text-success border-success/30", icon: <CheckCircle2 className="h-3 w-3" /> },
+  erro: { label: "Erro", color: "bg-destructive/20 text-destructive border-destructive/30", icon: <XCircle className="h-3 w-3" /> },
+};
+
 const DisparoMassa = () => {
   const [mensagem, setMensagem] = useState("");
-  const [delayMin, setDelayMin] = useState(15);
-  const [delayMax, setDelayMax] = useState(30);
   const [loading, setLoading] = useState(false);
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [stats, setStats] = useState({ pendente: 0, enviando: 0, enviado: 0, erro: 0 });
+  const [processing, setProcessing] = useState(false);
   const { toast } = useToast();
+
+  // Fetch queue items
+  const fetchQueue = async () => {
+    const { data, error } = await supabase
+      .from("message_queue")
+      .select("*")
+      .order("agendado_para", { ascending: true })
+      .limit(100);
+    if (!error && data) {
+      setQueue(data as QueueItem[]);
+      const s = { pendente: 0, enviando: 0, enviado: 0, erro: 0 };
+      data.forEach((item: any) => {
+        if (s[item.status as keyof typeof s] !== undefined) s[item.status as keyof typeof s]++;
+      });
+      setStats(s);
+    }
+  };
+
+  useEffect(() => {
+    fetchQueue();
+    // Realtime subscription
+    const channel = supabase
+      .channel("message_queue_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "message_queue" }, () => {
+        fetchQueue();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  // Process queue (trigger the processor)
+  const processQueue = async () => {
+    setProcessing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("process-message-queue");
+      if (error) throw error;
+      if (data?.processed > 0) {
+        toast({ title: `✅ Mensagem enviada para ${data.destinatario}`, description: `${data.remaining} restantes na fila` });
+      } else {
+        toast({ title: "Nenhuma mensagem para processar agora" });
+      }
+    } catch (err: any) {
+      toast({ title: "Erro ao processar fila", description: err.message, variant: "destructive" });
+    } finally {
+      setProcessing(false);
+      fetchQueue();
+    }
+  };
 
   const handleDisparo = async () => {
     if (!mensagem.trim()) {
@@ -22,15 +93,10 @@ const DisparoMassa = () => {
       return;
     }
 
-    if (delayMin > delayMax) {
-      toast({ title: "A espera mínima não pode ser maior que a máxima", variant: "destructive" });
-      return;
-    }
-
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("uazapi-disparo-massa", {
-        body: { mensagem, delayMin, delayMax },
+        body: { mensagem },
       });
 
       if (error) throw error;
@@ -39,107 +105,211 @@ const DisparoMassa = () => {
         toast({ title: data.error, variant: "destructive" });
       } else {
         toast({
-          title: "Campanha enviada para a fila com sucesso!",
-          description: `${data?.totalEnviados || 0} mensagens serão enviadas.`,
+          title: "🚀 Campanha criada com sucesso!",
+          description: `${data?.totalEnfileirados || 0} mensagens na fila. Intervalo de 4min entre cada. Duração estimada: ${data?.duracaoEstimadaMinutos || 0} minutos.`,
         });
         setMensagem("");
+        fetchQueue();
       }
     } catch (err: any) {
-      toast({
-        title: "Erro ao iniciar disparo",
-        description: err.message || "Tente novamente.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro ao criar campanha", description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
+  const clearCompleted = async () => {
+    await supabase.from("message_queue").delete().eq("status", "enviado");
+    await supabase.from("message_queue").delete().eq("status", "erro");
+    fetchQueue();
+    toast({ title: "Fila limpa" });
+  };
+
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Disparo em Massa</h1>
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Central de Comando</h1>
         <p className="text-muted-foreground text-xs sm:text-sm mt-1">
-          Envie mensagens para toda a sua base de eleitores via WhatsApp.
+          Gerencie disparos em massa e notificações para assessores com variações humanizadas.
         </p>
       </div>
 
-      <Card className="glass-card max-w-2xl">
-        <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <MessageCircle className="h-5 w-5 text-success" />
-            Nova Campanha
-          </CardTitle>
-          <CardDescription>
-            Escreva a mensagem e configure o intervalo de envio.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6">
-          <div>
-            <Label htmlFor="mensagem">Mensagem da Campanha</Label>
-            <Textarea
-              id="mensagem"
-              value={mensagem}
-              onChange={(e) => setMensagem(e.target.value)}
-              placeholder="Digite aqui a mensagem que será enviada para todos os eleitores..."
-              rows={4}
-              className="mt-1.5 text-sm"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card className="glass-card">
+          <CardContent className="p-3 sm:p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-warning/10"><Clock className="h-4 w-4 text-warning" /></div>
             <div>
-              <Label htmlFor="delayMin">Espera Mínima (segundos)</Label>
-              <Input
-                id="delayMin"
-                type="number"
-                min={1}
-                max={60}
-                value={delayMin}
-                onChange={(e) => setDelayMin(Math.min(60, Math.max(1, Number(e.target.value))))}
-                className="mt-1.5"
+              <p className="text-xs text-muted-foreground">Aguardando</p>
+              <p className="text-lg font-bold">{stats.pendente}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="glass-card">
+          <CardContent className="p-3 sm:p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-info/10"><Radio className="h-4 w-4 text-info" /></div>
+            <div>
+              <p className="text-xs text-muted-foreground">Enviando</p>
+              <p className="text-lg font-bold">{stats.enviando}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="glass-card">
+          <CardContent className="p-3 sm:p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-success/10"><CheckCircle2 className="h-4 w-4 text-success" /></div>
+            <div>
+              <p className="text-xs text-muted-foreground">Enviados</p>
+              <p className="text-lg font-bold">{stats.enviado}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="glass-card">
+          <CardContent className="p-3 sm:p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-destructive/10"><XCircle className="h-4 w-4 text-destructive" /></div>
+            <div>
+              <p className="text-xs text-muted-foreground">Erros</p>
+              <p className="text-lg font-bold">{stats.erro}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        {/* Campaign Creation */}
+        <Card className="glass-card">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <MessageCircle className="h-5 w-5 text-success" />
+              Nova Campanha
+            </CardTitle>
+            <CardDescription>
+              Cada eleitor receberá uma variação única da mensagem a cada 4 minutos.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 px-4 sm:px-6 pb-4 sm:pb-6">
+            <div>
+              <Label htmlFor="mensagem">Mensagem Base da Campanha</Label>
+              <Textarea
+                id="mensagem"
+                value={mensagem}
+                onChange={(e) => setMensagem(e.target.value)}
+                placeholder="Digite a mensagem base. A IA criará variações humanizadas para cada eleitor..."
+                rows={4}
+                className="mt-1.5 text-sm"
               />
             </div>
-            <div>
-              <Label htmlFor="delayMax">Espera Máxima (segundos)</Label>
-              <Input
-                id="delayMax"
-                type="number"
-                min={1}
-                max={60}
-                value={delayMax}
-                onChange={(e) => setDelayMax(Math.min(60, Math.max(1, Number(e.target.value))))}
-                className="mt-1.5"
-              />
+
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/10 border border-warning/20">
+              <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+              <p className="text-xs text-muted-foreground">
+                A IA gera variações únicas para cada destinatário. Intervalo de <strong>4 minutos</strong> entre envios para eleitores e <strong>5 minutos</strong> para assessores, evitando banimento no WhatsApp.
+              </p>
             </div>
-          </div>
 
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/10 border border-warning/20">
-            <Clock className="h-4 w-4 text-warning mt-0.5 shrink-0" />
-            <p className="text-xs text-muted-foreground">
-              Defina um intervalo de tempo entre as mensagens para simular o comportamento humano e evitar bloqueios no WhatsApp.
-            </p>
-          </div>
+            <Button
+              onClick={handleDisparo}
+              disabled={loading || !mensagem.trim()}
+              className="w-full gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]"
+            >
+              {loading ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Criando campanha...</>
+              ) : (
+                <><Send className="h-4 w-4" /> Criar Campanha</>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
 
-          <Button
-            onClick={handleDisparo}
-            disabled={loading || !mensagem.trim()}
-            className="w-full gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Enviando...
-              </>
-            ) : (
-              <>
-                <Send className="h-4 w-4" />
-                Iniciar Disparo
-              </>
-            )}
-          </Button>
-        </CardContent>
-      </Card>
+        {/* Queue Controls */}
+        <Card className="glass-card">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <RefreshCw className="h-5 w-5 text-primary" />
+              Processador de Fila
+            </CardTitle>
+            <CardDescription>
+              Processe mensagens manualmente ou configure o cron automático.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 px-4 sm:px-6 pb-4 sm:pb-6">
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/5 border border-primary/10">
+              <Clock className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+              <div className="text-xs text-muted-foreground">
+                <p><strong>Como funciona:</strong></p>
+                <p className="mt-1">O processador envia 1 mensagem por vez. Cada mensagem recebe uma variação única gerada por IA antes do envio.</p>
+                <p className="mt-1">• Eleitores: intervalo de 4 min entre envios</p>
+                <p className="mt-1">• Assessores: intervalo de 5 min entre envios</p>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                onClick={processQueue}
+                disabled={processing || stats.pendente === 0}
+                variant="outline"
+                className="flex-1 gap-2"
+              >
+                {processing ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Processando...</>
+                ) : (
+                  <><RefreshCw className="h-4 w-4" /> Processar Próxima</>
+                )}
+              </Button>
+              <Button
+                onClick={clearCompleted}
+                variant="ghost"
+                className="gap-2 text-muted-foreground"
+                disabled={stats.enviado === 0 && stats.erro === 0}
+              >
+                Limpar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Queue List */}
+      {queue.length > 0 && (
+        <Card className="glass-card">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-lg">Fila de Mensagens</CardTitle>
+            <CardDescription>{queue.length} mensagens na fila</CardDescription>
+          </CardHeader>
+          <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {queue.map((item) => {
+                const cfg = statusConfig[item.status] || statusConfig.pendente;
+                return (
+                  <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-card/50">
+                    <div className="shrink-0">{cfg.icon}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium truncate">{item.destinatario_nome || "Destinatário"}</span>
+                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${cfg.color}`}>
+                          {cfg.label}
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                          {item.tipo === "disparo_massa" ? "Campanha" : item.tipo === "tarefa" ? "Tarefa" : "Demanda"}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                        {item.mensagem_variacao || item.mensagem_original}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                        Agendado: {new Date(item.agendado_para).toLocaleString("pt-BR")}
+                        {item.enviado_em && ` • Enviado: ${new Date(item.enviado_em).toLocaleString("pt-BR")}`}
+                      </p>
+                      {item.erro_detalhe && (
+                        <p className="text-[10px] text-destructive mt-0.5">{item.erro_detalhe}</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </motion.div>
   );
 };
