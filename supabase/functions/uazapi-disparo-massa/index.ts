@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { mensagem, delayMin = 15, delayMax = 30 } = await req.json();
+    const { mensagem } = await req.json();
 
     if (!mensagem || typeof mensagem !== "string" || !mensagem.trim()) {
       return new Response(
@@ -23,21 +23,16 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const uazapiUrl = Deno.env.get("UAZAPI_URL")!;
-    const uazapiToken = Deno.env.get("UAZAPI_TOKEN")!;
-
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Fetch all eleitores with phone numbers
     const { data: eleitores, error: dbError } = await supabase
       .from("eleitores")
-      .select("telefone")
+      .select("nome, telefone")
       .not("telefone", "is", null)
       .neq("telefone", "");
 
-    if (dbError) {
-      throw new Error(`Erro ao buscar eleitores: ${dbError.message}`);
-    }
+    if (dbError) throw new Error(`Erro ao buscar eleitores: ${dbError.message}`);
 
     if (!eleitores || eleitores.length === 0) {
       return new Response(
@@ -46,44 +41,44 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Build messages list for UAZAPI
-    const messagesList = eleitores.map((e) => {
-      const phone = e.telefone!.replace(/\D/g, "");
-      const fullPhone = phone.startsWith("55") ? phone : `55${phone}`;
+    // Generate a campaign ID
+    const campanhaId = crypto.randomUUID();
+    const INTERVAL_MINUTES = 4;
+    const baseTime = new Date();
+
+    // Create queue entries with 4-minute intervals between each
+    const queueEntries = eleitores.map((e, index) => {
+      const scheduledTime = new Date(baseTime.getTime() + index * INTERVAL_MINUTES * 60 * 1000);
       return {
-        number: fullPhone,
-        type: "text",
-        text: mensagem,
+        tipo: "disparo_massa" as const,
+        destinatario_telefone: e.telefone!,
+        destinatario_nome: e.nome || "Eleitor",
+        mensagem_original: mensagem.trim(),
+        status: "pendente" as const,
+        agendado_para: scheduledTime.toISOString(),
+        campanha_id: campanhaId,
       };
     });
 
-    // Send to UAZAPI
-    const uazapiResponse = await fetch(`${uazapiUrl}/sender/advanced`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        token: uazapiToken,
-      },
-      body: JSON.stringify({
-        delayMin: Number(delayMin),
-        delayMax: Number(delayMax),
-        info: "Disparo Gabinete",
-        messages: messagesList,
-      }),
-    });
-
-    if (!uazapiResponse.ok) {
-      const errorText = await uazapiResponse.text();
-      throw new Error(`Erro UAZAPI (${uazapiResponse.status}): ${errorText}`);
+    // Insert in batches of 100
+    for (let i = 0; i < queueEntries.length; i += 100) {
+      const batch = queueEntries.slice(i, i + 100);
+      const { error: insertErr } = await supabase.from("message_queue").insert(batch);
+      if (insertErr) throw new Error(`Erro ao enfileirar: ${insertErr.message}`);
     }
 
-    const result = await uazapiResponse.json();
+    const lastScheduled = queueEntries[queueEntries.length - 1]?.agendado_para;
+    const estimatedEnd = new Date(lastScheduled);
+    const durationMin = Math.ceil((estimatedEnd.getTime() - baseTime.getTime()) / 60000);
 
     return new Response(
       JSON.stringify({
         success: true,
-        totalEnviados: messagesList.length,
-        resultado: result,
+        campanhaId,
+        totalEnfileirados: queueEntries.length,
+        intervaloMinutos: INTERVAL_MINUTES,
+        duracaoEstimadaMinutos: durationMin,
+        previsaoTermino: estimatedEnd.toISOString(),
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

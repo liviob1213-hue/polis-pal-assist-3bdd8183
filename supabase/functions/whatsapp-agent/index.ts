@@ -227,6 +227,52 @@ async function sendMessage(phone: string, text: string) {
   return res.json();
 }
 
+// ─── Queue notification with AI variation (5-min intervals) ──
+
+async function queueAssessorNotification(
+  phone: string,
+  nome: string,
+  mensagemOriginal: string,
+  tipo: "tarefa" | "demanda",
+  referenciaId?: string
+) {
+  const sb = supabaseAdmin();
+  
+  // Find latest queued message for assessor notifications to calculate next slot
+  const { data: lastQueued } = await sb
+    .from("message_queue")
+    .select("agendado_para")
+    .in("tipo", ["tarefa", "demanda"])
+    .in("status", ["pendente", "enviando"])
+    .order("agendado_para", { ascending: false })
+    .limit(1);
+  
+  const INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+  const now = new Date();
+  let scheduledTime = now;
+  
+  if (lastQueued && lastQueued.length > 0) {
+    const lastTime = new Date(lastQueued[0].agendado_para);
+    if (lastTime.getTime() > now.getTime()) {
+      scheduledTime = new Date(lastTime.getTime() + INTERVAL_MS);
+    } else {
+      scheduledTime = new Date(now.getTime() + INTERVAL_MS);
+    }
+  }
+
+  await sb.from("message_queue").insert({
+    tipo,
+    destinatario_telefone: phone,
+    destinatario_nome: nome,
+    mensagem_original: mensagemOriginal,
+    status: "pendente",
+    agendado_para: scheduledTime.toISOString(),
+    referencia_id: referenciaId || null,
+  });
+  
+  console.log(`📋 Queued ${tipo} notification for ${nome} at ${scheduledTime.toISOString()}`);
+}
+
 // ─── Chat History ───────────────────────────────────────────
 
 async function getChatHistory(phone: string, limit = 10): Promise<Array<{role: string, message: string, context: any}>> {
@@ -435,10 +481,15 @@ async function handleCriarDemanda(params: any, senderProfile: any): Promise<stri
       if (assessor) {
         assessorId = assessor.user_id;
         try {
-          await sendMessage(assessor.telefone, `📋 *Nova demanda atribuída a você!*\n\n📌 ${params.titulo || params.descricao || "Nova demanda"}\n${params.descricao ? `📝 ${params.descricao}` : ""}\n${params.localizacao ? `📍 ${params.localizacao}` : ""}\n${params.prazo ? `📅 Prazo: ${params.prazo}` : ""}\n\n_Atribuída por ${senderProfile.nome}_`);
-          assessorNotification = `\n📨 Notificação enviada para o assessor *${assessor.nome}*!`;
+          await queueAssessorNotification(
+            assessor.telefone,
+            assessor.nome,
+            `📋 *Nova demanda atribuída a você!*\n\n📌 ${params.titulo || params.descricao || "Nova demanda"}\n${params.descricao ? `📝 ${params.descricao}` : ""}\n${params.localizacao ? `📍 ${params.localizacao}` : ""}\n${params.prazo ? `📅 Prazo: ${params.prazo}` : ""}\n\n_Atribuída por ${senderProfile.nome}_`,
+            "demanda"
+          );
+          assessorNotification = `\n📨 Notificação enfileirada para o assessor *${assessor.nome}*!`;
         } catch (e) {
-          console.error("Error notifying assessor:", e);
+          console.error("Error queuing assessor notification:", e);
         }
       } else {
         return `❌ Assessor "${params.assessor_nome}" não encontrado entre seus assessores cadastrados.`;
@@ -597,10 +648,15 @@ async function handleCriarTarefa(params: any, senderProfile: any): Promise<strin
       if (assessor) {
         assessorId = assessor.user_id;
         try {
-          await sendMessage(assessor.telefone, `✅ *Nova tarefa atribuída a você!*\n\n📌 ${titulo}\n${params.descricao ? `📝 ${params.descricao}` : ""}\n${prazo ? `📅 Prazo: ${new Date(prazo).toLocaleString("pt-BR")}` : ""}\n\n_Atribuída por ${senderProfile.nome}_`);
-          assessorNotification = `\n📨 Notificação enviada para o assessor *${assessor.nome}*!`;
+          await queueAssessorNotification(
+            assessor.telefone,
+            assessor.nome,
+            `✅ *Nova tarefa atribuída a você!*\n\n📌 ${titulo}\n${params.descricao ? `📝 ${params.descricao}` : ""}\n${prazo ? `📅 Prazo: ${new Date(prazo).toLocaleString("pt-BR")}` : ""}\n\n_Atribuída por ${senderProfile.nome}_`,
+            "tarefa"
+          );
+          assessorNotification = `\n📨 Notificação enfileirada para o assessor *${assessor.nome}*!`;
         } catch (e) {
-          console.error("Error notifying assessor:", e);
+          console.error("Error queuing assessor notification:", e);
         }
       } else {
         return `❌ Assessor "${params.assessor_nome}" não encontrado entre seus assessores cadastrados.`;

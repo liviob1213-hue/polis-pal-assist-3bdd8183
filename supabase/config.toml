@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.uazapi-disparo-massa]
 verify_jwt = false
 
+[functions.process-message-queue]
+verify_jwt = false
+
 [functions.whatsapp-agent]
 verify_jwt = false
 
