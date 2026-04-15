@@ -297,8 +297,10 @@ const DisparoMassa = () => {
                         {item.mensagem_variacao || item.mensagem_original}
                       </p>
                       <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-                        Agendado: {new Date(item.agendado_para).toLocaleString("pt-BR")}
-                        {item.enviado_em && ` • Enviado: ${new Date(item.enviado_em).toLocaleString("pt-BR")}`}
+                        {item.status === "pendente" && "Na fila aguardando vez"}
+                        {item.status === "enviado" && !item.erro_detalhe && `Enviado: ${new Date(item.enviado_em!).toLocaleString("pt-BR")} • Aguardando resposta...`}
+                        {item.status === "enviado" && (item as any).respondido_em && `Respondido: ${new Date((item as any).respondido_em).toLocaleString("pt-BR")}`}
+                        {item.enviado_em && item.status !== "enviado" && `Enviado: ${new Date(item.enviado_em).toLocaleString("pt-BR")}`}
                       </p>
                       {item.erro_detalhe && (
                         <p className="text-[10px] text-destructive mt-0.5">{item.erro_detalhe}</p>
