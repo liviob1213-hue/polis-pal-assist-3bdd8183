@@ -43,22 +43,20 @@ Deno.serve(async (req) => {
 
     // Generate a campaign ID
     const campanhaId = crypto.randomUUID();
-    const INTERVAL_MINUTES = 4;
-    const baseTime = new Date();
 
-    // Create queue entries with 4-minute intervals between each
-    const queueEntries = eleitores.map((e, index) => {
-      const scheduledTime = new Date(baseTime.getTime() + index * INTERVAL_MINUTES * 60 * 1000);
-      return {
-        tipo: "disparo_massa" as const,
-        destinatario_telefone: e.telefone!,
-        destinatario_nome: e.nome || "Eleitor",
-        mensagem_original: mensagem.trim(),
-        status: "pendente" as const,
-        agendado_para: scheduledTime.toISOString(),
-        campanha_id: campanhaId,
-      };
-    });
+    // All messages start as "pendente" - no fixed time scheduling
+    // The process-message-queue function handles the anti-ban logic:
+    // - Only sends the next message AFTER the previous recipient replies
+    // - Adds a random 8-20 min cooldown after each reply before next send
+    const queueEntries = eleitores.map((e) => ({
+      tipo: "disparo_massa" as const,
+      destinatario_telefone: e.telefone!,
+      destinatario_nome: e.nome || "Eleitor",
+      mensagem_original: mensagem.trim(),
+      status: "pendente" as const,
+      agendado_para: new Date().toISOString(),
+      campanha_id: campanhaId,
+    }));
 
     // Insert in batches of 100
     for (let i = 0; i < queueEntries.length; i += 100) {
@@ -67,18 +65,13 @@ Deno.serve(async (req) => {
       if (insertErr) throw new Error(`Erro ao enfileirar: ${insertErr.message}`);
     }
 
-    const lastScheduled = queueEntries[queueEntries.length - 1]?.agendado_para;
-    const estimatedEnd = new Date(lastScheduled);
-    const durationMin = Math.ceil((estimatedEnd.getTime() - baseTime.getTime()) / 60000);
-
     return new Response(
       JSON.stringify({
         success: true,
         campanhaId,
         totalEnfileirados: queueEntries.length,
-        intervaloMinutos: INTERVAL_MINUTES,
-        duracaoEstimadaMinutos: durationMin,
-        previsaoTermino: estimatedEnd.toISOString(),
+        logica: "reply-gated",
+        descricao: "Cada mensagem só será enviada após o destinatário anterior responder + delay aleatório de 8-20 min",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
