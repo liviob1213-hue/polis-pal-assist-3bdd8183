@@ -484,7 +484,7 @@ async function handleCriarDemanda(params: any, senderProfile: any): Promise<stri
           await queueAssessorNotification(
             assessor.telefone,
             assessor.nome,
-            `📋 *Nova demanda atribuída a você!*\n\n📌 ${params.titulo || params.descricao || "Nova demanda"}\n${params.descricao ? `📝 ${params.descricao}` : ""}\n${params.localizacao ? `📍 ${params.localizacao}` : ""}\n${params.prazo ? `📅 Prazo: ${params.prazo}` : ""}\n\n_Atribuída por ${senderProfile.nome}_`,
+            `📋 *Nova demanda atribuída a você!*\n\n📌 ${params.titulo || params.descricao || "Nova demanda"}\n${params.descricao ? `📝 ${params.descricao}` : ""}\n${params.localizacao ? `📍 ${params.localizacao}` : ""}\n${params.prazo ? `📅 Prazo: ${params.prazo}` : ""}\n\n_Atribuída por ${senderProfile.nome}_\n\n⚠️ *Por favor, confirme o recebimento respondendo: você consegue assumir essa demanda?*`,
             "demanda"
           );
           assessorNotification = `\n📨 Notificação enfileirada para o assessor *${assessor.nome}*!`;
@@ -671,7 +671,7 @@ async function handleCriarTarefa(params: any, senderProfile: any): Promise<strin
           await queueAssessorNotification(
             assessor.telefone,
             assessor.nome,
-            `✅ *Nova tarefa atribuída a você!*\n\n📌 ${titulo}\n${params.descricao ? `📝 ${params.descricao}` : ""}\n${prazo ? `📅 Prazo: ${new Date(prazo).toLocaleString("pt-BR")}` : ""}\n\n_Atribuída por ${senderProfile.nome}_`,
+            `✅ *Nova tarefa atribuída a você!*\n\n📌 ${titulo}\n${params.descricao ? `📝 ${params.descricao}` : ""}\n${prazo ? `📅 Prazo: ${new Date(prazo).toLocaleString("pt-BR")}` : ""}\n\n_Atribuída por ${senderProfile.nome}_\n\n⚠️ *Por favor, confirme o recebimento respondendo: você consegue realizar essa tarefa no prazo?*`,
             "tarefa"
           );
           assessorNotification = `\n📨 Notificação enfileirada para o assessor *${assessor.nome}*!`;
