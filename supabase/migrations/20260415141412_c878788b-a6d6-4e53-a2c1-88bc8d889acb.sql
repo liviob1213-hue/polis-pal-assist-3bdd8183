@@ -1,0 +1,1 @@
+ALTER TABLE public.message_queue ADD COLUMN respondido_em timestamp with time zone DEFAULT NULL;

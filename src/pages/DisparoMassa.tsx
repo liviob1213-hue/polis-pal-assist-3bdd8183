@@ -25,9 +25,9 @@ type QueueItem = {
 };
 
 const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  pendente: { label: "Aguardando", color: "bg-warning/20 text-warning border-warning/30", icon: <Clock className="h-3 w-3" /> },
+  pendente: { label: "Na fila", color: "bg-warning/20 text-warning border-warning/30", icon: <Clock className="h-3 w-3" /> },
   enviando: { label: "Enviando", color: "bg-info/20 text-info border-info/30", icon: <Radio className="h-3 w-3 animate-pulse" /> },
-  enviado: { label: "Enviado", color: "bg-success/20 text-success border-success/30", icon: <CheckCircle2 className="h-3 w-3" /> },
+  enviado: { label: "Aguardando resposta", color: "bg-info/20 text-info border-info/30", icon: <MessageCircle className="h-3 w-3" /> },
   erro: { label: "Erro", color: "bg-destructive/20 text-destructive border-destructive/30", icon: <XCircle className="h-3 w-3" /> },
 };
 
@@ -106,7 +106,7 @@ const DisparoMassa = () => {
       } else {
         toast({
           title: "🚀 Campanha criada com sucesso!",
-          description: `${data?.totalEnfileirados || 0} mensagens na fila. Intervalo de 4min entre cada. Duração estimada: ${data?.duracaoEstimadaMinutos || 0} minutos.`,
+          description: `${data?.totalEnfileirados || 0} mensagens na fila. Lógica anti-banimento: próxima mensagem só envia após o eleitor responder + delay aleatório.`,
         });
         setMensagem("");
         fetchQueue();
@@ -183,7 +183,7 @@ const DisparoMassa = () => {
               Nova Campanha
             </CardTitle>
             <CardDescription>
-              Cada eleitor receberá uma variação única da mensagem a cada 4 minutos.
+              Cada eleitor receberá uma variação única. A próxima mensagem só é enviada após o eleitor anterior responder.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 px-4 sm:px-6 pb-4 sm:pb-6">
@@ -202,7 +202,7 @@ const DisparoMassa = () => {
             <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/10 border border-warning/20">
               <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
               <p className="text-xs text-muted-foreground">
-                A IA gera variações únicas para cada destinatário. Intervalo de <strong>4 minutos</strong> entre envios para eleitores e <strong>5 minutos</strong> para assessores, evitando banimento no WhatsApp.
+                <strong>Anti-banimento:</strong> A IA gera variações únicas com pergunta no final. A próxima mensagem só é enviada <strong>após o eleitor anterior responder</strong> + delay aleatório de 8-20 min. Timeout de 60 min se não houver resposta.
               </p>
             </div>
 
@@ -235,10 +235,11 @@ const DisparoMassa = () => {
             <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/5 border border-primary/10">
               <Clock className="h-4 w-4 text-primary mt-0.5 shrink-0" />
               <div className="text-xs text-muted-foreground">
-                <p><strong>Como funciona:</strong></p>
-                <p className="mt-1">O processador envia 1 mensagem por vez. Cada mensagem recebe uma variação única gerada por IA antes do envio.</p>
-                <p className="mt-1">• Eleitores: intervalo de 4 min entre envios</p>
-                <p className="mt-1">• Assessores: intervalo de 5 min entre envios</p>
+                <p><strong>Lógica anti-banimento:</strong></p>
+                <p className="mt-1">1. Envia mensagem com variação única + pergunta no final</p>
+                <p className="mt-1">2. Aguarda o destinatário responder (timeout: 60 min)</p>
+                <p className="mt-1">3. Após resposta, espera 8-20 min aleatórios</p>
+                <p className="mt-1">4. Só então envia a próxima mensagem da fila</p>
               </div>
             </div>
 
@@ -296,8 +297,10 @@ const DisparoMassa = () => {
                         {item.mensagem_variacao || item.mensagem_original}
                       </p>
                       <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-                        Agendado: {new Date(item.agendado_para).toLocaleString("pt-BR")}
-                        {item.enviado_em && ` • Enviado: ${new Date(item.enviado_em).toLocaleString("pt-BR")}`}
+                        {item.status === "pendente" && "Na fila aguardando vez"}
+                        {item.status === "enviado" && !item.erro_detalhe && `Enviado: ${new Date(item.enviado_em!).toLocaleString("pt-BR")} • Aguardando resposta...`}
+                        {item.status === "enviado" && (item as any).respondido_em && `Respondido: ${new Date((item as any).respondido_em).toLocaleString("pt-BR")}`}
+                        {item.enviado_em && item.status !== "enviado" && `Enviado: ${new Date(item.enviado_em).toLocaleString("pt-BR")}`}
                       </p>
                       {item.erro_detalhe && (
                         <p className="text-[10px] text-destructive mt-0.5">{item.erro_detalhe}</p>

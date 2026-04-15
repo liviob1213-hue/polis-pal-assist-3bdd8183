@@ -171,6 +171,7 @@ export type Database = {
           mensagem_original: string
           mensagem_variacao: string | null
           referencia_id: string | null
+          respondido_em: string | null
           status: string
           tipo: string
           updated_at: string
@@ -188,6 +189,7 @@ export type Database = {
           mensagem_original: string
           mensagem_variacao?: string | null
           referencia_id?: string | null
+          respondido_em?: string | null
           status?: string
           tipo: string
           updated_at?: string
@@ -205,6 +207,7 @@ export type Database = {
           mensagem_original?: string
           mensagem_variacao?: string | null
           referencia_id?: string | null
+          respondido_em?: string | null
           status?: string
           tipo?: string
           updated_at?: string
