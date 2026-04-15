@@ -783,6 +783,53 @@ Deno.serve(async (req) => {
 
     if (!(await isAuthorized(senderPhone))) {
       console.log(`🚫 Número não autorizado: ${senderPhone}`);
+      
+      // ANTI-BAN: Mark message_queue entry as replied when an eleitor responds
+      // This allows the next message in the campaign to be sent
+      try {
+        const sb = supabaseAdmin();
+        const formattedPhone = formatPhoneForUazapi(senderPhone);
+        // Find the most recent "enviado" message to this phone that hasn't been replied to
+        const { data: queueMsg } = await sb
+          .from("message_queue")
+          .select("id, destinatario_nome, campanha_id")
+          .eq("destinatario_telefone", formattedPhone)
+          .eq("status", "enviado")
+          .is("respondido_em", null)
+          .order("enviado_em", { ascending: false })
+          .limit(1);
+        
+        if (queueMsg && queueMsg.length > 0) {
+          await sb.from("message_queue").update({
+            respondido_em: new Date().toISOString(),
+          }).eq("id", queueMsg[0].id);
+          console.log(`✅ Eleitor ${queueMsg[0].destinatario_nome} respondeu! Campanha ${queueMsg[0].campanha_id} desbloqueada.`);
+        }
+
+        // Also try matching without the 9th digit (phone stored differently)
+        const phoneWith9 = formattedPhone.length === 12 
+          ? formattedPhone.slice(0, 4) + "9" + formattedPhone.slice(4) 
+          : formattedPhone;
+        if (phoneWith9 !== formattedPhone) {
+          const { data: queueMsg2 } = await sb
+            .from("message_queue")
+            .select("id, destinatario_nome, campanha_id")
+            .eq("destinatario_telefone", phoneWith9)
+            .eq("status", "enviado")
+            .is("respondido_em", null)
+            .order("enviado_em", { ascending: false })
+            .limit(1);
+          if (queueMsg2 && queueMsg2.length > 0) {
+            await sb.from("message_queue").update({
+              respondido_em: new Date().toISOString(),
+            }).eq("id", queueMsg2[0].id);
+            console.log(`✅ Eleitor ${queueMsg2[0].destinatario_nome} respondeu (alt phone)!`);
+          }
+        }
+      } catch (e) {
+        console.error("Error marking queue reply:", e);
+      }
+      
       return jsonResponse({ status: "unauthorized", phone: senderPhone });
     }
 
