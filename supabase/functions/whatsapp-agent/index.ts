@@ -520,6 +520,23 @@ async function handleCriarDemanda(params: any, senderProfile: any): Promise<stri
   return `✅ Demanda *${params.titulo || "Nova demanda"}* registrada com status "Em Análise".${prazoStr}${assessorNotification}`;
 }
 
+// Map user synonyms to actual DB status values for demanda queries
+const DEMANDA_STATUS_SYNONYMS: Record<string, string[]> = {
+  "Em Análise": ["em analise", "em análise", "analise", "análise", "aberta", "aberto", "nova", "novas"],
+  "Em Andamento": ["em andamento", "andamento", "progresso", "em progresso"],
+  "Resolvido": ["resolvido", "resolvida", "resolvidas", "resolvidos", "concluida", "concluída", "concluidas", "concluídas", "finalizada", "finalizadas", "fechada", "fechadas", "pronta", "prontas"],
+};
+
+function resolveStatusFilter(raw: string): string | null {
+  const needle = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  for (const [dbStatus, synonyms] of Object.entries(DEMANDA_STATUS_SYNONYMS)) {
+    if (synonyms.some(s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(needle) || needle.includes(s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")))) {
+      return dbStatus;
+    }
+  }
+  return raw; // fallback to original
+}
+
 async function handleConsultarDemanda(params: any, senderProfile: any): Promise<string> {
   const sb = supabaseAdmin();
   let query = sb.from("demandas").select("*").order("created_at", { ascending: false });
@@ -529,16 +546,19 @@ async function handleConsultarDemanda(params: any, senderProfile: any): Promise<
     query = query.eq("assessor_id", senderProfile.user_id);
   }
   
-  if (params.status_filtro) query = query.ilike("status", `%${params.status_filtro}%`);
+  if (params.status_filtro) {
+    const resolved = resolveStatusFilter(params.status_filtro);
+    query = query.eq("status", resolved);
+  }
   if (params.busca_texto) query = query.or(`titulo.ilike.%${params.busca_texto}%,descricao.ilike.%${params.busca_texto}%`);
   const { data, error } = await query.limit(10);
   if (error) throw new Error(`DB error: ${error.message}`);
-  if (!data || data.length === 0) return "📋 Nenhuma demanda encontrada.";
+  if (!data || data.length === 0) return "📋 Nenhuma demanda encontrada com esse filtro.";
   const lines = data.map((d: any, i: number) => {
     const prazoInfo = d.prazo ? `\n   📅 Prazo: ${new Date(d.prazo).toLocaleDateString("pt-BR")}` : "";
     return `${i + 1}. *${d.titulo}*\n   📍 ${d.localizacao || "Sem local"}\n   📌 Status: ${d.status}${prazoInfo}`;
   });
-  return `📋 *Demandas encontradas:*\n\n${lines.join("\n\n")}`;
+  return `📋 *${data.length} demanda(s) encontrada(s):*\n\n${lines.join("\n\n")}`;
 }
 
 async function handleConcluirDemanda(params: any): Promise<string> {
