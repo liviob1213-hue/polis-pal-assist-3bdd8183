@@ -1,9 +1,35 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+async function gerarEmbedding(texto: string, openaiKey: string): Promise<number[] | null> {
+  try {
+    const r = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${openaiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "text-embedding-3-small",
+        input: texto,
+      }),
+    });
+    if (!r.ok) {
+      console.error("Embedding falhou:", r.status, await r.text());
+      return null;
+    }
+    const data = await r.json();
+    return data.data[0].embedding;
+  } catch (e) {
+    console.error("Embedding error:", e);
+    return null;
+  }
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -11,7 +37,43 @@ serve(async (req) => {
   try {
     const { messages, context } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    // === RAG: buscar contexto na base de conhecimento ===
+    let contextoRAG = "";
+    let fontesUsadas: any[] = [];
+
+    const ultimaMsgUsuario = [...messages].reverse().find((m: any) => m.role === "user");
+    if (ultimaMsgUsuario && OPENAI_API_KEY) {
+      const embedding = await gerarEmbedding(ultimaMsgUsuario.content, OPENAI_API_KEY);
+      if (embedding) {
+        const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+        const { data: trechos, error } = await supabase.rpc("buscar_legislacao", {
+          query_embedding: embedding,
+          match_threshold: 0.4,
+          match_count: 4,
+        });
+        if (error) {
+          console.error("RPC buscar_legislacao error:", error);
+        } else if (trechos && trechos.length > 0) {
+          fontesUsadas = trechos.map((t: any) => ({
+            arquivo: t.metadados?.arquivo,
+            pagina: t.metadados?.pagina,
+            similaridade: t.similaridade,
+          }));
+          contextoRAG = trechos
+            .map((t: any, i: number) => {
+              const fonte = `[Fonte ${i + 1}: ${t.metadados?.arquivo || "documento"}, página ${t.metadados?.pagina || "?"}]`;
+              return `${fonte}\n${t.conteudo}`;
+            })
+            .join("\n\n---\n\n");
+          console.log(`RAG: ${trechos.length} trechos relevantes encontrados`);
+        }
+      }
+    }
 
     const systemPrompt = `Você é um Assistente Legislativo Especialista de alto nível. Seu papel é ajudar vereadores e equipes de gabinete com:
 
@@ -21,6 +83,7 @@ serve(async (req) => {
 - Análise jurídica de proposições
 - Estratégias de comunicação política
 - Ofícios e documentos oficiais
+- Consulta à Lei Orgânica municipal e legislação local
 
 REGRAS DE FORMATAÇÃO:
 - Organize suas respostas em tópicos e subtópicos claros
@@ -30,9 +93,22 @@ REGRAS DE FORMATAÇÃO:
 - NUNCA use ** isolado sem texto entre eles
 - Seja claro, objetivo e profissional
 - Use linguagem formal parlamentar quando redigindo documentos
-- Sempre ofereça opções e pergunte se deseja personalizar
 
-${context ? `Contexto adicional: ${context}` : ''}`;
+${contextoRAG ? `
+=== BASE DE CONHECIMENTO (RAG) ===
+Você tem acesso aos seguintes trechos da base de conhecimento legislativa do gabinete (Lei Orgânica, decretos, regimentos, etc.):
+
+${contextoRAG}
+
+INSTRUÇÕES SOBRE A BASE DE CONHECIMENTO:
+1. PRIORIZE responder a pergunta do usuário utilizando os trechos acima.
+2. Quando usar informação da base, cite a fonte (ex: "Conforme Art. X da Lei Orgânica, página Y").
+3. Se a resposta NÃO estiver no contexto acima, complemente com seu conhecimento geral, mas avise: "Esta informação não consta na base de conhecimento carregada, mas com base no conhecimento geral...".
+4. Nunca invente artigos ou números de lei.
+=== FIM DA BASE ===
+` : ''}
+
+${context ? `Contexto adicional do gabinete: ${context}` : ''}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -69,7 +145,11 @@ ${context ? `Contexto adicional: ${context}` : ''}`;
     }
 
     return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "text/event-stream",
+        "X-RAG-Sources": JSON.stringify(fontesUsadas).slice(0, 1500),
+      },
     });
   } catch (e) {
     console.error("chat error:", e);

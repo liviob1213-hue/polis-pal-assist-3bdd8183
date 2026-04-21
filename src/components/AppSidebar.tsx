@@ -12,6 +12,7 @@ import {
   MessageSquare,
   Cake,
   FileBarChart,
+  BookOpen,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -40,6 +41,7 @@ const baseMenuItems = [
   { title: "Gestão de Tarefas", url: "/tarefas", icon: CheckSquare },
   { title: "Agenda Oficial", url: "/agenda", icon: CalendarDays },
   { title: "Assistente Legislativo", url: "/assistente", icon: Bot },
+  { title: "Base de Conhecimento", url: "/base-conhecimento", icon: BookOpen },
   { title: "Histórico de Conversas", url: "/historico-conversas", icon: MessageSquare },
   { title: "Resumo Mensal", url: "/resumo-mensal", icon: FileBarChart },
 ];
