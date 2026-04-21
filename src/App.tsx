@@ -14,7 +14,7 @@ import Tarefas from "./pages/Tarefas";
 import Agenda from "./pages/Agenda";
 import Assistente from "./pages/Assistente";
 import Configuracoes from "./pages/Configuracoes";
-import DisparoMassa from "./pages/DisparoMassa";
+import Aniversarios from "./pages/Aniversarios";
 import Assessores from "./pages/Assessores";
 import HistoricoConversas from "./pages/HistoricoConversas";
 import Login from "./pages/Login";
@@ -59,7 +59,7 @@ const AnimatedRoutes = () => {
         <Route path="/tarefas" element={<ProtectedRoute><AppLayout><Tarefas /></AppLayout></ProtectedRoute>} />
         <Route path="/agenda" element={<ProtectedRoute><AppLayout><Agenda /></AppLayout></ProtectedRoute>} />
         <Route path="/assistente" element={<ProtectedRoute><AppLayout><Assistente /></AppLayout></ProtectedRoute>} />
-        <Route path="/disparo-massa" element={<ProtectedRoute><AppLayout><DisparoMassa /></AppLayout></ProtectedRoute>} />
+        <Route path="/aniversarios" element={<ProtectedRoute><AppLayout><Aniversarios /></AppLayout></ProtectedRoute>} />
         <Route path="/assessores" element={<PoliticoRoute><AppLayout><Assessores /></AppLayout></PoliticoRoute>} />
         <Route path="/historico-conversas" element={<ProtectedRoute><AppLayout><HistoricoConversas /></AppLayout></ProtectedRoute>} />
         <Route path="/configuracoes" element={<ProtectedRoute><AppLayout><Configuracoes /></AppLayout></ProtectedRoute>} />

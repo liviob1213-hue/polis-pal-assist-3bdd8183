@@ -121,6 +121,7 @@ export type Database = {
       eleitores: {
         Row: {
           created_at: string
+          data_nascimento: string | null
           endereco: string | null
           id: string
           interesse: string | null
@@ -133,6 +134,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          data_nascimento?: string | null
           endereco?: string | null
           id?: string
           interesse?: string | null
@@ -145,6 +147,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          data_nascimento?: string | null
           endereco?: string | null
           id?: string
           interesse?: string | null

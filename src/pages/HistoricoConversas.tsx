@@ -7,10 +7,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageSquare, Search, Bot, User as UserIcon, Phone, RefreshCw } from "lucide-react";
+import { MessageSquare, Search, Bot, User as UserIcon, Phone, RefreshCw, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { toast } from "@/hooks/use-toast";
 
 interface ChatMessage {
   id: string;
@@ -118,6 +121,60 @@ export default function HistoricoConversas() {
     return tel;
   };
 
+  const exportarPDF = (telefoneAlvo?: string) => {
+    const msgsExport = telefoneAlvo
+      ? messages.filter((m) => m.telefone === telefoneAlvo)
+      : messages;
+    if (msgsExport.length === 0) {
+      toast({ title: "Sem mensagens para exportar", variant: "destructive" });
+      return;
+    }
+    const doc = new jsPDF();
+    const titulo = telefoneAlvo
+      ? `Histórico - ${eleitoresMap[telefoneAlvo.replace(/\D/g, "")] || formatTel(telefoneAlvo)}`
+      : "Histórico Geral de Conversas";
+    doc.setFontSize(16);
+    doc.text(titulo, 14, 18);
+    doc.setFontSize(9);
+    doc.setTextColor(120);
+    doc.text(`Gerado em ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })}`, 14, 25);
+    doc.text(`Total de mensagens: ${msgsExport.length}`, 14, 30);
+
+    const ordenadas = [...msgsExport].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    );
+
+    const rows = ordenadas.map((m) => {
+      const clean = m.telefone.replace(/\D/g, "");
+      return [
+        format(new Date(m.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR }),
+        eleitoresMap[clean] || formatTel(m.telefone),
+        m.role === "user" ? "Eleitor" : "Agente",
+        m.message,
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 36,
+      head: [["Data", "Eleitor", "Origem", "Mensagem"]],
+      body: rows,
+      styles: { fontSize: 8, cellPadding: 2, valign: "top" },
+      headStyles: { fillColor: [68, 152, 149] },
+      columnStyles: {
+        0: { cellWidth: 28 },
+        1: { cellWidth: 38 },
+        2: { cellWidth: 18 },
+        3: { cellWidth: "auto" },
+      },
+    });
+
+    const filename = telefoneAlvo
+      ? `historico-${telefoneAlvo.replace(/\D/g, "")}.pdf`
+      : `historico-geral-${format(new Date(), "yyyyMMdd-HHmm")}.pdf`;
+    doc.save(filename);
+    toast({ title: "PDF gerado com sucesso!" });
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -135,10 +192,16 @@ export default function HistoricoConversas() {
             Conversas do agente de WhatsApp com eleitores
           </p>
         </div>
-        <Button variant="outline" onClick={carregar} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-          Atualizar
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => exportarPDF()} disabled={loading || messages.length === 0}>
+            <FileDown className="h-4 w-4 mr-2" />
+            PDF Geral
+          </Button>
+          <Button variant="outline" onClick={carregar} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+            Atualizar
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[calc(100vh-220px)]">
@@ -255,7 +318,18 @@ export default function HistoricoConversas() {
                       <Phone className="h-3 w-3" /> {formatTel(conversaAtiva.telefone)}
                     </div>
                   </div>
-                  <Badge variant="secondary">{mensagensAtivas.length} mensagens</Badge>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Badge variant="secondary">{mensagensAtivas.length} mensagens</Badge>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => exportarPDF(selecionado!)}
+                      title="Exportar conversa em PDF"
+                    >
+                      <FileDown className="h-3.5 w-3.5 mr-1.5" />
+                      PDF
+                    </Button>
+                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex-1 overflow-hidden p-0">
