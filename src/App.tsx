@@ -16,6 +16,7 @@ import Assistente from "./pages/Assistente";
 import Configuracoes from "./pages/Configuracoes";
 import DisparoMassa from "./pages/DisparoMassa";
 import Assessores from "./pages/Assessores";
+import HistoricoConversas from "./pages/HistoricoConversas";
 import Login from "./pages/Login";
 import Cadastro from "./pages/Cadastro";
 import NotFound from "./pages/NotFound";
@@ -60,6 +61,7 @@ const AnimatedRoutes = () => {
         <Route path="/assistente" element={<ProtectedRoute><AppLayout><Assistente /></AppLayout></ProtectedRoute>} />
         <Route path="/disparo-massa" element={<ProtectedRoute><AppLayout><DisparoMassa /></AppLayout></ProtectedRoute>} />
         <Route path="/assessores" element={<PoliticoRoute><AppLayout><Assessores /></AppLayout></PoliticoRoute>} />
+        <Route path="/historico-conversas" element={<ProtectedRoute><AppLayout><HistoricoConversas /></AppLayout></ProtectedRoute>} />
         <Route path="/configuracoes" element={<ProtectedRoute><AppLayout><Configuracoes /></AppLayout></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
