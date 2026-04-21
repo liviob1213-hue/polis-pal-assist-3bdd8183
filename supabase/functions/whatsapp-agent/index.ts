@@ -802,8 +802,18 @@ Deno.serve(async (req) => {
     console.log(`📩 Mensagem de ${senderPhone}: ${message}`);
 
     if (!(await isAuthorized(senderPhone))) {
-      console.log(`🚫 Número não autorizado: ${senderPhone}`);
-      
+      console.log(`🚫 Número não autorizado (não é político/assessor): ${senderPhone}`);
+
+      // ─── Atendimento humanizado ao ELEITOR (se agente_ativo) ───
+      try {
+        const handled = await handleEleitorMessage(senderPhone, message);
+        if (handled) {
+          return jsonResponse({ status: "eleitor_atendido", phone: senderPhone });
+        }
+      } catch (e) {
+        console.error("Erro ao atender eleitor:", e);
+      }
+
       // ANTI-BAN: Mark message_queue entry as replied when an eleitor responds
       // This allows the next message in the campaign to be sent
       try {
