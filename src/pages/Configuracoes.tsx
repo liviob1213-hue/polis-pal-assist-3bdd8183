@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Send, Bot, CalendarDays, ChevronRight, UserCheck } from "lucide-react";
+import { Bot, CalendarDays, ChevronRight, UserCheck, Cake } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const Configuracoes = () => {
