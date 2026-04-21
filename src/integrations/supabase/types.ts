@@ -87,6 +87,7 @@ export type Database = {
           assessor_id: string | null
           created_at: string
           descricao: string | null
+          eleitor_id: string | null
           id: string
           localizacao: string | null
           prazo: string | null
@@ -98,6 +99,7 @@ export type Database = {
           assessor_id?: string | null
           created_at?: string
           descricao?: string | null
+          eleitor_id?: string | null
           id?: string
           localizacao?: string | null
           prazo?: string | null
@@ -109,6 +111,7 @@ export type Database = {
           assessor_id?: string | null
           created_at?: string
           descricao?: string | null
+          eleitor_id?: string | null
           id?: string
           localizacao?: string | null
           prazo?: string | null
@@ -116,10 +119,19 @@ export type Database = {
           titulo?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "demandas_eleitor_id_fkey"
+            columns: ["eleitor_id"]
+            isOneToOne: false
+            referencedRelation: "eleitores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       eleitores: {
         Row: {
+          agente_ativo: boolean
           created_at: string
           data_nascimento: string | null
           endereco: string | null
@@ -133,6 +145,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agente_ativo?: boolean
           created_at?: string
           data_nascimento?: string | null
           endereco?: string | null
@@ -146,6 +159,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agente_ativo?: boolean
           created_at?: string
           data_nascimento?: string | null
           endereco?: string | null
