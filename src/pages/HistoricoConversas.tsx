@@ -318,7 +318,18 @@ export default function HistoricoConversas() {
                       <Phone className="h-3 w-3" /> {formatTel(conversaAtiva.telefone)}
                     </div>
                   </div>
-                  <Badge variant="secondary">{mensagensAtivas.length} mensagens</Badge>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Badge variant="secondary">{mensagensAtivas.length} mensagens</Badge>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => exportarPDF(selecionado!)}
+                      title="Exportar conversa em PDF"
+                    >
+                      <FileDown className="h-3.5 w-3.5 mr-1.5" />
+                      PDF
+                    </Button>
+                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex-1 overflow-hidden p-0">
