@@ -11,6 +11,7 @@ import {
   UserCheck,
   MessageSquare,
   Cake,
+  FileBarChart,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -40,6 +41,7 @@ const baseMenuItems = [
   { title: "Agenda Oficial", url: "/agenda", icon: CalendarDays },
   { title: "Assistente Legislativo", url: "/assistente", icon: Bot },
   { title: "Histórico de Conversas", url: "/historico-conversas", icon: MessageSquare },
+  { title: "Resumo Mensal", url: "/resumo-mensal", icon: FileBarChart },
 ];
 
 const politicoOnlyItems = [
