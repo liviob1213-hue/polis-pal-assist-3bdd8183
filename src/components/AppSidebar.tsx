@@ -10,6 +10,7 @@ import {
   Settings,
   LogOut,
   UserCheck,
+  MessageSquare,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -37,6 +38,7 @@ const baseMenuItems = [
   { title: "Gestão de Tarefas", url: "/tarefas", icon: CheckSquare },
   { title: "Agenda Oficial", url: "/agenda", icon: CalendarDays },
   { title: "Assistente Legislativo", url: "/assistente", icon: Bot },
+  { title: "Histórico de Conversas", url: "/historico-conversas", icon: MessageSquare },
   { title: "Disparo em Massa", url: "/disparo-massa", icon: Send },
 ];
 
