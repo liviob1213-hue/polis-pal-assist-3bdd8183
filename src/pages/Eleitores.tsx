@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, MessageCircle, Trash2, Send, Save, Star, Loader2 } from "lucide-react";
+import { Plus, Search, Pencil, MessageCircle, Trash2, Send, Save, Star, Loader2, Cake } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -25,6 +25,7 @@ interface Eleitor {
   observacoes: string | null;
   latitude: number | null;
   longitude: number | null;
+  data_nascimento: string | null;
 }
 
 const interesses = ["Saúde", "Obras", "Educação", "Segurança", "Transporte", "Meio Ambiente"];
@@ -42,7 +43,7 @@ const Eleitores = () => {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", observacoes: "" });
+  const [form, setForm] = useState({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", observacoes: "", data_nascimento: "" });
   const [whatsappDialog, setWhatsappDialog] = useState<Eleitor | null>(null);
   const [whatsappMsg, setWhatsappMsg] = useState("");
   const [savedMessages, setSavedMessages] = useState<{ id: string; label: string; text: string }[]>(() => {
@@ -61,7 +62,7 @@ const Eleitores = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("eleitores")
-        .select("id, nome, endereco, telefone, interesse, observacoes, latitude, longitude")
+        .select("id, nome, endereco, telefone, interesse, observacoes, latitude, longitude, data_nascimento")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as Eleitor[];
@@ -69,7 +70,7 @@ const Eleitores = () => {
   });
 
   const upsertMutation = useMutation({
-    mutationFn: async (payload: { id?: string; nome: string; rua: string; numero: string; complemento: string; bairro: string; cidade: string; estado: string; cep: string; telefone: string; interesse: string; observacoes: string }) => {
+    mutationFn: async (payload: { id?: string; nome: string; rua: string; numero: string; complemento: string; bairro: string; cidade: string; estado: string; cep: string; telefone: string; interesse: string; observacoes: string; data_nascimento: string }) => {
       const endereco = [payload.rua, payload.numero, payload.complemento, payload.bairro, payload.cidade, payload.estado, payload.cep].filter(Boolean).join(", ");
       let eleitorId = payload.id;
       if (payload.id) {
@@ -79,6 +80,7 @@ const Eleitores = () => {
           telefone: payload.telefone || null,
           interesse: payload.interesse || null,
           observacoes: payload.observacoes || null,
+          data_nascimento: payload.data_nascimento || null,
         }).eq("id", payload.id);
         if (error) throw error;
       } else {
@@ -88,6 +90,7 @@ const Eleitores = () => {
           telefone: payload.telefone || null,
           interesse: payload.interesse || null,
           observacoes: payload.observacoes || null,
+          data_nascimento: payload.data_nascimento || null,
         }).select("id").single();
         if (error) throw error;
         eleitorId = data.id;
@@ -107,7 +110,7 @@ const Eleitores = () => {
       queryClient.invalidateQueries({ queryKey: ["eleitores"] });
       queryClient.invalidateQueries({ queryKey: ["eleitores-mapa"] });
       toast({ title: editingId ? "Eleitor atualizado!" : "Eleitor adicionado!" });
-      setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", observacoes: "" });
+      setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", observacoes: "", data_nascimento: "" });
       setEditingId(null);
       setDialogOpen(false);
     },
@@ -172,6 +175,7 @@ const Eleitores = () => {
       telefone: eleitor.telefone || "",
       interesse: eleitor.interesse || "",
       observacoes: (eleitor as any).observacoes || "",
+      data_nascimento: eleitor.data_nascimento || "",
     });
     setEditingId(eleitor.id);
     setDialogOpen(true);
@@ -200,7 +204,7 @@ const Eleitores = () => {
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Base de Eleitores</h1>
           <p className="text-muted-foreground text-xs sm:text-sm mt-1">Gerencie os contatos e interesses da sua base.</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingId(null); setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", observacoes: "" }); } }}>
+        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingId(null); setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", observacoes: "", data_nascimento: "" }); } }}>
           <DialogTrigger asChild>
             <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
               <Plus className="h-4 w-4" /> Novo Eleitor
@@ -229,6 +233,10 @@ const Eleitores = () => {
               </div>
 
               <div><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} placeholder="(00) 00000-0000" /></div>
+              <div>
+                <Label className="flex items-center gap-1.5"><Cake className="h-3.5 w-3.5 text-primary" /> Data de Nascimento</Label>
+                <Input type="date" value={form.data_nascimento} onChange={(e) => setForm({ ...form, data_nascimento: e.target.value })} />
+              </div>
               <div>
                 <Label>Interesse</Label>
                 <Select value={form.interesse} onValueChange={(v) => setForm({ ...form, interesse: v })}>
