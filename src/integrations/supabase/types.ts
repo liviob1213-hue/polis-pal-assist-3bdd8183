@@ -55,6 +55,36 @@ export type Database = {
           },
         ]
       }
+      assistente_historico: {
+        Row: {
+          conteudo: string
+          created_at: string
+          id: string
+          role: string
+          sessao_id: string
+          tipo_documento: string | null
+          user_id: string
+        }
+        Insert: {
+          conteudo: string
+          created_at?: string
+          id?: string
+          role: string
+          sessao_id: string
+          tipo_documento?: string | null
+          user_id: string
+        }
+        Update: {
+          conteudo?: string
+          created_at?: string
+          id?: string
+          role?: string
+          sessao_id?: string
+          tipo_documento?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_history: {
         Row: {
           context: Json | null

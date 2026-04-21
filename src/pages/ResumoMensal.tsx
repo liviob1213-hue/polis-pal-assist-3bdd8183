@@ -1,0 +1,407 @@
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { FileBarChart, Download, Users, FileText, CheckSquare, CalendarDays, Cake, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+interface ResumoData {
+  inicio: Date;
+  fim: Date;
+  rotuloMes: string;
+  eleitores: any[];
+  demandas: any[];
+  demandasResolvidas: any[];
+  tarefas: any[];
+  tarefasConcluidas: any[];
+  agenda: any[];
+  aniversariantes: any[];
+  topInteresses: { interesse: string; total: number }[];
+}
+
+function inicioMesPassado() {
+  const hoje = new Date();
+  return new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1, 0, 0, 0);
+}
+function fimMesPassado() {
+  const hoje = new Date();
+  return new Date(hoje.getFullYear(), hoje.getMonth(), 0, 23, 59, 59);
+}
+
+const NOMES_MES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
+const ResumoMensal = () => {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [gerandoPDF, setGerandoPDF] = useState(false);
+  const [data, setData] = useState<ResumoData | null>(null);
+
+  useEffect(() => {
+    carregar();
+  }, []);
+
+  const carregar = async () => {
+    setLoading(true);
+    const inicio = inicioMesPassado();
+    const fim = fimMesPassado();
+    const inicioIso = inicio.toISOString();
+    const fimIso = fim.toISOString();
+
+    const [
+      { data: eleitores },
+      { data: demandas },
+      { data: demandasResolvidas },
+      { data: tarefas },
+      { data: tarefasConcluidas },
+      { data: agenda },
+      { data: aniversariantes },
+    ] = await Promise.all([
+      supabase.from("eleitores").select("*").gte("created_at", inicioIso).lte("created_at", fimIso),
+      supabase.from("demandas").select("*").gte("created_at", inicioIso).lte("created_at", fimIso),
+      supabase.from("demandas").select("*").eq("status", "Resolvida").gte("updated_at", inicioIso).lte("updated_at", fimIso),
+      supabase.from("tarefas").select("*").gte("created_at", inicioIso).lte("created_at", fimIso),
+      supabase.from("tarefas").select("*").eq("status", "Concluído").gte("updated_at", inicioIso).lte("updated_at", fimIso),
+      supabase.from("agenda").select("*").gte("data_hora", inicioIso).lte("data_hora", fimIso),
+      supabase.from("eleitores").select("*").not("data_nascimento", "is", null),
+    ]);
+
+    // Aniversariantes do mês passado
+    const mesAlvo = inicio.getMonth() + 1;
+    const anivMes = (aniversariantes || []).filter((e: any) => {
+      if (!e.data_nascimento) return false;
+      const m = parseInt(e.data_nascimento.split("-")[1], 10);
+      return m === mesAlvo;
+    });
+
+    // Top interesses dos eleitores cadastrados no mês
+    const contInt: Record<string, number> = {};
+    (eleitores || []).forEach((e: any) => {
+      const i = (e.interesse || "Não informado").trim();
+      contInt[i] = (contInt[i] || 0) + 1;
+    });
+    const topInteresses = Object.entries(contInt)
+      .map(([interesse, total]) => ({ interesse, total }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10);
+
+    setData({
+      inicio,
+      fim,
+      rotuloMes: `${NOMES_MES[inicio.getMonth()]} de ${inicio.getFullYear()}`,
+      eleitores: eleitores || [],
+      demandas: demandas || [],
+      demandasResolvidas: demandasResolvidas || [],
+      tarefas: tarefas || [],
+      tarefasConcluidas: tarefasConcluidas || [],
+      agenda: agenda || [],
+      aniversariantes: anivMes,
+      topInteresses,
+    });
+    setLoading(false);
+  };
+
+  const gerarPDF = async () => {
+    if (!data) return;
+    setGerandoPDF(true);
+    try {
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const margem = 40;
+
+      // Capa
+      doc.setFillColor(68, 152, 149); // Teal
+      doc.rect(0, 0, pageW, 120, "F");
+      doc.setTextColor(255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(22);
+      doc.text("Resumo Mensal", margem, 60);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "normal");
+      doc.text(data.rotuloMes, margem, 90);
+
+      doc.setTextColor(40);
+      let y = 160;
+
+      // Visão geral
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.text("Visão Geral", margem, y);
+      y += 14;
+
+      const cards = [
+        ["Eleitores cadastrados", data.eleitores.length],
+        ["Demandas abertas no mês", data.demandas.length],
+        ["Demandas resolvidas", data.demandasResolvidas.length],
+        ["Tarefas criadas", data.tarefas.length],
+        ["Tarefas concluídas", data.tarefasConcluidas.length],
+        ["Eventos na agenda", data.agenda.length],
+        ["Aniversariantes do mês", data.aniversariantes.length],
+      ];
+      autoTable(doc, {
+        startY: y,
+        head: [["Indicador", "Total"]],
+        body: cards.map(([l, v]) => [l as string, String(v)]),
+        theme: "grid",
+        headStyles: { fillColor: [68, 152, 149], textColor: 255 },
+        styles: { fontSize: 10 },
+        margin: { left: margem, right: margem },
+      });
+      y = (doc as any).lastAutoTable.finalY + 24;
+
+      // Eleitores
+      if (data.eleitores.length) {
+        if (y > pageH - 100) { doc.addPage(); y = margem; }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text(`Eleitores cadastrados (${data.eleitores.length})`, margem, y);
+        y += 6;
+        autoTable(doc, {
+          startY: y + 4,
+          head: [["Nome", "Telefone", "Interesse", "Cadastro"]],
+          body: data.eleitores.map((e: any) => [
+            e.nome || "-",
+            e.telefone || "-",
+            e.interesse || "-",
+            new Date(e.created_at).toLocaleDateString("pt-BR"),
+          ]),
+          theme: "striped",
+          headStyles: { fillColor: [68, 152, 149], textColor: 255 },
+          styles: { fontSize: 9 },
+          margin: { left: margem, right: margem },
+        });
+        y = (doc as any).lastAutoTable.finalY + 20;
+      }
+
+      // Top interesses
+      if (data.topInteresses.length) {
+        if (y > pageH - 100) { doc.addPage(); y = margem; }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("Principais interesses dos novos eleitores", margem, y);
+        autoTable(doc, {
+          startY: y + 8,
+          head: [["Interesse", "Quantidade"]],
+          body: data.topInteresses.map((i) => [i.interesse, String(i.total)]),
+          theme: "grid",
+          headStyles: { fillColor: [210, 38, 79], textColor: 255 },
+          styles: { fontSize: 10 },
+          margin: { left: margem, right: margem },
+        });
+        y = (doc as any).lastAutoTable.finalY + 20;
+      }
+
+      // Demandas
+      if (data.demandas.length) {
+        if (y > pageH - 100) { doc.addPage(); y = margem; }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text(`Demandas do mês (${data.demandas.length})`, margem, y);
+        autoTable(doc, {
+          startY: y + 8,
+          head: [["Título", "Status", "Local", "Aberta em"]],
+          body: data.demandas.map((d: any) => [
+            d.titulo || "-",
+            d.status || "-",
+            d.localizacao || "-",
+            new Date(d.created_at).toLocaleDateString("pt-BR"),
+          ]),
+          theme: "striped",
+          headStyles: { fillColor: [68, 152, 149], textColor: 255 },
+          styles: { fontSize: 9 },
+          margin: { left: margem, right: margem },
+        });
+        y = (doc as any).lastAutoTable.finalY + 20;
+      }
+
+      // Tarefas concluídas
+      if (data.tarefasConcluidas.length) {
+        if (y > pageH - 100) { doc.addPage(); y = margem; }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text(`Tarefas concluídas (${data.tarefasConcluidas.length})`, margem, y);
+        autoTable(doc, {
+          startY: y + 8,
+          head: [["Título", "Concluída em"]],
+          body: data.tarefasConcluidas.map((t: any) => [
+            t.titulo || "-",
+            new Date(t.updated_at).toLocaleDateString("pt-BR"),
+          ]),
+          theme: "striped",
+          headStyles: { fillColor: [68, 152, 149], textColor: 255 },
+          styles: { fontSize: 9 },
+          margin: { left: margem, right: margem },
+        });
+        y = (doc as any).lastAutoTable.finalY + 20;
+      }
+
+      // Agenda
+      if (data.agenda.length) {
+        if (y > pageH - 100) { doc.addPage(); y = margem; }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text(`Eventos na agenda (${data.agenda.length})`, margem, y);
+        autoTable(doc, {
+          startY: y + 8,
+          head: [["Evento", "Data/Hora"]],
+          body: data.agenda.map((a: any) => [
+            a.titulo || "-",
+            new Date(a.data_hora).toLocaleString("pt-BR"),
+          ]),
+          theme: "striped",
+          headStyles: { fillColor: [68, 152, 149], textColor: 255 },
+          styles: { fontSize: 9 },
+          margin: { left: margem, right: margem },
+        });
+        y = (doc as any).lastAutoTable.finalY + 20;
+      }
+
+      // Aniversariantes
+      if (data.aniversariantes.length) {
+        if (y > pageH - 100) { doc.addPage(); y = margem; }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text(`Aniversariantes do mês (${data.aniversariantes.length})`, margem, y);
+        autoTable(doc, {
+          startY: y + 8,
+          head: [["Nome", "Data de Nascimento", "Telefone"]],
+          body: data.aniversariantes.map((a: any) => [
+            a.nome || "-",
+            a.data_nascimento ? new Date(a.data_nascimento + "T12:00:00").toLocaleDateString("pt-BR") : "-",
+            a.telefone || "-",
+          ]),
+          theme: "striped",
+          headStyles: { fillColor: [210, 38, 79], textColor: 255 },
+          styles: { fontSize: 9 },
+          margin: { left: margem, right: margem },
+        });
+      }
+
+      // Rodapé
+      const total = doc.getNumberOfPages();
+      for (let i = 1; i <= total; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(120);
+        doc.text(
+          `Democrat.IA — Resumo de ${data.rotuloMes}  |  Gerado em ${new Date().toLocaleString("pt-BR")}  |  Página ${i}/${total}`,
+          pageW / 2,
+          pageH - 20,
+          { align: "center" }
+        );
+      }
+
+      doc.save(`resumo-${data.rotuloMes.toLowerCase().replace(/\s/g, "-")}.pdf`);
+      toast({ title: "PDF gerado", description: "Resumo mensal baixado com sucesso." });
+    } catch (e: any) {
+      toast({ title: "Erro ao gerar PDF", description: e.message, variant: "destructive" });
+    } finally {
+      setGerandoPDF(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const stats = [
+    { label: "Eleitores cadastrados", value: data.eleitores.length, icon: Users, color: "text-primary" },
+    { label: "Demandas abertas", value: data.demandas.length, icon: FileText, color: "text-accent" },
+    { label: "Demandas resolvidas", value: data.demandasResolvidas.length, icon: FileText, color: "text-success" },
+    { label: "Tarefas criadas", value: data.tarefas.length, icon: CheckSquare, color: "text-primary" },
+    { label: "Tarefas concluídas", value: data.tarefasConcluidas.length, icon: CheckSquare, color: "text-success" },
+    { label: "Eventos na agenda", value: data.agenda.length, icon: CalendarDays, color: "text-accent" },
+    { label: "Aniversariantes", value: data.aniversariantes.length, icon: Cake, color: "text-accent" },
+  ];
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2">
+            <FileBarChart className="h-6 w-6 text-accent" />
+            <h1 className="text-2xl font-bold tracking-tight">Resumo Mensal</h1>
+          </div>
+          <p className="text-muted-foreground text-sm mt-1">
+            Tudo que aconteceu em <strong>{data.rotuloMes}</strong>. Baixe o relatório completo em PDF.
+          </p>
+        </div>
+        <Button onClick={gerarPDF} disabled={gerandoPDF} className="gradient-primary text-primary-foreground gap-2">
+          {gerandoPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          Baixar PDF Completo
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {stats.map((s) => (
+          <Card key={s.label} className="glass-card p-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center">
+                <s.icon className={`h-5 w-5 ${s.color}`} />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{s.value}</p>
+                <p className="text-xs text-muted-foreground">{s.label}</p>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        <Card className="glass-card p-5">
+          <h3 className="font-semibold mb-3 flex items-center gap-2">
+            <Users className="h-4 w-4" /> Top interesses
+          </h3>
+          {data.topInteresses.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum eleitor cadastrado no período.</p>
+          ) : (
+            <div className="space-y-2">
+              {data.topInteresses.map((i) => (
+                <div key={i.interesse} className="flex items-center justify-between text-sm">
+                  <span className="truncate">{i.interesse}</span>
+                  <Badge variant="secondary">{i.total}</Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        <Card className="glass-card p-5">
+          <h3 className="font-semibold mb-3 flex items-center gap-2">
+            <FileText className="h-4 w-4" /> Últimas demandas resolvidas
+          </h3>
+          {data.demandasResolvidas.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhuma demanda resolvida no período.</p>
+          ) : (
+            <div className="space-y-2">
+              {data.demandasResolvidas.slice(0, 6).map((d: any) => (
+                <div key={d.id} className="text-sm border-l-2 border-success pl-3 py-1">
+                  <p className="font-medium truncate">{d.titulo}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(d.updated_at).toLocaleDateString("pt-BR")}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+    </motion.div>
+  );
+};
+
+export default ResumoMensal;
