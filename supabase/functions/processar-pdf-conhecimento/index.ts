@@ -1,15 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { getDocument, GlobalWorkerOptions } from "https://esm.sh/pdfjs-dist@4.0.379/legacy/build/pdf.mjs";
+import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@0.12.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-// pdfjs-dist requires worker source — disable worker for Deno
-// @ts-ignore
-GlobalWorkerOptions.workerSrc = "";
 
 const CHUNK_SIZE = 1000;
 const CHUNK_OVERLAP = 150;
@@ -22,7 +18,6 @@ function chunkText(text: string): string[] {
   let i = 0;
   while (i < cleaned.length) {
     let end = Math.min(i + CHUNK_SIZE, cleaned.length);
-    // tenta quebrar em fim de frase
     if (end < cleaned.length) {
       const slice = cleaned.slice(i, end);
       const lastPeriod = Math.max(slice.lastIndexOf(". "), slice.lastIndexOf("? "), slice.lastIndexOf("! "));
@@ -36,18 +31,11 @@ function chunkText(text: string): string[] {
 }
 
 async function extrairTextoPDF(buffer: ArrayBuffer): Promise<{ pagina: number; texto: string }[]> {
-  const loadingTask = getDocument({ data: new Uint8Array(buffer), useSystemFonts: true });
-  const pdf = await loadingTask.promise;
-  const paginas: { pagina: number; texto: string }[] = [];
-
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p);
-    const content = await page.getTextContent();
-    // @ts-ignore
-    const texto = content.items.map((it: any) => it.str).join(" ");
-    paginas.push({ pagina: p, texto });
-  }
-  return paginas;
+  const pdf = await getDocumentProxy(new Uint8Array(buffer));
+  const { text } = await extractText(pdf, { mergePages: false });
+  // text é array (uma string por página) quando mergePages: false
+  const arr = Array.isArray(text) ? text : [String(text)];
+  return arr.map((t, i) => ({ pagina: i + 1, texto: t || "" }));
 }
 
 async function gerarEmbedding(texto: string, openaiKey: string): Promise<number[]> {
