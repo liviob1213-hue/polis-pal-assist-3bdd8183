@@ -29,7 +29,7 @@ const Configuracoes = () => {
   const toolItems = [
     { title: "Agenda Oficial", description: "Gerencie compromissos e eventos", icon: CalendarDays, url: "/agenda" },
     { title: "Assistente Legislativo", description: "IA para projetos de lei e consultas", icon: Bot, url: "/assistente" },
-    { title: "Disparo em Massa", description: "Envie mensagens para múltiplos contatos", icon: Send, url: "/disparo-massa" },
+    { title: "Aniversários", description: "Gestão de aniversários dos eleitores", icon: Cake, url: "/aniversarios" },
     ...(role === "politico" ? [{ title: "Assessores", description: "Gerencie seus assessores", icon: UserCheck, url: "/assessores" }] : []),
   ];
 
