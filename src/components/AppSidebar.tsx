@@ -6,11 +6,11 @@ import {
   CheckSquare,
   CalendarDays,
   Bot,
-  Send,
   Settings,
   LogOut,
   UserCheck,
   MessageSquare,
+  Cake,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -34,12 +34,12 @@ const baseMenuItems = [
   { title: "Painel de Controle", url: "/", icon: LayoutDashboard },
   { title: "Base de Eleitores", url: "/eleitores", icon: Users },
   { title: "Mapa de Eleitores", url: "/mapa-eleitores", icon: MapPin },
+  { title: "Aniversários", url: "/aniversarios", icon: Cake },
   { title: "Gestão de Demandas", url: "/demandas", icon: FileText },
   { title: "Gestão de Tarefas", url: "/tarefas", icon: CheckSquare },
   { title: "Agenda Oficial", url: "/agenda", icon: CalendarDays },
   { title: "Assistente Legislativo", url: "/assistente", icon: Bot },
   { title: "Histórico de Conversas", url: "/historico-conversas", icon: MessageSquare },
-  { title: "Disparo em Massa", url: "/disparo-massa", icon: Send },
 ];
 
 const politicoOnlyItems = [
