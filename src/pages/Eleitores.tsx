@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, MessageCircle, Trash2, Send, Save, Star, Loader2, Cake } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Plus, Search, Pencil, MessageCircle, Trash2, Send, Save, Star, Loader2, Cake, AlertCircle, Bot, Megaphone, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -26,6 +27,16 @@ interface Eleitor {
   latitude: number | null;
   longitude: number | null;
   data_nascimento: string | null;
+  agente_ativo: boolean;
+}
+
+interface DemandaEleitor {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  status: string;
+  created_at: string;
+  eleitor_id: string;
 }
 
 const interesses = ["Saúde", "Obras", "Educação", "Segurança", "Transporte", "Meio Ambiente"];
@@ -43,9 +54,12 @@ const Eleitores = () => {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", observacoes: "", data_nascimento: "" });
+  const [form, setForm] = useState({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "" });
   const [whatsappDialog, setWhatsappDialog] = useState<Eleitor | null>(null);
   const [whatsappMsg, setWhatsappMsg] = useState("");
+  const [demandaDialog, setDemandaDialog] = useState<{ eleitor: Eleitor; demandas: DemandaEleitor[] } | null>(null);
+  const [novaDemandaDialog, setNovaDemandaDialog] = useState<Eleitor | null>(null);
+  const [novaDemandaForm, setNovaDemandaForm] = useState({ titulo: "", descricao: "" });
   const [savedMessages, setSavedMessages] = useState<{ id: string; label: string; text: string }[]>(() => {
     const stored = localStorage.getItem("whatsapp-templates");
     return stored ? JSON.parse(stored) : [
@@ -62,21 +76,41 @@ const Eleitores = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("eleitores")
-        .select("id, nome, endereco, telefone, interesse, observacoes, latitude, longitude, data_nascimento")
+        .select("id, nome, endereco, telefone, interesse, observacoes, latitude, longitude, data_nascimento, agente_ativo")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as Eleitor[];
     },
   });
 
+  // Carrega todas as demandas vinculadas a eleitores para mostrar contadores nos cards
+  const { data: demandasPorEleitor = {} } = useQuery({
+    queryKey: ["demandas-por-eleitor"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("demandas")
+        .select("id, titulo, descricao, status, created_at, eleitor_id")
+        .not("eleitor_id", "is", null)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      const map: Record<string, DemandaEleitor[]> = {};
+      (data as DemandaEleitor[]).forEach((d) => {
+        if (!d.eleitor_id) return;
+        if (!map[d.eleitor_id]) map[d.eleitor_id] = [];
+        map[d.eleitor_id].push(d);
+      });
+      return map;
+    },
+  });
+
   const upsertMutation = useMutation({
-    mutationFn: async (payload: { id?: string; nome: string; rua: string; numero: string; complemento: string; bairro: string; cidade: string; estado: string; cep: string; telefone: string; interesse: string; observacoes: string; data_nascimento: string }) => {
+    mutationFn: async (payload: typeof form & { id?: string }) => {
       const endereco = [payload.rua, payload.numero, payload.complemento, payload.bairro, payload.cidade, payload.estado, payload.cep].filter(Boolean).join(", ");
       let eleitorId = payload.id;
       if (payload.id) {
         const { error } = await supabase.from("eleitores").update({
           nome: payload.nome,
-           endereco: endereco || null,
+          endereco: endereco || null,
           telefone: payload.telefone || null,
           interesse: payload.interesse || null,
           observacoes: payload.observacoes || null,
@@ -96,6 +130,17 @@ const Eleitores = () => {
         eleitorId = data.id;
       }
 
+      // Cria demanda inicial vinculada ao eleitor (se preenchida)
+      if (eleitorId && payload.demanda_titulo.trim()) {
+        const { error: dErr } = await supabase.from("demandas").insert({
+          titulo: payload.demanda_titulo.trim(),
+          descricao: payload.demanda_descricao.trim() || null,
+          eleitor_id: eleitorId,
+          status: "Em Análise",
+        });
+        if (dErr) console.warn("Erro ao criar demanda do eleitor:", dErr);
+      }
+
       if (endereco && eleitorId) {
         try {
           await supabase.functions.invoke("geocode", {
@@ -109,8 +154,10 @@ const Eleitores = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["eleitores"] });
       queryClient.invalidateQueries({ queryKey: ["eleitores-mapa"] });
+      queryClient.invalidateQueries({ queryKey: ["demandas-por-eleitor"] });
+      queryClient.invalidateQueries({ queryKey: ["demandas"] });
       toast({ title: editingId ? "Eleitor atualizado!" : "Eleitor adicionado!" });
-      setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", observacoes: "", data_nascimento: "" });
+      setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "" });
       setEditingId(null);
       setDialogOpen(false);
     },
@@ -127,6 +174,58 @@ const Eleitores = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["eleitores"] });
       toast({ title: "Eleitor removido" });
+    },
+  });
+
+  const toggleAgenteMutation = useMutation({
+    mutationFn: async ({ id, ativo }: { id: string; ativo: boolean }) => {
+      const { error } = await supabase.from("eleitores").update({ agente_ativo: ativo }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["eleitores"] });
+      toast({
+        title: vars.ativo ? "🤖 Agente ativado!" : "Agente desativado",
+        description: vars.ativo
+          ? "A partir de agora o agente responderá as mensagens deste eleitor automaticamente."
+          : "O agente não responderá mais as mensagens deste eleitor.",
+      });
+    },
+  });
+
+  const enviarParaGestaoMutation = useMutation({
+    mutationFn: async (demandaId: string) => {
+      const { error } = await supabase
+        .from("demandas")
+        .update({ status: "Em Andamento" })
+        .eq("id", demandaId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["demandas-por-eleitor"] });
+      queryClient.invalidateQueries({ queryKey: ["demandas"] });
+      toast({ title: "✅ Enviada para Gestão de Demandas!", description: "A demanda foi movida para 'Em Andamento'." });
+      setDemandaDialog(null);
+    },
+  });
+
+  const criarDemandaMutation = useMutation({
+    mutationFn: async ({ eleitor, titulo, descricao }: { eleitor: Eleitor; titulo: string; descricao: string }) => {
+      const { error } = await supabase.from("demandas").insert({
+        titulo: titulo.trim(),
+        descricao: descricao.trim() || null,
+        eleitor_id: eleitor.id,
+        localizacao: eleitor.endereco,
+        status: "Em Análise",
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["demandas-por-eleitor"] });
+      queryClient.invalidateQueries({ queryKey: ["demandas"] });
+      toast({ title: "📌 Demanda registrada!" });
+      setNovaDemandaDialog(null);
+      setNovaDemandaForm({ titulo: "", descricao: "" });
     },
   });
 
@@ -174,8 +273,10 @@ const Eleitores = () => {
       cep: parts[5] || "",
       telefone: eleitor.telefone || "",
       interesse: eleitor.interesse || "",
-      observacoes: (eleitor as any).observacoes || "",
+      observacoes: eleitor.observacoes || "",
       data_nascimento: eleitor.data_nascimento || "",
+      demanda_titulo: "",
+      demanda_descricao: "",
     });
     setEditingId(eleitor.id);
     setDialogOpen(true);
@@ -197,6 +298,12 @@ const Eleitores = () => {
     toast({ title: "WhatsApp aberto!" });
   };
 
+  const statusBadgeClass = (status: string) => {
+    if (status === "Resolvido") return "bg-success/10 text-success border-success/20";
+    if (status === "Em Andamento") return "bg-warning/10 text-warning border-warning/20";
+    return "bg-info/10 text-info border-info/20";
+  };
+
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -204,7 +311,7 @@ const Eleitores = () => {
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Base de Eleitores</h1>
           <p className="text-muted-foreground text-xs sm:text-sm mt-1">Gerencie os contatos e interesses da sua base.</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingId(null); setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", observacoes: "", data_nascimento: "" }); } }}>
+        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingId(null); setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "" }); } }}>
           <DialogTrigger asChild>
             <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
               <Plus className="h-4 w-4" /> Novo Eleitor
@@ -216,7 +323,7 @@ const Eleitores = () => {
             </DialogHeader>
             <div className="space-y-4 pt-2 max-h-[70vh] overflow-y-auto pr-1">
               <div><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Nome completo" /></div>
-              
+
               <div className="space-y-3 p-3 rounded-lg bg-secondary/30 border border-border">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Endereço</p>
                 <div><Label>Rua / Logradouro</Label><AddressAutocomplete apiKey={mapsApiKey} value={form.rua} onChange={(v) => setForm((prev) => ({ ...prev, rua: v }))} onAddressSelect={(c) => setForm((prev) => ({ ...prev, rua: c.rua, bairro: c.bairro, cidade: c.cidade, estado: c.estado, cep: c.cep }))} placeholder="Ex: Rua das Flores" /></div>
@@ -256,6 +363,35 @@ const Eleitores = () => {
                   className="mt-1"
                 />
               </div>
+
+              {/* Demanda inicial — só no cadastro novo */}
+              {!editingId && (
+                <div className="space-y-3 p-3 rounded-lg border border-warning/30 bg-warning/5">
+                  <div className="flex items-center gap-2">
+                    <Megaphone className="h-4 w-4 text-warning" />
+                    <p className="text-xs font-semibold text-warning uppercase tracking-wider">Reclamação ou Solicitação (Opcional)</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Caso o eleitor já tenha alguma demanda, registre aqui. Será criada automaticamente vinculada a ele.</p>
+                  <div>
+                    <Label>Título da Demanda</Label>
+                    <Input
+                      value={form.demanda_titulo}
+                      onChange={(e) => setForm({ ...form, demanda_titulo: e.target.value })}
+                      placeholder="Ex: Buraco na rua, falta d'água..."
+                    />
+                  </div>
+                  <div>
+                    <Label>Descrição</Label>
+                    <Textarea
+                      value={form.demanda_descricao}
+                      onChange={(e) => setForm({ ...form, demanda_descricao: e.target.value })}
+                      placeholder="Detalhes da reclamação ou solicitação..."
+                      rows={2}
+                    />
+                  </div>
+                </div>
+              )}
+
               <Button onClick={handleSave} disabled={upsertMutation.isPending} className="w-full gradient-primary text-primary-foreground">
                 {upsertMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 {editingId ? "Salvar Alterações" : "Adicionar Eleitor"}
@@ -270,102 +406,175 @@ const Eleitores = () => {
         <Input placeholder="Buscar por nome ou interesse..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 bg-card border-border" />
       </div>
 
-      <Card className="glass-card overflow-hidden">
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <>
-              {/* Desktop table */}
-              <div className="hidden md:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-secondary/50 hover:bg-secondary/50">
-                      <TableHead className="font-semibold">Nome</TableHead>
-                      <TableHead className="font-semibold">Endereço</TableHead>
-                      <TableHead className="font-semibold">Telefone</TableHead>
-                      <TableHead className="font-semibold">Interesse</TableHead>
-                      <TableHead className="font-semibold text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filtered.map((eleitor) => (
-                      <TableRow key={eleitor.id} className="hover:bg-secondary/30">
-                        <TableCell className="font-medium">{eleitor.nome}</TableCell>
-                        <TableCell className="text-muted-foreground text-sm">{eleitor.endereco}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1.5 text-sm">
-                            <MessageCircle className="h-3.5 w-3.5 text-success" />
-                            {eleitor.telefone}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {eleitor.interesse && <Badge variant="outline" className={interestColors[eleitor.interesse] || ""}>{eleitor.interesse}</Badge>}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-success hover:text-success hover:bg-success/10" onClick={() => openWhatsapp(eleitor)} title="Enviar WhatsApp">
-                              <MessageCircle className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => handleEdit(eleitor)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteMutation.mutate(eleitor.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {filtered.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Nenhum eleitor encontrado.</TableCell>
-                      </TableRow>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((eleitor) => {
+            const demandas = demandasPorEleitor[eleitor.id] || [];
+            const abertas = demandas.filter((d) => d.status !== "Resolvido");
+            return (
+              <div key={eleitor.id} className="space-y-2">
+                {/* Card de demanda em cima do eleitor — clicável */}
+                {abertas.length > 0 && (
+                  <button
+                    onClick={() => setDemandaDialog({ eleitor, demandas })}
+                    className="w-full text-left rounded-lg border border-warning/30 bg-warning/5 hover:bg-warning/10 transition-colors p-3 flex items-center gap-3 group"
+                  >
+                    <div className="h-9 w-9 rounded-full bg-warning/15 flex items-center justify-center shrink-0">
+                      <AlertCircle className="h-4 w-4 text-warning" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground">Demanda solicitada por {eleitor.nome}</p>
+                      <p className="text-sm font-semibold truncate">{abertas[0].titulo}</p>
+                    </div>
+                    <Badge variant="outline" className={statusBadgeClass(abertas[0].status)}>
+                      {abertas[0].status}
+                    </Badge>
+                    {abertas.length > 1 && (
+                      <Badge variant="outline" className="bg-secondary">+{abertas.length - 1}</Badge>
                     )}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Mobile cards */}
-              <div className="md:hidden space-y-3 p-4">
-                {filtered.map((eleitor) => (
-                  <Card key={eleitor.id} className="glass-card">
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="font-semibold text-sm">{eleitor.nome}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{eleitor.endereco}</p>
-                        </div>
-                        {eleitor.interesse && <Badge variant="outline" className={interestColors[eleitor.interesse] || ""}>{eleitor.interesse}</Badge>}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <MessageCircle className="h-3.5 w-3.5 text-success" />
-                        {eleitor.telefone}
-                      </div>
-                      <div className="flex gap-1 pt-1 border-t border-border">
-                        <Button variant="ghost" size="sm" className="text-success hover:text-success hover:bg-success/10 gap-1 text-xs" onClick={() => openWhatsapp(eleitor)}>
-                          <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-muted-foreground text-xs" onClick={() => handleEdit(eleitor)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive text-xs" onClick={() => deleteMutation.mutate(eleitor.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                {filtered.length === 0 && (
-                  <p className="text-center py-8 text-muted-foreground text-sm">Nenhum eleitor encontrado.</p>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+                  </button>
                 )}
+
+                {/* Card do eleitor */}
+                <Card className="glass-card">
+                  <CardContent className="p-4">
+                    <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-semibold text-sm sm:text-base">{eleitor.nome}</p>
+                          {eleitor.interesse && (
+                            <Badge variant="outline" className={interestColors[eleitor.interesse] || ""}>
+                              {eleitor.interesse}
+                            </Badge>
+                          )}
+                          {eleitor.agente_ativo && (
+                            <Badge className="bg-primary/15 text-primary border-primary/30 gap-1">
+                              <Bot className="h-3 w-3" /> Agente ativo
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">{eleitor.endereco || "Sem endereço"}</p>
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <MessageCircle className="h-3 w-3 text-success" /> {eleitor.telefone || "Sem telefone"}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 md:gap-3 md:border-l md:border-border md:pl-4">
+                        {/* Toggle Agente */}
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-secondary/50 border border-border">
+                          <Bot className="h-3.5 w-3.5 text-primary" />
+                          <span className="text-xs font-medium">Agente</span>
+                          <Switch
+                            checked={eleitor.agente_ativo}
+                            onCheckedChange={(c) => toggleAgenteMutation.mutate({ id: eleitor.id, ativo: c })}
+                          />
+                        </div>
+
+                        <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => setNovaDemandaDialog(eleitor)}>
+                          <Megaphone className="h-3.5 w-3.5" /> Demanda
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-success hover:text-success hover:bg-success/10" onClick={() => openWhatsapp(eleitor)} title="Enviar WhatsApp">
+                          <MessageCircle className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => handleEdit(eleitor)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteMutation.mutate(eleitor.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            </>
+            );
+          })}
+          {filtered.length === 0 && (
+            <Card className="glass-card">
+              <CardContent className="text-center py-12 text-muted-foreground text-sm">
+                Nenhum eleitor encontrado.
+              </CardContent>
+            </Card>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      )}
+
+      {/* Dialog: lista de demandas do eleitor (com botão "Enviar para Gestão") */}
+      <Dialog open={!!demandaDialog} onOpenChange={(o) => { if (!o) setDemandaDialog(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Megaphone className="h-5 w-5 text-warning" />
+              Demandas de {demandaDialog?.eleitor.nome}
+            </DialogTitle>
+          </DialogHeader>
+          {demandaDialog && (
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+              {demandaDialog.demandas.map((d) => (
+                <div key={d.id} className="p-3 rounded-lg border border-border bg-secondary/30 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm">{d.titulo}</p>
+                      {d.descricao && <p className="text-xs text-muted-foreground mt-1">{d.descricao}</p>}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Criada em {new Date(d.created_at).toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className={statusBadgeClass(d.status)}>{d.status}</Badge>
+                  </div>
+                  {d.status === "Em Análise" && (
+                    <Button
+                      size="sm"
+                      className="w-full gradient-primary text-primary-foreground gap-1"
+                      onClick={() => enviarParaGestaoMutation.mutate(d.id)}
+                      disabled={enviarParaGestaoMutation.isPending}
+                    >
+                      <Send className="h-3.5 w-3.5" /> Enviar para Gestão de Demandas
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: nova demanda para eleitor existente */}
+      <Dialog open={!!novaDemandaDialog} onOpenChange={(o) => { if (!o) { setNovaDemandaDialog(null); setNovaDemandaForm({ titulo: "", descricao: "" }); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Megaphone className="h-5 w-5 text-warning" />
+              Nova demanda — {novaDemandaDialog?.nome}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <div>
+              <Label>Título</Label>
+              <Input value={novaDemandaForm.titulo} onChange={(e) => setNovaDemandaForm({ ...novaDemandaForm, titulo: e.target.value })} placeholder="Ex: Buraco na rua" />
+            </div>
+            <div>
+              <Label>Descrição</Label>
+              <Textarea value={novaDemandaForm.descricao} onChange={(e) => setNovaDemandaForm({ ...novaDemandaForm, descricao: e.target.value })} rows={3} placeholder="Detalhes..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => novaDemandaDialog && criarDemandaMutation.mutate({ eleitor: novaDemandaDialog, ...novaDemandaForm })}
+              disabled={!novaDemandaForm.titulo.trim() || criarDemandaMutation.isPending}
+              className="gradient-primary text-primary-foreground"
+            >
+              {criarDemandaMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Registrar Demanda
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* WhatsApp Dialog */}
       <Dialog open={!!whatsappDialog} onOpenChange={(o) => { if (!o) setWhatsappDialog(null); }}>

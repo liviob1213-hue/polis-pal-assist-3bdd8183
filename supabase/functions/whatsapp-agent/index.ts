@@ -763,6 +763,117 @@ async function handleConcluirTarefa(params: any, senderProfile: any): Promise<st
   return `✅ Tarefa *${match.titulo}* marcada como Finalizada!`;
 }
 
+// ─── Atendimento humanizado a ELEITORES (não autorizados) ───
+
+async function findEleitorByPhone(phone: string) {
+  const sb = supabaseAdmin();
+  const formatted = formatPhoneForUazapi(phone);
+  // tenta variações: com/sem 9
+  const variants = new Set<string>([formatted]);
+  if (formatted.length === 12) variants.add(formatted.slice(0, 4) + "9" + formatted.slice(4));
+  if (formatted.length === 13 && formatted[4] === "9") variants.add(formatted.slice(0, 4) + formatted.slice(5));
+  // também sem o 55 inicial
+  for (const v of [...variants]) {
+    if (v.startsWith("55")) variants.add(v.slice(2));
+  }
+  const { data } = await sb
+    .from("eleitores")
+    .select("id, nome, telefone, endereco, interesse, agente_ativo")
+    .limit(200);
+  if (!data) return null;
+  const match = data.find((e: any) => {
+    const eDigits = String(e.telefone || "").replace(/\D/g, "");
+    if (!eDigits) return false;
+    return [...variants].some((v) => v.endsWith(eDigits) || eDigits.endsWith(v));
+  });
+  return match || null;
+}
+
+async function handleEleitorMessage(senderPhone: string, message: string): Promise<boolean> {
+  const eleitor = await findEleitorByPhone(senderPhone);
+  if (!eleitor) {
+    console.log(`ℹ️ Telefone ${senderPhone} não encontrado na base de eleitores.`);
+    return false;
+  }
+  if (!eleitor.agente_ativo) {
+    console.log(`💤 Agente desativado para o eleitor ${eleitor.nome}.`);
+    return false;
+  }
+
+  console.log(`🤖 Atendendo eleitor: ${eleitor.nome}`);
+  const sb = supabaseAdmin();
+
+  // Salva mensagem do eleitor no histórico
+  await saveChatMessage(senderPhone, "user", message);
+
+  // Busca demandas vinculadas a este eleitor
+  const { data: demandas } = await sb
+    .from("demandas")
+    .select("id, titulo, descricao, status, created_at, prazo")
+    .eq("eleitor_id", eleitor.id)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  const demandasContexto = (demandas && demandas.length > 0)
+    ? demandas.map((d: any, i: number) => {
+        const data = new Date(d.created_at).toLocaleDateString("pt-BR");
+        const prazo = d.prazo ? ` | Prazo: ${new Date(d.prazo).toLocaleDateString("pt-BR")}` : "";
+        return `${i + 1}. "${d.titulo}" — Status: ${d.status} (registrada em ${data})${prazo}${d.descricao ? `\n   Descrição: ${d.descricao}` : ""}`;
+      }).join("\n")
+    : "Este eleitor ainda não tem demandas registradas no sistema.";
+
+  // Histórico recente para contexto conversacional
+  const history = await getChatHistory(senderPhone, 10);
+  const chatMessages = history.slice(0, -1).map((h) => ({ role: h.role, message: h.message }));
+
+  const systemPrompt = `Você é a *assistente virtual do gabinete*, atendendo o(a) eleitor(a) *${eleitor.nome}* pelo WhatsApp.
+
+PERSONALIDADE:
+- Acolhedora, educada, calorosa e empática — fale como um atendente humano experiente, NUNCA como um robô.
+- Use o nome do eleitor com naturalidade (não em toda mensagem).
+- Tom brasileiro, informal-respeitoso. Pode usar "Olá", "Tudo bem?", "Pois não", "Ficamos à disposição".
+- Mensagens CURTAS (1 a 4 frases). Evite textão. Use 1 emoji no máximo, com moderação.
+- NUNCA diga que é uma IA, robô, bot ou agente automático. Você é "do gabinete".
+
+CAPACIDADES:
+- Pode consultar e informar o STATUS das demandas que o eleitor solicitou.
+- Pode responder dúvidas gerais sobre o atendimento do gabinete.
+- Pode anotar novas reclamações/solicitações (apenas confirme que vai registrar — não invente protocolos).
+- NÃO invente status, datas ou prazos. Use SOMENTE os dados abaixo.
+
+DADOS DO ELEITOR:
+- Nome: ${eleitor.nome}
+- Endereço: ${eleitor.endereco || "não informado"}
+- Interesse: ${eleitor.interesse || "não informado"}
+
+DEMANDAS DO ELEITOR (use estes dados ao responder sobre status):
+${demandasContexto}
+
+REGRAS:
+- Se ele perguntar "como está minha demanda?" / "tem novidade?" → resuma o status das demandas acima de forma humana.
+- Se ele tiver MAIS DE UMA demanda e a pergunta for genérica, mencione brevemente cada uma.
+- Se ele relatar uma NOVA reclamação/solicitação, agradeça, confirme que vai registrar e que a equipe entrará em contato.
+- Se a pergunta fugir totalmente do contexto do gabinete, responda educadamente que vai encaminhar para a equipe.`;
+
+  let reply: string;
+  try {
+    reply = await callAI(systemPrompt, message, chatMessages);
+  } catch (e) {
+    console.error("Erro AI eleitor:", e);
+    reply = `Olá, ${eleitor.nome.split(" ")[0]}! Recebi sua mensagem e nossa equipe vai te responder em breve. 🙏`;
+  }
+
+  await saveChatMessage(senderPhone, "assistant", reply);
+
+  try {
+    await sendMessage(senderPhone, reply);
+  } catch (e) {
+    console.error("Erro enviando WhatsApp para eleitor:", e);
+  }
+
+  return true;
+}
+
 // ─── Main Handler ───────────────────────────────────────────
 
 Deno.serve(async (req) => {
@@ -802,8 +913,18 @@ Deno.serve(async (req) => {
     console.log(`📩 Mensagem de ${senderPhone}: ${message}`);
 
     if (!(await isAuthorized(senderPhone))) {
-      console.log(`🚫 Número não autorizado: ${senderPhone}`);
-      
+      console.log(`🚫 Número não autorizado (não é político/assessor): ${senderPhone}`);
+
+      // ─── Atendimento humanizado ao ELEITOR (se agente_ativo) ───
+      try {
+        const handled = await handleEleitorMessage(senderPhone, message);
+        if (handled) {
+          return jsonResponse({ status: "eleitor_atendido", phone: senderPhone });
+        }
+      } catch (e) {
+        console.error("Erro ao atender eleitor:", e);
+      }
+
       // ANTI-BAN: Mark message_queue entry as replied when an eleitor responds
       // This allows the next message in the campaign to be sent
       try {
