@@ -204,6 +204,30 @@ export type Database = {
         }
         Relationships: []
       }
+      legislacao_conhecimento: {
+        Row: {
+          conteudo: string
+          created_at: string
+          embedding: string | null
+          id: string
+          metadados: Json | null
+        }
+        Insert: {
+          conteudo: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          metadados?: Json | null
+        }
+        Update: {
+          conteudo?: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          metadados?: Json | null
+        }
+        Relationships: []
+      }
       message_queue: {
         Row: {
           agendado_para: string
@@ -442,6 +466,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      buscar_legislacao: {
+        Args: {
+          match_count?: number
+          match_threshold?: number
+          query_embedding: string
+        }
+        Returns: {
+          conteudo: string
+          id: string
+          metadados: Json
+          similaridade: number
+        }[]
+      }
       get_politician_id: {
         Args: { _assessor_user_id: string }
         Returns: string
