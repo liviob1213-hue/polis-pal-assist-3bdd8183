@@ -223,7 +223,7 @@ export default function BaseConhecimento() {
         </Card>
         <Card className="p-4 glass-card">
           <div className="flex items-center gap-3">
-            <CheckCircle2 className="h-8 w-8 text-green-500" />
+            <CheckCircle2 className="h-8 w-8 text-primary" />
             <div>
               <p className="text-2xl font-bold">{arquivos.length > 0 ? "Ativo" : "Vazio"}</p>
               <p className="text-xs text-muted-foreground">Status RAG</p>
