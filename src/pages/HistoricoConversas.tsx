@@ -192,10 +192,16 @@ export default function HistoricoConversas() {
             Conversas do agente de WhatsApp com eleitores
           </p>
         </div>
-        <Button variant="outline" onClick={carregar} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-          Atualizar
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => exportarPDF()} disabled={loading || messages.length === 0}>
+            <FileDown className="h-4 w-4 mr-2" />
+            PDF Geral
+          </Button>
+          <Button variant="outline" onClick={carregar} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+            Atualizar
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[calc(100vh-220px)]">
