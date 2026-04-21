@@ -7,10 +7,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageSquare, Search, Bot, User as UserIcon, Phone, RefreshCw } from "lucide-react";
+import { MessageSquare, Search, Bot, User as UserIcon, Phone, RefreshCw, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { toast } from "@/hooks/use-toast";
 
 interface ChatMessage {
   id: string;
@@ -116,6 +119,60 @@ export default function HistoricoConversas() {
       return `+${clean.slice(0, 2)} (${clean.slice(2, 4)}) ${clean.slice(4, 8)}-${clean.slice(8)}`;
     }
     return tel;
+  };
+
+  const exportarPDF = (telefoneAlvo?: string) => {
+    const msgsExport = telefoneAlvo
+      ? messages.filter((m) => m.telefone === telefoneAlvo)
+      : messages;
+    if (msgsExport.length === 0) {
+      toast({ title: "Sem mensagens para exportar", variant: "destructive" });
+      return;
+    }
+    const doc = new jsPDF();
+    const titulo = telefoneAlvo
+      ? `Histórico - ${eleitoresMap[telefoneAlvo.replace(/\D/g, "")] || formatTel(telefoneAlvo)}`
+      : "Histórico Geral de Conversas";
+    doc.setFontSize(16);
+    doc.text(titulo, 14, 18);
+    doc.setFontSize(9);
+    doc.setTextColor(120);
+    doc.text(`Gerado em ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })}`, 14, 25);
+    doc.text(`Total de mensagens: ${msgsExport.length}`, 14, 30);
+
+    const ordenadas = [...msgsExport].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    );
+
+    const rows = ordenadas.map((m) => {
+      const clean = m.telefone.replace(/\D/g, "");
+      return [
+        format(new Date(m.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR }),
+        eleitoresMap[clean] || formatTel(m.telefone),
+        m.role === "user" ? "Eleitor" : "Agente",
+        m.message,
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 36,
+      head: [["Data", "Eleitor", "Origem", "Mensagem"]],
+      body: rows,
+      styles: { fontSize: 8, cellPadding: 2, valign: "top" },
+      headStyles: { fillColor: [68, 152, 149] },
+      columnStyles: {
+        0: { cellWidth: 28 },
+        1: { cellWidth: 38 },
+        2: { cellWidth: 18 },
+        3: { cellWidth: "auto" },
+      },
+    });
+
+    const filename = telefoneAlvo
+      ? `historico-${telefoneAlvo.replace(/\D/g, "")}.pdf`
+      : `historico-geral-${format(new Date(), "yyyyMMdd-HHmm")}.pdf`;
+    doc.save(filename);
+    toast({ title: "PDF gerado com sucesso!" });
   };
 
   return (
