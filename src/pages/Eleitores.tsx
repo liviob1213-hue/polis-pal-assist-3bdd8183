@@ -478,6 +478,20 @@ const Eleitores = () => {
                         <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => setNovaDemandaDialog(eleitor)}>
                           <Megaphone className="h-3.5 w-3.5" /> Demanda
                         </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1 text-xs"
+                          onClick={() => setDemandaDialog({ eleitor, demandas })}
+                          title="Histórico de demandas"
+                        >
+                          <History className="h-3.5 w-3.5" /> Histórico
+                          {demandas.length > 0 && (
+                            <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">
+                              {demandas.length}
+                            </Badge>
+                          )}
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-success hover:text-success hover:bg-success/10" onClick={() => openWhatsapp(eleitor)} title="Enviar WhatsApp">
                           <MessageCircle className="h-4 w-4" />
                         </Button>
