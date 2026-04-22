@@ -295,7 +295,7 @@ const Assistente = () => {
     setIsLoading(true);
 
     const tipoDoc = detectarTipo(userText);
-    salvarMensagem("user", userText, tipoDoc);
+    await salvarMensagem("user", userText, tipoDoc);
 
     let assistantSoFar = "";
 
