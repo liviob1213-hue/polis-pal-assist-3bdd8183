@@ -112,59 +112,164 @@ const ResumoMensal = () => {
     setGerandoPDF(true);
     try {
       const doc = new jsPDF({ unit: "pt", format: "a4" });
-      const pageW = doc.internal.pageSize.getWidth();
-      const pageH = doc.internal.pageSize.getHeight();
+      const w = doc.internal.pageSize.getWidth();
+      const h = doc.internal.pageSize.getHeight();
       const margem = 40;
+      const logo = await getLogoDataUrl();
 
-      // Capa
-      doc.setFillColor(68, 152, 149); // Teal
-      doc.rect(0, 0, pageW, 120, "F");
-      doc.setTextColor(255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(22);
-      doc.text("Resumo Mensal", margem, 60);
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "normal");
-      doc.text(data.rotuloMes, margem, 90);
-
-      doc.setTextColor(40);
-      let y = 160;
-
-      // Visão geral
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(13);
-      doc.text("Visão Geral", margem, y);
-      y += 14;
-
-      const cards = [
-        ["Eleitores cadastrados", data.eleitores.length],
-        ["Demandas abertas no mês", data.demandas.length],
-        ["Demandas resolvidas", data.demandasResolvidas.length],
-        ["Tarefas criadas", data.tarefas.length],
-        ["Tarefas concluídas", data.tarefasConcluidas.length],
-        ["Eventos na agenda", data.agenda.length],
-        ["Aniversariantes do mês", data.aniversariantes.length],
-      ];
-      autoTable(doc, {
-        startY: y,
-        head: [["Indicador", "Total"]],
-        body: cards.map(([l, v]) => [l as string, String(v)]),
-        theme: "grid",
-        headStyles: { fillColor: [68, 152, 149], textColor: 255 },
-        styles: { fontSize: 10 },
-        margin: { left: margem, right: margem },
+      // ============ CAPA ============
+      drawCover(doc, {
+        titulo: `Resumo Mensal`,
+        subtitulo: data.rotuloMes,
+        logo,
+        etiqueta: "RELATÓRIO EXECUTIVO",
       });
-      y = (doc as any).lastAutoTable.finalY + 24;
+
+      // ============ PÁGINA 2: SUMÁRIO EXECUTIVO ============
+      doc.addPage();
+      drawHeader(doc, { logo, titulo: `Resumo Mensal · ${data.rotuloMes}` });
+      let y = 80;
+      y = drawSectionTitle(doc, y, "01", "Sumário Executivo");
+
+      // Cards de KPI
+      const kpis = [
+        { label: "Eleitores cadastrados", value: data.eleitores.length, color: BRAND.teal },
+        { label: "Demandas abertas", value: data.demandas.length, color: BRAND.crimson },
+        { label: "Demandas resolvidas", value: data.demandasResolvidas.length, color: BRAND.teal },
+        { label: "Tarefas criadas", value: data.tarefas.length, color: BRAND.crimson },
+        { label: "Tarefas concluídas", value: data.tarefasConcluidas.length, color: BRAND.teal },
+        { label: "Eventos na agenda", value: data.agenda.length, color: BRAND.crimson },
+        { label: "Aniversariantes", value: data.aniversariantes.length, color: BRAND.teal },
+        { label: "Taxa de resolução", value: `${data.demandas.length ? Math.round((data.demandasResolvidas.length / data.demandas.length) * 100) : 0}%`, color: BRAND.crimson },
+      ];
+
+      const cardW = (w - margem * 2 - 24) / 4;
+      const cardH = 70;
+      kpis.forEach((kpi, i) => {
+        const col = i % 4;
+        const row = Math.floor(i / 4);
+        const x = margem + col * (cardW + 8);
+        const cy = y + row * (cardH + 8);
+        // sombra suave
+        doc.setFillColor(...BRAND.bg);
+        doc.roundedRect(x + 1, cy + 1, cardW, cardH, 8, 8, "F");
+        // card
+        doc.setFillColor(...BRAND.white);
+        doc.setDrawColor(...BRAND.tealLight);
+        doc.roundedRect(x, cy, cardW, cardH, 8, 8, "FD");
+        // barra colorida lateral
+        doc.setFillColor(...kpi.color);
+        doc.roundedRect(x, cy, 4, cardH, 2, 2, "F");
+        // valor
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(20);
+        doc.setTextColor(...BRAND.ink);
+        doc.text(String(kpi.value), x + 14, cy + 32);
+        // label
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8.5);
+        doc.setTextColor(...BRAND.muted);
+        const lbl = doc.splitTextToSize(kpi.label, cardW - 18);
+        doc.text(lbl, x + 14, cy + 50);
+      });
+      y += Math.ceil(kpis.length / 4) * (cardH + 8) + 16;
+
+      // Insight em destaque
+      const taxaResol = data.demandas.length
+        ? Math.round((data.demandasResolvidas.length / data.demandas.length) * 100)
+        : 0;
+      doc.setFillColor(...BRAND.tealLight);
+      doc.roundedRect(margem, y, w - margem * 2, 50, 8, 8, "F");
+      doc.setFillColor(...BRAND.crimson);
+      doc.roundedRect(margem, y, 4, 50, 2, 2, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(...BRAND.crimson);
+      doc.text("DESTAQUE DO PERÍODO", margem + 14, y + 18);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10.5);
+      doc.setTextColor(...BRAND.ink);
+      const destaque = `${data.eleitores.length} novos eleitores cadastrados, ${data.demandasResolvidas.length} demandas resolvidas (${taxaResol}% de taxa de resolução) e ${data.tarefasConcluidas.length} tarefas concluídas em ${data.rotuloMes}.`;
+      const dlines = doc.splitTextToSize(destaque, w - margem * 2 - 24);
+      doc.text(dlines, margem + 14, y + 34);
+      y += 70;
+
+      // ============ PÁGINA 3: GRÁFICOS ============
+      doc.addPage();
+      drawHeader(doc, { logo, titulo: `Resumo Mensal · ${data.rotuloMes}` });
+      y = 80;
+      y = drawSectionTitle(doc, y, "02", "Visão Analítica");
+
+      // Gráfico 1: Comparativo Geral
+      const chart1 = await renderChartToDataUrl({
+        type: "bar",
+        title: "Atividade do mês",
+        labels: ["Eleitores", "Demandas", "Resolvidas", "Tarefas", "Concluídas", "Eventos"],
+        data: [
+          data.eleitores.length,
+          data.demandas.length,
+          data.demandasResolvidas.length,
+          data.tarefas.length,
+          data.tarefasConcluidas.length,
+          data.agenda.length,
+        ],
+        colors: ["#449895", "#D2264F", "#449895", "#D2264F", "#449895", "#D2264F"],
+      });
+      doc.addImage(chart1, "PNG", margem, y, w - margem * 2, 220);
+      y += 240;
+
+      // Gráfico 2: Top Interesses (donut) — se houver
+      if (data.topInteresses.length) {
+        const top = data.topInteresses.slice(0, 6);
+        const chart2 = await renderChartToDataUrl({
+          type: "doughnut",
+          title: "Principais interesses dos novos eleitores",
+          labels: top.map((i) => i.interesse),
+          data: top.map((i) => i.total),
+        });
+        if (y + 240 > h - 50) {
+          doc.addPage();
+          drawHeader(doc, { logo, titulo: `Resumo Mensal · ${data.rotuloMes}` });
+          y = 80;
+        }
+        doc.addImage(chart2, "PNG", margem, y, w - margem * 2, 220);
+        y += 240;
+      }
+
+      // ============ DETALHAMENTO ============
+      const ensure = (need: number) => {
+        if (y + need > h - 60) {
+          doc.addPage();
+          drawHeader(doc, { logo, titulo: `Resumo Mensal · ${data.rotuloMes}` });
+          y = 80;
+        }
+      };
+
+      const tableTheme = {
+        theme: "grid" as const,
+        headStyles: {
+          fillColor: BRAND.teal,
+          textColor: 255,
+          fontStyle: "bold" as const,
+          fontSize: 10,
+        },
+        bodyStyles: { fontSize: 9, textColor: [55, 70, 75] as [number, number, number] },
+        alternateRowStyles: { fillColor: [248, 250, 250] as [number, number, number] },
+        margin: { left: margem, right: margem },
+      };
+
+      let secNum = 3;
+      const fmtSec = () => String(secNum++).padStart(2, "0");
 
       // Eleitores
       if (data.eleitores.length) {
-        if (y > pageH - 100) { doc.addPage(); y = margem; }
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
-        doc.text(`Eleitores cadastrados (${data.eleitores.length})`, margem, y);
-        y += 6;
+        doc.addPage();
+        drawHeader(doc, { logo, titulo: `Resumo Mensal · ${data.rotuloMes}` });
+        y = 80;
+        y = drawSectionTitle(doc, y, fmtSec(), `Eleitores Cadastrados (${data.eleitores.length})`);
         autoTable(doc, {
-          startY: y + 4,
+          ...tableTheme,
+          startY: y,
           head: [["Nome", "Telefone", "Interesse", "Cadastro"]],
           body: data.eleitores.map((e: any) => [
             e.nome || "-",
@@ -172,40 +277,31 @@ const ResumoMensal = () => {
             e.interesse || "-",
             new Date(e.created_at).toLocaleDateString("pt-BR"),
           ]),
-          theme: "striped",
-          headStyles: { fillColor: [68, 152, 149], textColor: 255 },
-          styles: { fontSize: 9 },
-          margin: { left: margem, right: margem },
         });
         y = (doc as any).lastAutoTable.finalY + 20;
       }
 
       // Top interesses
       if (data.topInteresses.length) {
-        if (y > pageH - 100) { doc.addPage(); y = margem; }
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
-        doc.text("Principais interesses dos novos eleitores", margem, y);
+        ensure(120);
+        y = drawSectionTitle(doc, y, fmtSec(), "Principais Interesses");
         autoTable(doc, {
-          startY: y + 8,
+          ...tableTheme,
+          startY: y,
           head: [["Interesse", "Quantidade"]],
           body: data.topInteresses.map((i) => [i.interesse, String(i.total)]),
-          theme: "grid",
-          headStyles: { fillColor: [210, 38, 79], textColor: 255 },
-          styles: { fontSize: 10 },
-          margin: { left: margem, right: margem },
+          headStyles: { ...tableTheme.headStyles, fillColor: BRAND.crimson },
         });
         y = (doc as any).lastAutoTable.finalY + 20;
       }
 
       // Demandas
       if (data.demandas.length) {
-        if (y > pageH - 100) { doc.addPage(); y = margem; }
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
-        doc.text(`Demandas do mês (${data.demandas.length})`, margem, y);
+        ensure(140);
+        y = drawSectionTitle(doc, y, fmtSec(), `Demandas do Mês (${data.demandas.length})`);
         autoTable(doc, {
-          startY: y + 8,
+          ...tableTheme,
+          startY: y,
           head: [["Título", "Status", "Local", "Aberta em"]],
           body: data.demandas.map((d: any) => [
             d.titulo || "-",
@@ -213,93 +309,62 @@ const ResumoMensal = () => {
             d.localizacao || "-",
             new Date(d.created_at).toLocaleDateString("pt-BR"),
           ]),
-          theme: "striped",
-          headStyles: { fillColor: [68, 152, 149], textColor: 255 },
-          styles: { fontSize: 9 },
-          margin: { left: margem, right: margem },
         });
         y = (doc as any).lastAutoTable.finalY + 20;
       }
 
       // Tarefas concluídas
       if (data.tarefasConcluidas.length) {
-        if (y > pageH - 100) { doc.addPage(); y = margem; }
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
-        doc.text(`Tarefas concluídas (${data.tarefasConcluidas.length})`, margem, y);
+        ensure(140);
+        y = drawSectionTitle(doc, y, fmtSec(), `Tarefas Concluídas (${data.tarefasConcluidas.length})`);
         autoTable(doc, {
-          startY: y + 8,
+          ...tableTheme,
+          startY: y,
           head: [["Título", "Concluída em"]],
           body: data.tarefasConcluidas.map((t: any) => [
             t.titulo || "-",
             new Date(t.updated_at).toLocaleDateString("pt-BR"),
           ]),
-          theme: "striped",
-          headStyles: { fillColor: [68, 152, 149], textColor: 255 },
-          styles: { fontSize: 9 },
-          margin: { left: margem, right: margem },
         });
         y = (doc as any).lastAutoTable.finalY + 20;
       }
 
       // Agenda
       if (data.agenda.length) {
-        if (y > pageH - 100) { doc.addPage(); y = margem; }
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
-        doc.text(`Eventos na agenda (${data.agenda.length})`, margem, y);
+        ensure(140);
+        y = drawSectionTitle(doc, y, fmtSec(), `Eventos na Agenda (${data.agenda.length})`);
         autoTable(doc, {
-          startY: y + 8,
+          ...tableTheme,
+          startY: y,
           head: [["Evento", "Data/Hora"]],
           body: data.agenda.map((a: any) => [
             a.titulo || "-",
             new Date(a.data_hora).toLocaleString("pt-BR"),
           ]),
-          theme: "striped",
-          headStyles: { fillColor: [68, 152, 149], textColor: 255 },
-          styles: { fontSize: 9 },
-          margin: { left: margem, right: margem },
         });
         y = (doc as any).lastAutoTable.finalY + 20;
       }
 
       // Aniversariantes
       if (data.aniversariantes.length) {
-        if (y > pageH - 100) { doc.addPage(); y = margem; }
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
-        doc.text(`Aniversariantes do mês (${data.aniversariantes.length})`, margem, y);
+        ensure(140);
+        y = drawSectionTitle(doc, y, fmtSec(), `Aniversariantes (${data.aniversariantes.length})`);
         autoTable(doc, {
-          startY: y + 8,
+          ...tableTheme,
+          startY: y,
           head: [["Nome", "Data de Nascimento", "Telefone"]],
           body: data.aniversariantes.map((a: any) => [
             a.nome || "-",
             a.data_nascimento ? new Date(a.data_nascimento + "T12:00:00").toLocaleDateString("pt-BR") : "-",
             a.telefone || "-",
           ]),
-          theme: "striped",
-          headStyles: { fillColor: [210, 38, 79], textColor: 255 },
-          styles: { fontSize: 9 },
-          margin: { left: margem, right: margem },
+          headStyles: { ...tableTheme.headStyles, fillColor: BRAND.crimson },
         });
       }
 
-      // Rodapé
-      const total = doc.getNumberOfPages();
-      for (let i = 1; i <= total; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setTextColor(120);
-        doc.text(
-          `Democrat.IA — Resumo de ${data.rotuloMes}  |  Gerado em ${new Date().toLocaleString("pt-BR")}  |  Página ${i}/${total}`,
-          pageW / 2,
-          pageH - 20,
-          { align: "center" }
-        );
-      }
-
+      drawFooter(doc, doc.getNumberOfPages());
       doc.save(`resumo-${data.rotuloMes.toLowerCase().replace(/\s/g, "-")}.pdf`);
-      toast({ title: "PDF gerado", description: "Resumo mensal baixado com sucesso." });
+      toast({ title: "PDF gerado", description: "Resumo mensal estilizado baixado com sucesso." });
     } catch (e: any) {
       toast({ title: "Erro ao gerar PDF", description: e.message, variant: "destructive" });
     } finally {
