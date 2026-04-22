@@ -36,12 +36,13 @@ serve(async (req) => {
 
   try {
     const { messages, context } = await req.json();
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
+    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
 
-    // === RAG: buscar contexto na base de conhecimento ===
+    // === RAG: buscar contexto na base de conhecimento (mantém OpenAI para embeddings) ===
     let contextoRAG = "";
     let fontesUsadas: any[] = [];
 
@@ -119,41 +120,93 @@ Nenhum trecho relevante foi encontrado na base carregada para esta pergunta espe
 
 ${context ? `Contexto adicional do gabinete: ${context}` : ''}`;
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    // Anthropic exige messages apenas com role user/assistant (system vai separado)
+    const anthropicMessages = messages
+      .filter((m: any) => m.role === "user" || m.role === "assistant")
+      .map((m: any) => ({ role: m.role, content: m.content }));
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
+        model: "claude-sonnet-4-5",
+        max_tokens: 8192,
+        system: systemPrompt,
+        messages: anthropicMessages,
         stream: true,
       }),
     });
 
     if (!response.ok) {
       if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Limite de requisições da OpenAI excedido. Tente novamente em alguns instantes." }), {
+        return new Response(JSON.stringify({ error: "Limite de requisições do Claude excedido. Tente novamente em alguns instantes." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       if (response.status === 401) {
-        return new Response(JSON.stringify({ error: "Chave da OpenAI inválida. Verifique a configuração." }), {
+        return new Response(JSON.stringify({ error: "Chave da Anthropic inválida. Verifique a configuração." }), {
           status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       const t = await response.text();
-      console.error("OpenAI error:", response.status, t);
-      return new Response(JSON.stringify({ error: "Erro no serviço da OpenAI" }), {
+      console.error("Anthropic error:", response.status, t);
+      return new Response(JSON.stringify({ error: "Erro no serviço da Anthropic" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(response.body, {
+    // Adapta o stream da Anthropic para o formato OpenAI SSE que o frontend já consome
+    const stream = new ReadableStream({
+      async start(controller) {
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+        const encoder = new TextEncoder();
+        let buffer = "";
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+
+            let nl: number;
+            while ((nl = buffer.indexOf("\n")) !== -1) {
+              let line = buffer.slice(0, nl);
+              buffer = buffer.slice(nl + 1);
+              if (line.endsWith("\r")) line = line.slice(0, -1);
+              if (!line.startsWith("data: ")) continue;
+
+              const jsonStr = line.slice(6).trim();
+              if (!jsonStr) continue;
+
+              try {
+                const evt = JSON.parse(jsonStr);
+                if (evt.type === "content_block_delta" && evt.delta?.type === "text_delta") {
+                  const openaiChunk = {
+                    choices: [{ delta: { content: evt.delta.text } }],
+                  };
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify(openaiChunk)}\n\n`));
+                } else if (evt.type === "message_stop") {
+                  controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+                }
+              } catch (e) {
+                // ignora linha inválida
+              }
+            }
+          }
+          controller.close();
+        } catch (e) {
+          console.error("Stream error:", e);
+          controller.error(e);
+        }
+      },
+    });
+
+    return new Response(stream, {
       headers: {
         ...corsHeaders,
         "Content-Type": "text/event-stream",
