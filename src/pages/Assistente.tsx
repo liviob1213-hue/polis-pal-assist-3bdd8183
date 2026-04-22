@@ -11,6 +11,7 @@ import { useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import jsPDF from "jspdf";
+import { BRAND, drawCover, drawHeader, drawFooter, getLogoDataUrl } from "@/lib/pdfBranding";
 
 interface Message {
   id: string;
@@ -44,39 +45,136 @@ function detectarTipo(texto: string): string {
   return "livre";
 }
 
-function gerarPDFDocumento(titulo: string, conteudo: string) {
+function tipoLabel(tipo: string): string {
+  const map: Record<string, string> = {
+    projeto_lei: "PROJETO DE LEI",
+    lei_organica: "LEI ORGÂNICA",
+    discurso: "DISCURSO PARLAMENTAR",
+    oficio: "OFÍCIO",
+    requerimento: "REQUERIMENTO",
+    indicacao: "INDICAÇÃO",
+    livre: "DOCUMENTO LEGISLATIVO",
+  };
+  return map[tipo] || "DOCUMENTO LEGISLATIVO";
+}
+
+async function gerarPDFDocumento(titulo: string, conteudo: string, tipo = "livre") {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const w = doc.internal.pageSize.getWidth();
+  const h = doc.internal.pageSize.getHeight();
   const margem = 56;
-  const larguraUtil = doc.internal.pageSize.getWidth() - margem * 2;
-  const alturaPagina = doc.internal.pageSize.getHeight();
+  const larguraUtil = w - margem * 2;
+  const logo = await getLogoDataUrl();
 
-  doc.setFont("times", "bold");
-  doc.setFontSize(14);
+  // === CAPA ===
+  drawCover(doc, {
+    titulo,
+    subtitulo: "Documento elaborado pelo Assistente Legislativo Democrat.IA",
+    logo,
+    etiqueta: tipoLabel(tipo),
+  });
+
+  // === CONTEÚDO ===
+  doc.addPage();
+  drawHeader(doc, { logo, titulo: tipoLabel(tipo) });
+  let y = 80;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.setTextColor(...BRAND.ink);
   const tituloLines = doc.splitTextToSize(titulo, larguraUtil);
-  doc.text(tituloLines, doc.internal.pageSize.getWidth() / 2, margem, { align: "center" });
+  doc.text(tituloLines, margem, y);
+  y += tituloLines.length * 22 + 6;
 
-  let y = margem + tituloLines.length * 18 + 18;
-  doc.setFont("times", "normal");
-  doc.setFontSize(11);
+  // Linha decorativa
+  doc.setDrawColor(...BRAND.crimson);
+  doc.setLineWidth(2);
+  doc.line(margem, y, margem + 60, y);
+  y += 24;
 
-  // Limpa markdown básico
-  const textoLimpo = conteudo
-    .replace(/\*\*(.*?)\*\*/g, "$1")
-    .replace(/\*(.*?)\*/g, "$1")
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/`([^`]+)`/g, "$1");
+  // Renderização do markdown simplificado
+  const linhas = conteudo.split("\n");
+  for (const linha of linhas) {
+    const trimmed = linha.trim();
 
-  const paragrafos = textoLimpo.split("\n");
-  for (const p of paragrafos) {
-    if (!p.trim()) {
-      y += 8;
+    if (y > h - 80) {
+      doc.addPage();
+      drawHeader(doc, { logo, titulo: tipoLabel(tipo) });
+      y = 80;
+    }
+
+    if (!trimmed) { y += 8; continue; }
+
+    // H1
+    if (/^#\s+/.test(trimmed)) {
+      const txt = trimmed.replace(/^#\s+/, "");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(15);
+      doc.setTextColor(...BRAND.teal);
+      const lines = doc.splitTextToSize(txt, larguraUtil);
+      doc.text(lines, margem, y);
+      y += lines.length * 18 + 6;
       continue;
     }
-    const lines = doc.splitTextToSize(p, larguraUtil);
+    // H2
+    if (/^##\s+/.test(trimmed)) {
+      const txt = trimmed.replace(/^##\s+/, "");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(...BRAND.ink);
+      const lines = doc.splitTextToSize(txt, larguraUtil);
+      doc.text(lines, margem, y);
+      y += lines.length * 16 + 4;
+      continue;
+    }
+    // H3
+    if (/^###\s+/.test(trimmed)) {
+      const txt = trimmed.replace(/^###\s+/, "");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(...BRAND.tealDark);
+      const lines = doc.splitTextToSize(txt, larguraUtil);
+      doc.text(lines, margem, y);
+      y += lines.length * 14 + 3;
+      continue;
+    }
+    // Lista
+    if (/^[-*]\s+/.test(trimmed)) {
+      const txt = trimmed.replace(/^[-*]\s+/, "").replace(/\*\*(.*?)\*\*/g, "$1");
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.setTextColor(...BRAND.text);
+      doc.setFillColor(...BRAND.crimson);
+      doc.circle(margem + 6, y - 4, 2, "F");
+      const lines = doc.splitTextToSize(txt, larguraUtil - 18);
+      doc.text(lines, margem + 16, y);
+      y += lines.length * 14 + 2;
+      continue;
+    }
+    // Citação artigos / Art.
+    if (/^Art\.?\s*\d+/i.test(trimmed)) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(...BRAND.ink);
+      const lines = doc.splitTextToSize(trimmed.replace(/\*\*(.*?)\*\*/g, "$1"), larguraUtil);
+      doc.text(lines, margem, y);
+      y += lines.length * 14 + 4;
+      continue;
+    }
+    // Parágrafo normal
+    const txt = trimmed
+      .replace(/\*\*(.*?)\*\*/g, "$1")
+      .replace(/\*(.*?)\*/g, "$1")
+      .replace(/`([^`]+)`/g, "$1");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(...BRAND.text);
+    const lines = doc.splitTextToSize(txt, larguraUtil);
     for (const line of lines) {
-      if (y > alturaPagina - margem) {
+      if (y > h - 80) {
         doc.addPage();
-        y = margem;
+        drawHeader(doc, { logo, titulo: tipoLabel(tipo) });
+        y = 80;
       }
       doc.text(line, margem, y);
       y += 15;
@@ -84,18 +182,7 @@ function gerarPDFDocumento(titulo: string, conteudo: string) {
     y += 4;
   }
 
-  doc.setFontSize(8);
-  doc.setTextColor(120);
-  const total = doc.getNumberOfPages();
-  for (let i = 1; i <= total; i++) {
-    doc.setPage(i);
-    doc.text(
-      `Democrat.IA — Assistente Legislativo  |  ${new Date().toLocaleDateString("pt-BR")}  |  Página ${i}/${total}`,
-      doc.internal.pageSize.getWidth() / 2,
-      alturaPagina - 24,
-      { align: "center" }
-    );
-  }
+  drawFooter(doc, doc.getNumberOfPages());
 
   const slug = titulo.toLowerCase().replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 60);
   doc.save(`${slug || "documento"}.pdf`);
@@ -275,14 +362,20 @@ const Assistente = () => {
     }
   };
 
-  const baixarPDF = (msg: Message) => {
-    // Tenta extrair título da primeira linha "# Título" ou usa default
+  const baixarPDF = async (msg: Message) => {
     const linhas = msg.content.split("\n").filter((l) => l.trim());
     let titulo = "Documento Legislativo";
     const primeira = linhas[0]?.replace(/^#+\s*/, "").replace(/\*\*/g, "").trim();
     if (primeira && primeira.length < 120) titulo = primeira;
-    gerarPDFDocumento(titulo, msg.content);
-    toast({ title: "PDF gerado", description: "Documento baixado com sucesso." });
+    // Detecta tipo a partir da última pergunta do usuário ou do próprio conteúdo
+    const ultUser = [...messages].reverse().find((m) => m.role === "user")?.content || "";
+    const tipo = detectarTipo(ultUser + " " + msg.content);
+    try {
+      await gerarPDFDocumento(titulo, msg.content, tipo);
+      toast({ title: "PDF gerado", description: "Documento estilizado baixado com sucesso." });
+    } catch (e: any) {
+      toast({ title: "Erro ao gerar PDF", description: e.message, variant: "destructive" });
+    }
   };
 
   return (
