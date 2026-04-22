@@ -47,13 +47,14 @@ serve(async (req) => {
 
     const ultimaMsgUsuario = [...messages].reverse().find((m: any) => m.role === "user");
     if (ultimaMsgUsuario && OPENAI_API_KEY) {
+      console.log("RAG: buscando para:", ultimaMsgUsuario.content.slice(0, 120));
       const embedding = await gerarEmbedding(ultimaMsgUsuario.content, OPENAI_API_KEY);
       if (embedding) {
         const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
         const { data: trechos, error } = await supabase.rpc("buscar_legislacao", {
           query_embedding: embedding,
-          match_threshold: 0.4,
-          match_count: 4,
+          match_threshold: 0.2,
+          match_count: 6,
         });
         if (error) {
           console.error("RPC buscar_legislacao error:", error);
@@ -69,8 +70,12 @@ serve(async (req) => {
               return `${fonte}\n${t.conteudo}`;
             })
             .join("\n\n---\n\n");
-          console.log(`RAG: ${trechos.length} trechos relevantes encontrados`);
+          console.log(`RAG: ${trechos.length} trechos. Sims:`, trechos.map((t: any) => t.similaridade.toFixed(3)).join(","));
+        } else {
+          console.log("RAG: nenhum trecho acima do threshold");
         }
+      } else {
+        console.log("RAG: falha ao gerar embedding");
       }
     }
 
@@ -94,18 +99,23 @@ REGRAS DE FORMATAÇÃO:
 - Use linguagem formal parlamentar quando redigindo documentos
 
 ${contextoRAG ? `
-=== BASE DE CONHECIMENTO (RAG) ===
-Você tem acesso aos seguintes trechos da base de conhecimento legislativa do gabinete (Lei Orgânica, decretos, regimentos, etc.):
+=== BASE DE CONHECIMENTO DO GABINETE (FONTE OFICIAL — USE OBRIGATORIAMENTE) ===
+Você POSSUI acesso direto aos trechos OFICIAIS abaixo, extraídos dos documentos carregados pelo próprio gabinete (Lei Orgânica municipal, decretos, regimentos). Estes são a FONTE DE VERDADE para qualquer pergunta sobre legislação local.
 
 ${contextoRAG}
 
-INSTRUÇÕES SOBRE A BASE DE CONHECIMENTO:
-1. PRIORIZE responder a pergunta do usuário utilizando os trechos acima.
-2. Quando usar informação da base, cite a fonte (ex: "Conforme Art. X da Lei Orgânica, página Y").
-3. Se a resposta NÃO estiver no contexto acima, complemente com seu conhecimento geral, mas avise: "Esta informação não consta na base de conhecimento carregada, mas com base no conhecimento geral...".
-4. Nunca invente artigos ou números de lei.
+REGRAS OBRIGATÓRIAS:
+1. NUNCA diga frases como "não tenho acesso ao documento", "consulte o site da prefeitura/câmara", "recomendo procurar a Lei Orgânica" ou similares. Você TEM acesso — os trechos estão acima.
+2. SEMPRE que a pergunta envolver legislação municipal, Lei Orgânica, regimento ou decretos locais, sua resposta DEVE ser construída a partir dos trechos acima.
+3. SEMPRE cite a fonte exata: "Conforme Art. X da Lei Orgânica (página Y)..." e use trechos LITERAIS entre aspas quando relevante.
+4. Se a base contiver apenas parte da resposta, use-a primeiro e só complemente DEPOIS com conhecimento geral, deixando claro o que veio da base.
+5. Se um ponto específico não estiver nos trechos, diga "Este ponto específico não consta nos trechos carregados" — nunca invente artigos ou números.
 === FIM DA BASE ===
-` : ''}
+` : `
+=== BASE DE CONHECIMENTO ===
+Nenhum trecho relevante foi encontrado na base carregada para esta pergunta específica. Responda com seu conhecimento geral e sugira que o usuário carregue documentos relacionados na aba "Base de Conhecimento".
+=== FIM ===
+`}
 
 ${context ? `Contexto adicional do gabinete: ${context}` : ''}`;
 
