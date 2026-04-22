@@ -264,14 +264,25 @@ const Assistente = () => {
   };
 
   const salvarMensagem = async (role: "user" | "assistant", conteudo: string, tipo = "livre") => {
-    if (!user) return;
-    await supabase.from("assistente_historico").insert({
+    if (!user) {
+      console.warn("[Assistente] Não foi possível salvar — usuário não autenticado");
+      return;
+    }
+    const { error } = await supabase.from("assistente_historico").insert({
       user_id: user.id,
       sessao_id: sessaoId,
       role,
       conteudo,
       tipo_documento: tipo,
     });
+    if (error) {
+      console.error("[Assistente] Erro ao salvar histórico:", error);
+      toast({
+        title: "Histórico não salvo",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSend = async () => {
