@@ -518,43 +518,89 @@ const Eleitores = () => {
         </div>
       )}
 
-      {/* Dialog: lista de demandas do eleitor (com botão "Enviar para Gestão") */}
+      {/* Dialog: histórico de demandas do eleitor */}
       <Dialog open={!!demandaDialog} onOpenChange={(o) => { if (!o) setDemandaDialog(null); }}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Megaphone className="h-5 w-5 text-warning" />
-              Demandas de {demandaDialog?.eleitor.nome}
+              <History className="h-5 w-5 text-primary" />
+              Histórico de Demandas — {demandaDialog?.eleitor.nome}
             </DialogTitle>
           </DialogHeader>
-          {demandaDialog && (
-            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-              {demandaDialog.demandas.map((d) => (
-                <div key={d.id} className="p-3 rounded-lg border border-border bg-secondary/30 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm">{d.titulo}</p>
-                      {d.descricao && <p className="text-xs text-muted-foreground mt-1">{d.descricao}</p>}
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Criada em {new Date(d.created_at).toLocaleDateString("pt-BR")}
-                      </p>
-                    </div>
-                    <Badge variant="outline" className={statusBadgeClass(d.status)}>{d.status}</Badge>
+          {demandaDialog && (() => {
+            const total = demandaDialog.demandas.length;
+            const resolvidas = demandaDialog.demandas.filter((d) => d.status === "Resolvido").length;
+            const andamento = demandaDialog.demandas.filter((d) => d.status === "Em Andamento").length;
+            const analise = demandaDialog.demandas.filter((d) => d.status === "Em Análise").length;
+            const sorted = [...demandaDialog.demandas].sort((a, b) => {
+              const order: Record<string, number> = { "Em Análise": 0, "Em Andamento": 1, "Resolvido": 2 };
+              const oa = order[a.status] ?? 99;
+              const ob = order[b.status] ?? 99;
+              if (oa !== ob) return oa - ob;
+              return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            });
+            return (
+              <div className="space-y-3">
+                {/* Resumo */}
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="rounded-lg border border-border bg-secondary/30 p-2 text-center">
+                    <p className="text-lg font-bold">{total}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</p>
                   </div>
-                  {d.status === "Em Análise" && (
-                    <Button
-                      size="sm"
-                      className="w-full gradient-primary text-primary-foreground gap-1"
-                      onClick={() => enviarParaGestaoMutation.mutate(d.id)}
-                      disabled={enviarParaGestaoMutation.isPending}
-                    >
-                      <Send className="h-3.5 w-3.5" /> Enviar para Gestão de Demandas
-                    </Button>
-                  )}
+                  <div className="rounded-lg border border-info/20 bg-info/5 p-2 text-center">
+                    <p className="text-lg font-bold text-info">{analise}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Análise</p>
+                  </div>
+                  <div className="rounded-lg border border-warning/20 bg-warning/5 p-2 text-center">
+                    <p className="text-lg font-bold text-warning">{andamento}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Andamento</p>
+                  </div>
+                  <div className="rounded-lg border border-success/20 bg-success/5 p-2 text-center">
+                    <p className="text-lg font-bold text-success">{resolvidas}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Resolvidas</p>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
+
+                {/* Lista */}
+                {total === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm border border-dashed border-border rounded-lg">
+                    Nenhuma demanda registrada para este eleitor.
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
+                    {sorted.map((d) => (
+                      <div key={d.id} className="p-3 rounded-lg border border-border bg-secondary/30 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm">{d.titulo}</p>
+                            {d.descricao && <p className="text-xs text-muted-foreground mt-1">{d.descricao}</p>}
+                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {new Date(d.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className={statusBadgeClass(d.status)}>
+                            {d.status === "Resolvido" && <CheckCircle2 className="h-3 w-3 mr-1" />}
+                            {d.status}
+                          </Badge>
+                        </div>
+                        {d.status === "Em Análise" && (
+                          <Button
+                            size="sm"
+                            className="w-full gradient-primary text-primary-foreground gap-1"
+                            onClick={() => enviarParaGestaoMutation.mutate(d.id)}
+                            disabled={enviarParaGestaoMutation.isPending}
+                          >
+                            <Send className="h-3.5 w-3.5" /> Enviar para Gestão de Demandas
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
