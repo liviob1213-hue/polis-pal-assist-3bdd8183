@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { BRAND, drawCover, drawHeader, drawFooter, drawSectionTitle, getLogoDataUrl } from "@/lib/pdfBranding";
+import { renderChartToDataUrl } from "@/lib/chartImage";
 
 interface ResumoData {
   inicio: Date;
