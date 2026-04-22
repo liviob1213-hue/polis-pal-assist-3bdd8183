@@ -356,8 +356,8 @@ const Assistente = () => {
       }
 
       if (assistantSoFar) {
-        salvarMensagem("assistant", assistantSoFar, tipoDoc);
-        carregarSessoes();
+        await salvarMensagem("assistant", assistantSoFar, tipoDoc);
+        await carregarSessoes();
       }
     } catch (e: any) {
       console.error(e);
