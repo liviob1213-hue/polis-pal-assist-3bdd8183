@@ -317,102 +317,117 @@ async function getPendingContext(phone: string): Promise<any | null> {
   return null;
 }
 
-// ─── AI (Lovable AI Gateway) ────────────────────────────────
+// ─── AI (Anthropic Claude) ──────────────────────────────────
+
+const CLAUDE_MODEL = "claude-sonnet-4-5-20250929";
 
 async function callAI(systemPrompt: string, userMessage: string, history: Array<{role: string, message: string}> = []): Promise<string> {
-  const key = getEnv("LOVABLE_API_KEY");
-  const messages: any[] = [{ role: "system", content: systemPrompt }];
-  // Add history
+  const key = getEnv("ANTHROPIC_API_KEY");
+  const messages: any[] = [];
   for (const h of history) {
     messages.push({ role: h.role === "assistant" ? "assistant" : "user", content: h.message });
   }
   messages.push({ role: "user", content: userMessage });
-  
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "google/gemini-3-flash-preview", messages }),
-  });
-  if (!res.ok) {
-    const t = await res.text();
-    console.error("AI error:", res.status, t);
-    throw new Error(`AI gateway ${res.status}`);
-  }
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? "";
-}
 
-async function extractJSON(systemPrompt: string, userMessage: string, history: Array<{role: string, message: string}> = []): Promise<any> {
-  const key = getEnv("LOVABLE_API_KEY");
-  const messages: any[] = [{ role: "system", content: systemPrompt }];
-  for (const h of history) {
-    messages.push({ role: h.role === "assistant" ? "assistant" : "user", content: h.message });
-  }
-  messages.push({ role: "user", content: userMessage });
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    headers: {
+      "x-api-key": key,
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
+      model: CLAUDE_MODEL,
+      max_tokens: 1024,
+      system: systemPrompt,
       messages,
-      tools: [{
-        type: "function",
-        function: {
-          name: "extract_data",
-          description: "Extraia dados estruturados da mensagem",
-          parameters: {
-            type: "object",
-            properties: {
-              intent: {
-                type: "string",
-                enum: [
-                  "cadastrar_eleitor",
-                  "consultar_eleitor",
-                  "criar_demanda",
-                  "consultar_demanda",
-                  "concluir_demanda",
-                  "mover_demanda",
-                  "criar_projeto_lei",
-                  "criar_tarefa",
-                  "mover_tarefa",
-                  "concluir_tarefa",
-                  "disparo_massa",
-                  "conversa_geral",
-                ],
-              },
-              nome: { type: "string" },
-              telefone: { type: "string" },
-              endereco: { type: "string" },
-              interesse: { type: "string" },
-              titulo: { type: "string" },
-              descricao: { type: "string" },
-              localizacao: { type: "string" },
-              status_filtro: { type: "string" },
-              novo_status: { type: "string", description: "Novo status para mover demanda ou tarefa." },
-              busca_texto: { type: "string" },
-              data_hora: { type: "string", description: "ISO 8601 datetime para prazo" },
-              prazo: { type: "string", description: "Prazo/deadline em ISO 8601. Ex: '2026-04-15'" },
-              tarefa_busca: { type: "string" },
-              mensagem_broadcast: { type: "string" },
-              assessor_nome: { type: "string", description: "Nome do assessor para atribuir a demanda/tarefa." },
-              campos_faltantes: { type: "array", items: { type: "string" }, description: "Lista de campos que o usuário NÃO forneceu e são importantes" },
-            },
-            required: ["intent"],
-          },
-        },
-      }],
-      tool_choice: { type: "function", function: { name: "extract_data" } },
     }),
   });
   if (!res.ok) {
     const t = await res.text();
-    console.error("AI extract error:", res.status, t);
-    throw new Error(`AI gateway ${res.status}`);
+    console.error("Claude AI error:", res.status, t);
+    throw new Error(`Claude ${res.status}`);
   }
   const data = await res.json();
-  const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-  if (!toolCall) throw new Error("No tool call returned");
-  return JSON.parse(toolCall.function.arguments);
+  const textBlock = (data.content || []).find((b: any) => b.type === "text");
+  return textBlock?.text ?? "";
+}
+
+async function extractJSON(systemPrompt: string, userMessage: string, history: Array<{role: string, message: string}> = []): Promise<any> {
+  const key = getEnv("ANTHROPIC_API_KEY");
+  const messages: any[] = [];
+  for (const h of history) {
+    messages.push({ role: h.role === "assistant" ? "assistant" : "user", content: h.message });
+  }
+  messages.push({ role: "user", content: userMessage });
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": key,
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: CLAUDE_MODEL,
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages,
+      tool_choice: { type: "tool", name: "extract_data" },
+      tools: [{
+        name: "extract_data",
+        description: "Extraia dados estruturados da mensagem do usuário",
+        input_schema: {
+          type: "object",
+          properties: {
+            intent: {
+              type: "string",
+              enum: [
+                "cadastrar_eleitor",
+                "consultar_eleitor",
+                "criar_demanda",
+                "consultar_demanda",
+                "concluir_demanda",
+                "mover_demanda",
+                "criar_projeto_lei",
+                "criar_tarefa",
+                "mover_tarefa",
+                "concluir_tarefa",
+                "disparo_massa",
+                "conversa_geral",
+              ],
+            },
+            nome: { type: "string" },
+            telefone: { type: "string" },
+            endereco: { type: "string" },
+            interesse: { type: "string" },
+            titulo: { type: "string" },
+            descricao: { type: "string" },
+            localizacao: { type: "string" },
+            status_filtro: { type: "string" },
+            novo_status: { type: "string", description: "Novo status para mover demanda ou tarefa." },
+            busca_texto: { type: "string" },
+            data_hora: { type: "string", description: "ISO 8601 datetime para prazo" },
+            prazo: { type: "string", description: "Prazo/deadline em ISO 8601. Ex: '2026-04-15'" },
+            tarefa_busca: { type: "string" },
+            mensagem_broadcast: { type: "string" },
+            assessor_nome: { type: "string", description: "Nome do assessor para atribuir a demanda/tarefa." },
+            campos_faltantes: { type: "array", items: { type: "string" }, description: "Lista de campos que o usuário NÃO forneceu e são importantes" },
+          },
+          required: ["intent"],
+        },
+      }],
+    }),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    console.error("Claude extract error:", res.status, t);
+    throw new Error(`Claude ${res.status}`);
+  }
+  const data = await res.json();
+  const toolUse = (data.content || []).find((b: any) => b.type === "tool_use");
+  if (!toolUse) throw new Error("No tool_use block returned by Claude");
+  return toolUse.input;
 }
 
 // ─── Fuzzy search helper (accent-insensitive) ───────────────
