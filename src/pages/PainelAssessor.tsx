@@ -79,6 +79,7 @@ export default function PainelAssessor() {
 
   // Eleitores cadastrados pelo próprio assessor (RLS permite SELECT onde criado_por = auth.uid())
   const [meusEleitoresSessao, setMeusEleitoresSessao] = useState<{ id: string; nome: string }[]>([]);
+  const [historicoEleitores, setHistoricoEleitores] = useState<Array<{ id: string; nome: string; telefone: string | null; interesse: string | null; created_at: string }>>([]);
 
   // Dialog states
   const [eleitorOpen, setEleitorOpen] = useState(false);
@@ -107,10 +108,12 @@ export default function PainelAssessor() {
     if (!user) return;
     const { data } = await supabase
       .from("eleitores")
-      .select("id, nome")
+      .select("id, nome, telefone, interesse, created_at")
       .eq("criado_por", user.id)
       .order("created_at", { ascending: false });
-    setMeusEleitoresSessao((data as any) || []);
+    const list = (data as any[]) || [];
+    setMeusEleitoresSessao(list.map((e) => ({ id: e.id, nome: e.nome })));
+    setHistoricoEleitores(list);
   };
 
   const fetchDemandas = async () => {
