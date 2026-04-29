@@ -41,7 +41,7 @@ export default function Login() {
       <Card className="w-full max-w-md shadow-2xl border-0">
         <CardHeader className="text-center pb-2">
           <div className="flex justify-center mb-4">
-            <img src={logoDemocrat} alt="Democrat.AI" className="h-20 object-contain" />
+            <img src={logoDemocrat} alt="Democrat.AI" className="h-40 object-contain" />
           </div>
           <CardTitle className="text-2xl font-bold">Entrar</CardTitle>
           <CardDescription>Acesse sua conta DEMOCRAT.AI</CardDescription>
