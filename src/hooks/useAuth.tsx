@@ -26,37 +26,74 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<UserRole>(null);
 
-  const fetchRole = async (userId: string) => {
-    const { data } = await supabase
+  const fetchRole = (userId: string) => {
+    // Disparado fora do callback de auth para evitar deadlock no Safari
+    supabase
       .from("profiles")
       .select("role")
       .eq("user_id", userId)
-      .maybeSingle();
-    setRole((data?.role as UserRole) || "politico");
+      .maybeSingle()
+      .then(({ data }) => {
+        setRole((data?.role as UserRole) || "politico");
+      })
+      .catch((err) => {
+        console.error("[useAuth] fetchRole error:", err);
+        setRole("politico");
+      });
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchRole(session.user.id);
+    let mounted = true;
+
+    // Timeout de segurança: nunca deixar a UI travada em loading no Safari
+    const safety = setTimeout(() => {
+      if (mounted) {
+        console.warn("[useAuth] Safety timeout — forçando loading=false");
+        setLoading(false);
+      }
+    }, 4000);
+
+    // 1) Listener PRIMEIRO — apenas updates síncronos de state aqui!
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      if (!mounted) return;
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+      if (newSession?.user) {
+        // Defer para o próximo tick — evita deadlock do supabase no Safari
+        setTimeout(() => {
+          if (mounted) fetchRole(newSession.user.id);
+        }, 0);
       } else {
         setRole(null);
       }
       setLoading(false);
     });
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchRole(session.user.id);
-      }
-      setLoading(false);
-    });
+    // 2) Pega sessão existente
+    supabase.auth.getSession()
+      .then(({ data: { session: existing } }) => {
+        if (!mounted) return;
+        setSession(existing);
+        setUser(existing?.user ?? null);
+        if (existing?.user) {
+          setTimeout(() => {
+            if (mounted) fetchRole(existing.user.id);
+          }, 0);
+        }
+        setLoading(false);
+        clearTimeout(safety);
+      })
+      .catch((err) => {
+        console.error("[useAuth] getSession error:", err);
+        if (mounted) setLoading(false);
+        clearTimeout(safety);
+      });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      clearTimeout(safety);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
