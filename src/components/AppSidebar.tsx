@@ -32,7 +32,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import logoDemocrat from "@/assets/logo-democrat-icon.png";
 
-const baseMenuItems = [
+const politicoMenuItems = [
   { title: "Painel de Controle", url: "/", icon: LayoutDashboard },
   { title: "Base de Eleitores", url: "/eleitores", icon: Users },
   { title: "Mapa de Eleitores", url: "/mapa-eleitores", icon: MapPin },
@@ -44,10 +44,11 @@ const baseMenuItems = [
   { title: "Base de Conhecimento", url: "/base-conhecimento", icon: BookOpen },
   { title: "Histórico de Conversas", url: "/historico-conversas", icon: MessageSquare },
   { title: "Resumo Mensal", url: "/resumo-mensal", icon: FileBarChart },
+  { title: "Assessores", url: "/assessores", icon: UserCheck },
 ];
 
-const politicoOnlyItems = [
-  { title: "Assessores", url: "/assessores", icon: UserCheck },
+const assessorMenuItems = [
+  { title: "Painel do Assessor", url: "/", icon: LayoutDashboard },
 ];
 
 const commonFooterItems = [
