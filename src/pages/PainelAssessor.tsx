@@ -77,17 +77,8 @@ export default function PainelAssessor() {
   const [demandasAbertas, setDemandasAbertas] = useState<Demanda[]>([]);
   const [dragId, setDragId] = useState<string | null>(null);
 
-  // Cache em sessão dos eleitores cadastrados (assessor não tem SELECT em eleitores)
-  const [meusEleitoresSessao, setMeusEleitoresSessao] = useState<{ id: string; nome: string }[]>(
-    () => {
-      try {
-        const raw = sessionStorage.getItem("assessor-eleitores-cache");
-        return raw ? JSON.parse(raw) : [];
-      } catch {
-        return [];
-      }
-    }
-  );
+  // Eleitores cadastrados pelo próprio assessor (RLS permite SELECT onde criado_por = auth.uid())
+  const [meusEleitoresSessao, setMeusEleitoresSessao] = useState<{ id: string; nome: string }[]>([]);
 
   // Dialog states
   const [eleitorOpen, setEleitorOpen] = useState(false);
@@ -112,11 +103,14 @@ export default function PainelAssessor() {
   const [agendaForm, setAgendaForm] = useState({ titulo: "", descricao: "", data: "", hora: "" });
   const [tarefaForm, setTarefaForm] = useState({ titulo: "", descricao: "", prazo: "" });
 
-  const persistEleitoresCache = (next: { id: string; nome: string }[]) => {
-    setMeusEleitoresSessao(next);
-    try {
-      sessionStorage.setItem("assessor-eleitores-cache", JSON.stringify(next));
-    } catch {}
+  const fetchMeusEleitores = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("eleitores")
+      .select("id, nome")
+      .eq("criado_por", user.id)
+      .order("created_at", { ascending: false });
+    setMeusEleitoresSessao((data as any) || []);
   };
 
   const fetchDemandas = async () => {
@@ -141,9 +135,11 @@ export default function PainelAssessor() {
 
   useEffect(() => {
     fetchDemandas();
+    fetchMeusEleitores();
     const ch = supabase
       .channel("assessor-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "demandas" }, fetchDemandas)
+      .on("postgres_changes", { event: "*", schema: "public", table: "eleitores" }, fetchMeusEleitores)
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
@@ -178,7 +174,7 @@ export default function PainelAssessor() {
       });
       return;
     }
-    persistEleitoresCache([{ id: data.id, nome: data.nome }, ...meusEleitoresSessao]);
+    await fetchMeusEleitores();
     toast({ title: "✅ Eleitor cadastrado!" });
     setEleitorForm({ nome: "", telefone: "", endereco: "", interesse: "", observacoes: "" });
     setEleitorOpen(false);
