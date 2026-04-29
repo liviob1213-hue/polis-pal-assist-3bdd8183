@@ -98,6 +98,10 @@ export default function Login() {
               Criar conta
             </Link>
           </p>
+          <p className="text-center text-xs text-muted-foreground">
+            É assessor?{" "}
+            <Link to="/login-assessor" className="text-primary hover:underline">Entrar como assessor</Link>
+          </p>
         </CardContent>
       </Card>
     </div>
