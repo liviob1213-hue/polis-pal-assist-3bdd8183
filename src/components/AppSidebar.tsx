@@ -46,6 +46,7 @@ const politicoMenuItems = [
   { title: "Histórico de Conversas", url: "/historico-conversas", icon: MessageSquare },
   { title: "Resumo Mensal", url: "/resumo-mensal", icon: FileBarChart },
   { title: "Assessores", url: "/assessores", icon: UserCheck },
+  { title: "Aprovar Assessores", url: "/aprovar-assessores", icon: UserCog },
 ];
 
 const assessorMenuItems = [
