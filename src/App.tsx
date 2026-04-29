@@ -19,6 +19,7 @@ import Assessores from "./pages/Assessores";
 import HistoricoConversas from "./pages/HistoricoConversas";
 import ResumoMensal from "./pages/ResumoMensal";
 import BaseConhecimento from "./pages/BaseConhecimento";
+import PainelAssessor from "./pages/PainelAssessor";
 import Login from "./pages/Login";
 import Cadastro from "./pages/Cadastro";
 import NotFound from "./pages/NotFound";
