@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import logoDemocrat from "@/assets/logo-democrat.png";
+import logoDemocrat from "@/assets/logo-democrat-icon.png";
 
 const baseMenuItems = [
   { title: "Painel de Controle", url: "/", icon: LayoutDashboard },
