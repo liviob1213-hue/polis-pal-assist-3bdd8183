@@ -19,6 +19,7 @@ import Assessores from "./pages/Assessores";
 import HistoricoConversas from "./pages/HistoricoConversas";
 import ResumoMensal from "./pages/ResumoMensal";
 import BaseConhecimento from "./pages/BaseConhecimento";
+import PainelAssessor from "./pages/PainelAssessor";
 import Login from "./pages/Login";
 import Cadastro from "./pages/Cadastro";
 import NotFound from "./pages/NotFound";
@@ -40,6 +41,11 @@ function PoliticoRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function HomeRoute() {
+  const { role } = useAuth();
+  return role === "assessor" ? <PainelAssessor /> : <Dashboard />;
+}
+
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
@@ -54,18 +60,18 @@ const AnimatedRoutes = () => {
       <Routes location={location} key={location.pathname}>
         <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
         <Route path="/cadastro" element={<PublicRoute><Cadastro /></PublicRoute>} />
-        <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
-        <Route path="/eleitores" element={<ProtectedRoute><AppLayout><Eleitores /></AppLayout></ProtectedRoute>} />
-        <Route path="/mapa-eleitores" element={<ProtectedRoute><AppLayout><MapaEleitores /></AppLayout></ProtectedRoute>} />
-        <Route path="/demandas" element={<ProtectedRoute><AppLayout><Demandas /></AppLayout></ProtectedRoute>} />
-        <Route path="/tarefas" element={<ProtectedRoute><AppLayout><Tarefas /></AppLayout></ProtectedRoute>} />
-        <Route path="/agenda" element={<ProtectedRoute><AppLayout><Agenda /></AppLayout></ProtectedRoute>} />
-        <Route path="/assistente" element={<ProtectedRoute><AppLayout><Assistente /></AppLayout></ProtectedRoute>} />
-        <Route path="/aniversarios" element={<ProtectedRoute><AppLayout><Aniversarios /></AppLayout></ProtectedRoute>} />
+        <Route path="/" element={<ProtectedRoute><AppLayout><HomeRoute /></AppLayout></ProtectedRoute>} />
+        <Route path="/eleitores" element={<PoliticoRoute><AppLayout><Eleitores /></AppLayout></PoliticoRoute>} />
+        <Route path="/mapa-eleitores" element={<PoliticoRoute><AppLayout><MapaEleitores /></AppLayout></PoliticoRoute>} />
+        <Route path="/demandas" element={<PoliticoRoute><AppLayout><Demandas /></AppLayout></PoliticoRoute>} />
+        <Route path="/tarefas" element={<PoliticoRoute><AppLayout><Tarefas /></AppLayout></PoliticoRoute>} />
+        <Route path="/agenda" element={<PoliticoRoute><AppLayout><Agenda /></AppLayout></PoliticoRoute>} />
+        <Route path="/assistente" element={<PoliticoRoute><AppLayout><Assistente /></AppLayout></PoliticoRoute>} />
+        <Route path="/aniversarios" element={<PoliticoRoute><AppLayout><Aniversarios /></AppLayout></PoliticoRoute>} />
         <Route path="/assessores" element={<PoliticoRoute><AppLayout><Assessores /></AppLayout></PoliticoRoute>} />
-        <Route path="/historico-conversas" element={<ProtectedRoute><AppLayout><HistoricoConversas /></AppLayout></ProtectedRoute>} />
-        <Route path="/resumo-mensal" element={<ProtectedRoute><AppLayout><ResumoMensal /></AppLayout></ProtectedRoute>} />
-        <Route path="/base-conhecimento" element={<ProtectedRoute><AppLayout><BaseConhecimento /></AppLayout></ProtectedRoute>} />
+        <Route path="/historico-conversas" element={<PoliticoRoute><AppLayout><HistoricoConversas /></AppLayout></PoliticoRoute>} />
+        <Route path="/resumo-mensal" element={<PoliticoRoute><AppLayout><ResumoMensal /></AppLayout></PoliticoRoute>} />
+        <Route path="/base-conhecimento" element={<PoliticoRoute><AppLayout><BaseConhecimento /></AppLayout></PoliticoRoute>} />
         <Route path="/configuracoes" element={<ProtectedRoute><AppLayout><Configuracoes /></AppLayout></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>

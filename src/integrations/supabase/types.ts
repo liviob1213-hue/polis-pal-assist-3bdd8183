@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           assessor_id: string | null
           created_at: string
+          criado_por: string | null
           data_hora: string
           descricao: string | null
           id: string
@@ -28,6 +29,7 @@ export type Database = {
         Insert: {
           assessor_id?: string | null
           created_at?: string
+          criado_por?: string | null
           data_hora: string
           descricao?: string | null
           id?: string
@@ -38,6 +40,7 @@ export type Database = {
         Update: {
           assessor_id?: string | null
           created_at?: string
+          criado_por?: string | null
           data_hora?: string
           descricao?: string | null
           id?: string
@@ -116,6 +119,7 @@ export type Database = {
         Row: {
           assessor_id: string | null
           created_at: string
+          criado_por: string | null
           descricao: string | null
           eleitor_id: string | null
           id: string
@@ -128,6 +132,7 @@ export type Database = {
         Insert: {
           assessor_id?: string | null
           created_at?: string
+          criado_por?: string | null
           descricao?: string | null
           eleitor_id?: string | null
           id?: string
@@ -140,6 +145,7 @@ export type Database = {
         Update: {
           assessor_id?: string | null
           created_at?: string
+          criado_por?: string | null
           descricao?: string | null
           eleitor_id?: string | null
           id?: string
@@ -163,6 +169,7 @@ export type Database = {
         Row: {
           agente_ativo: boolean
           created_at: string
+          criado_por: string | null
           data_nascimento: string | null
           endereco: string | null
           id: string
@@ -171,12 +178,14 @@ export type Database = {
           longitude: number | null
           nome: string
           observacoes: string | null
+          politico_id: string | null
           telefone: string | null
           updated_at: string
         }
         Insert: {
           agente_ativo?: boolean
           created_at?: string
+          criado_por?: string | null
           data_nascimento?: string | null
           endereco?: string | null
           id?: string
@@ -185,12 +194,14 @@ export type Database = {
           longitude?: number | null
           nome: string
           observacoes?: string | null
+          politico_id?: string | null
           telefone?: string | null
           updated_at?: string
         }
         Update: {
           agente_ativo?: boolean
           created_at?: string
+          criado_por?: string | null
           data_nascimento?: string | null
           endereco?: string | null
           id?: string
@@ -199,6 +210,7 @@ export type Database = {
           longitude?: number | null
           nome?: string
           observacoes?: string | null
+          politico_id?: string | null
           telefone?: string | null
           updated_at?: string
         }
@@ -384,6 +396,7 @@ export type Database = {
         Row: {
           assessor_id: string | null
           created_at: string
+          criado_por: string | null
           descricao: string | null
           id: string
           prazo: string | null
@@ -394,6 +407,7 @@ export type Database = {
         Insert: {
           assessor_id?: string | null
           created_at?: string
+          criado_por?: string | null
           descricao?: string | null
           id?: string
           prazo?: string | null
@@ -404,6 +418,7 @@ export type Database = {
         Update: {
           assessor_id?: string | null
           created_at?: string
+          criado_por?: string | null
           descricao?: string | null
           id?: string
           prazo?: string | null
