@@ -26,20 +26,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<UserRole>(null);
 
-  const fetchRole = (userId: string) => {
-    // Disparado fora do callback de auth para evitar deadlock no Safari
-    supabase
-      .from("profiles")
-      .select("role")
-      .eq("user_id", userId)
-      .maybeSingle()
-      .then(({ data }) => {
-        setRole((data?.role as UserRole) || "politico");
-      })
-      .catch((err) => {
-        console.error("[useAuth] fetchRole error:", err);
-        setRole("politico");
-      });
+  const fetchRole = async (userId: string) => {
+    try {
+      const { data } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("user_id", userId)
+        .maybeSingle();
+      setRole((data?.role as UserRole) || "politico");
+    } catch (err) {
+      console.error("[useAuth] fetchRole error:", err);
+      setRole("politico");
+    }
   };
 
   useEffect(() => {
