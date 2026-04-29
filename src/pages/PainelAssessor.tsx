@@ -578,6 +578,43 @@ export default function PainelAssessor() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Histórico de Eleitores Cadastrados por mim */}
+      <Card className="glass-card">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <User className="h-4 w-4 text-primary" />
+            Eleitores cadastrados por mim
+            <Badge variant="secondary" className="ml-2">{historicoEleitores.length}</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {historicoEleitores.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic">Você ainda não cadastrou nenhum eleitor.</p>
+          ) : (
+            historicoEleitores.map((el) => (
+              <div key={el.id} className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-secondary/20">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <UserPlus className="h-4 w-4 text-success shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{el.nome}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <Badge variant="outline" className="text-[10px] border-success bg-success/10 text-success">Eleitor cadastrado</Badge>
+                      {el.telefone && <span>📱 {el.telefone}</span>}
+                      {el.interesse && <span>· {el.interesse}</span>}
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {format(new Date(el.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </span>
+                      <span>· por você</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
     </motion.div>
   );
 }
