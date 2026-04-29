@@ -92,16 +92,28 @@ export default function Login() {
             <LogIn className="ml-2 h-4 w-4" />
           </Button>
 
-          <p className="text-center text-sm text-muted-foreground">
-            Não tem conta?{" "}
-            <Link to="/cadastro" className="text-primary hover:underline font-medium">
-              Criar conta
-            </Link>
-          </p>
-          <p className="text-center text-xs text-muted-foreground">
-            É assessor?{" "}
-            <Link to="/login-assessor" className="text-primary hover:underline">Entrar como assessor</Link>
-          </p>
+          <div className="rounded-lg border border-border/60 bg-secondary/30 p-3 space-y-1 text-center">
+            <p className="text-xs font-semibold text-foreground">Sou Político</p>
+            <p className="text-xs text-muted-foreground">
+              Não tem conta?{" "}
+              <Link to="/cadastro" className="text-primary hover:underline font-medium">
+                Criar conta de político
+              </Link>
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-border/60 bg-secondary/30 p-3 space-y-1 text-center">
+            <p className="text-xs font-semibold text-foreground">Sou Assessor</p>
+            <p className="text-xs text-muted-foreground">
+              <Link to="/login-assessor" className="text-primary hover:underline font-medium">
+                Entrar
+              </Link>
+              {" · "}
+              <Link to="/cadastro-assessor" className="text-primary hover:underline font-medium">
+                Criar conta de assessor
+              </Link>
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>
