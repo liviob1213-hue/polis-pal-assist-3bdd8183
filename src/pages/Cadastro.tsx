@@ -114,7 +114,7 @@ export default function Cadastro() {
       });
       if (signInErr) throw new Error(signInErr.message);
 
-      toast({ title: "Cadastro realizado!", description: `Bem-vindo ao DEMOCRAT.AI como ${role === "assessor" ? "Assessor" : "Político"}!` });
+      toast({ title: "Cadastro realizado!", description: `Bem-vindo ao DEMOCRAT.AI!` });
       navigate("/");
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
