@@ -64,8 +64,7 @@ export function AppSidebar() {
   const initials = userName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
 
   const menuItems = [
-    ...baseMenuItems,
-    ...(role === "politico" ? politicoOnlyItems : []),
+    ...(role === "assessor" ? assessorMenuItems : politicoMenuItems),
     ...commonFooterItems,
   ];
 
