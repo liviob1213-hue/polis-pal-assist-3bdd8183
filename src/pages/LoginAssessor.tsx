@@ -6,13 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Mail, Lock, LogIn } from "lucide-react";
+import { Mail, Lock, LogIn } from "lucide-react";
 import logoDemocrat from "@/assets/logo-democrat.png";
 
-export default function Login() {
+export default function LoginAssessor() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -22,11 +21,34 @@ export default function Login() {
       toast({ title: "Preencha todos os campos", variant: "destructive" });
       return;
     }
-
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha });
       if (error) throw error;
+
+      // Verifica se está aprovado
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("status, role")
+        .eq("user_id", data.user!.id)
+        .maybeSingle();
+
+      if (profile?.role !== "assessor") {
+        toast({ title: "Acesso negado", description: "Esta conta não é de assessor.", variant: "destructive" });
+        await supabase.auth.signOut();
+        return;
+      }
+      if (profile?.status === "pendente") {
+        toast({ title: "Aguardando aprovação", description: "O político ainda não aprovou seu cadastro.", variant: "destructive" });
+        await supabase.auth.signOut();
+        return;
+      }
+      if (profile?.status === "rejeitado") {
+        toast({ title: "Cadastro rejeitado", description: "Entre em contato com o político.", variant: "destructive" });
+        await supabase.auth.signOut();
+        return;
+      }
+
       toast({ title: "Login realizado!" });
       navigate("/");
     } catch (err: any) {
@@ -41,49 +63,28 @@ export default function Login() {
       <Card className="w-full max-w-md shadow-2xl border-0">
         <CardHeader className="text-center pb-2">
           <div className="flex justify-center mb-4">
-            <img src={logoDemocrat} alt="Democrat.AI" className="h-72 md:h-80 object-contain" />
+            <img src={logoDemocrat} alt="Democrat.AI" className="h-40 object-contain" />
           </div>
-          <CardTitle className="text-2xl font-bold">Entrar</CardTitle>
-          <CardDescription>Acesse sua conta DEMOCRAT.AI</CardDescription>
+          <CardTitle className="text-2xl font-bold">Entrar como Assessor</CardTitle>
+          <CardDescription>Acesso restrito a assessores aprovados</CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">E-mail</Label>
+            <Label>E-mail</Label>
             <div className="relative">
               <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="pl-10"
-                onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-              />
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-10" placeholder="seu@email.com"
+                onKeyDown={(e) => e.key === "Enter" && handleLogin()} />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="senha">Senha</Label>
+            <Label>Senha</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="senha"
-                type={showPassword ? "text" : "password"}
-                placeholder="Sua senha"
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                className="pl-10 pr-10"
-                onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+              <Input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} className="pl-10" placeholder="Sua senha"
+                onKeyDown={(e) => e.key === "Enter" && handleLogin()} />
             </div>
           </div>
 
@@ -94,13 +95,11 @@ export default function Login() {
 
           <p className="text-center text-sm text-muted-foreground">
             Não tem conta?{" "}
-            <Link to="/cadastro" className="text-primary hover:underline font-medium">
-              Criar conta
-            </Link>
+            <Link to="/cadastro-assessor" className="text-primary hover:underline font-medium">Cadastrar como assessor</Link>
           </p>
           <p className="text-center text-xs text-muted-foreground">
-            É assessor?{" "}
-            <Link to="/login-assessor" className="text-primary hover:underline">Entrar como assessor</Link>
+            É político?{" "}
+            <Link to="/login" className="text-primary hover:underline">Entrar como político</Link>
           </p>
         </CardContent>
       </Card>

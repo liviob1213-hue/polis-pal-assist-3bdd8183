@@ -325,7 +325,9 @@ export type Database = {
           id: string
           is_authorized: boolean
           nome: string
+          politico_id_solicitado: string | null
           role: string
+          status: string
           telefone: string
           updated_at: string
           user_id: string
@@ -337,7 +339,9 @@ export type Database = {
           id?: string
           is_authorized?: boolean
           nome: string
+          politico_id_solicitado?: string | null
           role?: string
+          status?: string
           telefone: string
           updated_at?: string
           user_id: string
@@ -349,7 +353,9 @@ export type Database = {
           id?: string
           is_authorized?: boolean
           nome?: string
+          politico_id_solicitado?: string | null
           role?: string
+          status?: string
           telefone?: string
           updated_at?: string
           user_id?: string
@@ -481,6 +487,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_assessor: {
+        Args: { _assessor_user_id: string }
+        Returns: undefined
+      }
       buscar_legislacao: {
         Args: {
           match_count?: number
@@ -504,6 +514,17 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      list_politicos: {
+        Args: never
+        Returns: {
+          nome: string
+          user_id: string
+        }[]
+      }
+      reject_assessor: {
+        Args: { _assessor_user_id: string }
+        Returns: undefined
       }
       unaccent: { Args: { "": string }; Returns: string }
     }
