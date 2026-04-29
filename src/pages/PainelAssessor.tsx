@@ -79,6 +79,7 @@ export default function PainelAssessor() {
 
   // Eleitores cadastrados pelo próprio assessor (RLS permite SELECT onde criado_por = auth.uid())
   const [meusEleitoresSessao, setMeusEleitoresSessao] = useState<{ id: string; nome: string }[]>([]);
+  const [historicoEleitores, setHistoricoEleitores] = useState<Array<{ id: string; nome: string; telefone: string | null; interesse: string | null; created_at: string }>>([]);
 
   // Dialog states
   const [eleitorOpen, setEleitorOpen] = useState(false);
@@ -107,10 +108,12 @@ export default function PainelAssessor() {
     if (!user) return;
     const { data } = await supabase
       .from("eleitores")
-      .select("id, nome")
+      .select("id, nome, telefone, interesse, created_at")
       .eq("criado_por", user.id)
       .order("created_at", { ascending: false });
-    setMeusEleitoresSessao((data as any) || []);
+    const list = (data as any[]) || [];
+    setMeusEleitoresSessao(list.map((e) => ({ id: e.id, nome: e.nome })));
+    setHistoricoEleitores(list);
   };
 
   const fetchDemandas = async () => {
@@ -575,6 +578,43 @@ export default function PainelAssessor() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Histórico de Eleitores Cadastrados por mim */}
+      <Card className="glass-card">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <User className="h-4 w-4 text-primary" />
+            Eleitores cadastrados por mim
+            <Badge variant="secondary" className="ml-2">{historicoEleitores.length}</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {historicoEleitores.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic">Você ainda não cadastrou nenhum eleitor.</p>
+          ) : (
+            historicoEleitores.map((el) => (
+              <div key={el.id} className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-secondary/20">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <UserPlus className="h-4 w-4 text-success shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{el.nome}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <Badge variant="outline" className="text-[10px] border-success bg-success/10 text-success">Eleitor cadastrado</Badge>
+                      {el.telefone && <span>📱 {el.telefone}</span>}
+                      {el.interesse && <span>· {el.interesse}</span>}
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {format(new Date(el.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </span>
+                      <span>· por você</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
     </motion.div>
   );
 }

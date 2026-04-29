@@ -45,7 +45,10 @@ function PoliticoRoute({ children }: { children: React.ReactNode }) {
 }
 
 function HomeRoute() {
-  const { role } = useAuth();
+  const { role, loading } = useAuth();
+  if (loading || !role) {
+    return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
+  }
   return role === "assessor" ? <PainelAssessor /> : <Dashboard />;
 }
 
