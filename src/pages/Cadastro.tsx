@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Phone, Mail, User, Lock, ArrowRight, CheckCircle, Briefcase } from "lucide-react";
+import { Eye, EyeOff, Phone, Mail, User, Lock, ArrowRight, CheckCircle } from "lucide-react";
 import logoDemocrat from "@/assets/logo-democrat.png";
 
 function formatPhoneDisplay(value: string): string {
@@ -34,7 +34,7 @@ export default function Cadastro() {
   const [senha, setSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
   const [telefone, setTelefone] = useState("");
-  const [role, setRole] = useState<"politico" | "assessor">("politico");
+  const role = "politico" as const;
   const [code, setCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -144,22 +144,6 @@ export default function Cadastro() {
           {step === "form" ? (
             <>
               <div className="space-y-2">
-                <Label>Tipo de Conta</Label>
-                <div className="relative">
-                  <Briefcase className="absolute left-3 top-3 h-4 w-4 text-muted-foreground z-10" />
-                  <Select value={role} onValueChange={(v) => setRole(v as "politico" | "assessor")}>
-                    <SelectTrigger className="pl-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="politico">🏛️ Político</SelectItem>
-                      <SelectItem value="assessor">📋 Assessor</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="nome">Nome completo</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -221,6 +205,10 @@ export default function Cadastro() {
               <p className="text-center text-sm text-muted-foreground">
                 Já tem conta?{" "}
                 <Link to="/login" className="text-primary hover:underline font-medium">Fazer login</Link>
+              </p>
+              <p className="text-center text-xs text-muted-foreground">
+                É assessor?{" "}
+                <Link to="/cadastro-assessor" className="text-primary hover:underline">Cadastrar como assessor</Link>
               </p>
             </>
           ) : (
