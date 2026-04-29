@@ -81,40 +81,70 @@ function extractAudioUrl(body: any): string | null {
 }
 
 async function transcribeAudio(audioUrl: string): Promise<string> {
-  const openaiKey = Deno.env.get("OPENAI_API_KEY");
-  if (!openaiKey) throw new Error("OPENAI_API_KEY not configured");
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!lovableKey) throw new Error("LOVABLE_API_KEY not configured");
 
-  let audioBlob: Blob;
-  
+  // Obter o áudio em base64 (Gemini aceita áudio inline)
+  let audioB64: string;
+  let mimeType = "audio/ogg";
+
   if (audioUrl.startsWith("base64:")) {
-    const b64 = audioUrl.slice(7);
-    const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-    audioBlob = new Blob([bytes], { type: "audio/ogg" });
+    audioB64 = audioUrl.slice(7);
   } else {
     const audioRes = await fetch(audioUrl);
     if (!audioRes.ok) throw new Error(`Failed to download audio: ${audioRes.status}`);
-    audioBlob = await audioRes.blob();
+    const ct = audioRes.headers.get("content-type");
+    if (ct && ct.startsWith("audio/")) mimeType = ct.split(";")[0];
+    const buf = new Uint8Array(await audioRes.arrayBuffer());
+    // Converter para base64 em chunks (evita stack overflow em áudios grandes)
+    let binary = "";
+    const chunkSize = 0x8000;
+    for (let i = 0; i < buf.length; i += chunkSize) {
+      binary += String.fromCharCode(...buf.subarray(i, i + chunkSize));
+    }
+    audioB64 = btoa(binary);
   }
 
-  const formData = new FormData();
-  formData.append("file", audioBlob, "audio.ogg");
-  formData.append("model", "whisper-1");
-  formData.append("language", "pt");
-
-  const whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+  // Lovable AI Gateway (Gemini) — transcrição multimodal de áudio
+  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
-    headers: { Authorization: `Bearer ${openaiKey}` },
-    body: formData,
+    headers: {
+      Authorization: `Bearer ${lovableKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Você é um transcritor de áudio em português brasileiro. Transcreva LITERALMENTE o conteúdo falado no áudio, sem comentários, sem prefixos, sem aspas. Retorne apenas o texto transcrito.",
+        },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Transcreva este áudio em português brasileiro:" },
+            {
+              type: "input_audio",
+              input_audio: { data: audioB64, format: mimeType.includes("mp3") ? "mp3" : "ogg" },
+            },
+          ],
+        },
+      ],
+    }),
   });
 
-  if (!whisperRes.ok) {
-    const errText = await whisperRes.text();
-    console.error("Whisper error:", whisperRes.status, errText);
-    throw new Error(`Whisper API ${whisperRes.status}`);
+  if (!resp.ok) {
+    const errText = await resp.text();
+    console.error("Gemini transcription error:", resp.status, errText);
+    if (resp.status === 429) throw new Error("Limite de requisições atingido, tente novamente em alguns instantes.");
+    if (resp.status === 402) throw new Error("Créditos da IA esgotados. Adicione créditos em Settings → Workspace → Usage.");
+    throw new Error(`Gemini transcription API ${resp.status}`);
   }
 
-  const result = await whisperRes.json();
-  return result.text || "";
+  const result = await resp.json();
+  const text = result?.choices?.[0]?.message?.content || "";
+  return typeof text === "string" ? text.trim() : "";
 }
 
 function extractSenderPhone(body: any): string {
