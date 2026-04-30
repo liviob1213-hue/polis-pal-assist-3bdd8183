@@ -331,8 +331,6 @@ async function sendMessage(phone: string, text: string) {
   const fullPhone = formatPhoneForUazapi(phone);
   const safeText = sanitizeTextForUazapi(text);
 
-  const payload = JSON.stringify({ number: fullPhone, text: safeText });
-
   const res = await fetch(`${url}/send/text`, {
     method: "POST",
     headers: {
@@ -340,7 +338,7 @@ async function sendMessage(phone: string, text: string) {
       "Accept": "application/json; charset=utf-8",
       token,
     },
-    body: payload,
+    body: stringifyJsonAscii({ number: fullPhone, text: safeText }),
   });
   if (!res.ok) {
     const t = await res.text();
