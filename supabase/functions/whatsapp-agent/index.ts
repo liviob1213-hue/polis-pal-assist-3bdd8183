@@ -436,7 +436,7 @@ async function getPendingContext(phone: string): Promise<any | null> {
 
 const CLAUDE_MODEL = "claude-sonnet-4-5-20250929";
 
-async function callAI(systemPrompt: string, userMessage: string, history: Array<{role: string, message: string}> = []): Promise<string> {
+async function callAI(systemPrompt: string, userMessage: string, history: Array<{role: string, message: string}> = [], maxTokens: number = 4096): Promise<string> {
   const key = getEnv("ANTHROPIC_API_KEY");
   const messages: any[] = [];
   for (const h of history) {
@@ -449,11 +449,11 @@ async function callAI(systemPrompt: string, userMessage: string, history: Array<
     headers: {
       "x-api-key": key,
       "anthropic-version": "2023-06-01",
-      "Content-Type": "application/json",
+      "Content-Type": "application/json; charset=utf-8",
     },
     body: JSON.stringify({
       model: CLAUDE_MODEL,
-      max_tokens: 1024,
+      max_tokens: maxTokens,
       system: systemPrompt,
       messages,
     }),
