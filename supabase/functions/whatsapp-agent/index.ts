@@ -77,6 +77,14 @@ function sanitizeTextForUazapi(text: string): string {
     .trim();
 }
 
+function stringifyJsonAscii(payload: unknown): string {
+  // Envia JSON como ASCII puro: acentos/emojis viram escapes \uXXXX.
+  // A Uazapi decodifica os escapes ao ler o JSON, evitando mojibake no transporte/copia.
+  return JSON.stringify(payload).replace(/[\u007f-\uffff]/g, (char) => {
+    return `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`;
+  });
+}
+
 function extractMessageFromWebhook(body: any): string {
   const candidates = [
     body?.message?.content,
