@@ -124,8 +124,10 @@ export type Database = {
           eleitor_id: string | null
           id: string
           localizacao: string | null
+          origem: string | null
           prazo: string | null
           status: string
+          tipo: string | null
           titulo: string
           updated_at: string
         }
@@ -137,8 +139,10 @@ export type Database = {
           eleitor_id?: string | null
           id?: string
           localizacao?: string | null
+          origem?: string | null
           prazo?: string | null
           status?: string
+          tipo?: string | null
           titulo: string
           updated_at?: string
         }
@@ -150,8 +154,10 @@ export type Database = {
           eleitor_id?: string | null
           id?: string
           localizacao?: string | null
+          origem?: string | null
           prazo?: string | null
           status?: string
+          tipo?: string | null
           titulo?: string
           updated_at?: string
         }
