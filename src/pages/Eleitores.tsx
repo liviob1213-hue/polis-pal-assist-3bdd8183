@@ -465,6 +465,14 @@ const Eleitores = () => {
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-semibold text-sm sm:text-base">{eleitor.nome}</p>
+                          {(() => {
+                            const s = getStatusEleitor(eleitor.status_eleitor);
+                            return (
+                              <Badge variant="outline" className={s.badgeClass}>
+                                <span className="mr-1">{s.emoji}</span>{s.label}
+                              </Badge>
+                            );
+                          })()}
                           {eleitor.interesse && (
                             <Badge variant="outline" className={interestColors[eleitor.interesse] || ""}>
                               {eleitor.interesse}
