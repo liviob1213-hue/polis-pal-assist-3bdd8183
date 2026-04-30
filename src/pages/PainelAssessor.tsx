@@ -53,6 +53,22 @@ interface Demanda {
   eleitor_id: string | null;
 }
 
+interface TarefaAssessor {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  prazo: string | null;
+  status: string;
+  created_at: string;
+}
+
+type TarefaStatusKey = "Pendente" | "Em Andamento" | "Concluído";
+const tarefaColumns: { key: TarefaStatusKey; title: string; dotColor: string }[] = [
+  { key: "Pendente", title: "Pendente", dotColor: "bg-warning" },
+  { key: "Em Andamento", title: "Em Andamento", dotColor: "bg-info" },
+  { key: "Concluído", title: "Concluído", dotColor: "bg-success" },
+];
+
 const interesses = ["Saúde", "Obras", "Educação", "Segurança", "Transporte", "Meio Ambiente"];
 
 type StatusKey = "Aberto" | "Em Análise" | "Em Andamento" | "Resolvido";
@@ -75,7 +91,9 @@ export default function PainelAssessor() {
 
   const [minhasDemandas, setMinhasDemandas] = useState<Demanda[]>([]);
   const [demandasAbertas, setDemandasAbertas] = useState<Demanda[]>([]);
+  const [minhasTarefas, setMinhasTarefas] = useState<TarefaAssessor[]>([]);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [dragTarefaId, setDragTarefaId] = useState<string | null>(null);
 
   // Eleitores cadastrados pelo próprio assessor (RLS permite SELECT onde criado_por = auth.uid())
   const [meusEleitoresSessao, setMeusEleitoresSessao] = useState<{ id: string; nome: string }[]>([]);
@@ -136,13 +154,25 @@ export default function PainelAssessor() {
     setDemandasAbertas((abertas as Demanda[]) || []);
   };
 
+  const fetchMinhasTarefas = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("tarefas")
+      .select("id, titulo, descricao, prazo, status, created_at")
+      .eq("assessor_id", user.id)
+      .order("created_at", { ascending: false });
+    setMinhasTarefas((data as TarefaAssessor[]) || []);
+  };
+
   useEffect(() => {
     fetchDemandas();
     fetchMeusEleitores();
+    fetchMinhasTarefas();
     const ch = supabase
       .channel("assessor-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "demandas" }, fetchDemandas)
       .on("postgres_changes", { event: "*", schema: "public", table: "eleitores" }, fetchMeusEleitores)
+      .on("postgres_changes", { event: "*", schema: "public", table: "tarefas" }, fetchMinhasTarefas)
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
@@ -247,12 +277,21 @@ export default function PainelAssessor() {
       toast({ title: "Informe o título", variant: "destructive" });
       return;
     }
+    // Buscar político vinculado
+    const { data: link } = await supabase
+      .from("politician_assessors")
+      .select("politician_id")
+      .eq("assessor_id", user?.id ?? "")
+      .maybeSingle();
+
     const { error } = await supabase.from("tarefas").insert({
       titulo: tarefaForm.titulo.trim(),
       descricao: tarefaForm.descricao || null,
       prazo: tarefaForm.prazo ? new Date(tarefaForm.prazo).toISOString() : null,
       assessor_id: user?.id,
+      politician_id: link?.politician_id ?? null,
       criado_por: user?.id,
+      status: "Pendente",
     });
     if (error) {
       toast({ title: "Erro ao criar tarefa", variant: "destructive" });
@@ -261,6 +300,7 @@ export default function PainelAssessor() {
     toast({ title: "✅ Tarefa criada!" });
     setTarefaForm({ titulo: "", descricao: "", prazo: "" });
     setTarefaOpen(false);
+    fetchMinhasTarefas();
   };
 
   const assumirDemanda = async (id: string) => {
@@ -290,6 +330,32 @@ export default function PainelAssessor() {
       return;
     }
     fetchDemandas();
+  };
+
+  const moveTarefaStatus = async (id: string, newStatus: TarefaStatusKey) => {
+    if (!user) return;
+    const { error } = await supabase
+      .from("tarefas")
+      .update({ status: newStatus })
+      .eq("id", id)
+      .eq("assessor_id", user.id);
+    if (error) {
+      toast({ title: "Erro ao mover tarefa", description: error.message, variant: "destructive" });
+      return;
+    }
+    fetchMinhasTarefas();
+  };
+
+  const handleTarefaDragStart = (e: React.DragEvent, id: string) => {
+    setDragTarefaId(id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+  const handleTarefaDrop = (e: React.DragEvent, status: TarefaStatusKey) => {
+    e.preventDefault();
+    if (dragTarefaId) {
+      moveTarefaStatus(dragTarefaId, status);
+      setDragTarefaId(null);
+    }
   };
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
@@ -474,6 +540,9 @@ export default function PainelAssessor() {
           <TabsTrigger value="abertas">
             Em Aberto <Badge variant="secondary" className="ml-2">{demandasAbertas.length}</Badge>
           </TabsTrigger>
+          <TabsTrigger value="tarefas">
+            Minhas Tarefas <Badge variant="secondary" className="ml-2">{minhasTarefas.length}</Badge>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="minhas">
@@ -576,6 +645,87 @@ export default function PainelAssessor() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="tarefas">
+          {minhasTarefas.length === 0 ? (
+            <Card className="glass-card">
+              <CardContent className="p-8 text-center">
+                <p className="text-sm text-muted-foreground italic">Você ainda não tem tarefas atribuídas. Crie uma em "Criar Tarefa".</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+              {tarefaColumns.map((col) => {
+                const colTarefas = minhasTarefas.filter((t) => t.status === col.key);
+                return (
+                  <div
+                    key={col.key}
+                    className="space-y-3"
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleTarefaDrop(e, col.key)}
+                  >
+                    <div className="flex items-center gap-2 pb-2">
+                      <div className={`h-2.5 w-2.5 rounded-full ${col.dotColor}`} />
+                      <h3 className="font-semibold text-sm">{col.title}</h3>
+                      <Badge variant="secondary" className="text-xs ml-auto">{colTarefas.length}</Badge>
+                    </div>
+                    <div className={`space-y-2 sm:space-y-3 min-h-[120px] md:min-h-[200px] p-2 sm:p-3 rounded-xl bg-secondary/30 border border-border/50 transition-colors ${dragTarefaId ? "border-primary/20 bg-primary/5" : ""}`}>
+                      <AnimatePresence>
+                        {colTarefas.map((t) => {
+                          const prazoExpirado = isPrazoExpired(t.prazo, t.status);
+                          return (
+                            <motion.div
+                              key={t.id}
+                              layout
+                              initial={{ opacity: 0, y: 8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.95 }}
+                              draggable
+                              onDragStart={(e: any) => handleTarefaDragStart(e, t.id)}
+                              onDragEnd={() => setDragTarefaId(null)}
+                            >
+                              <Card className={cn(
+                                "glass-card hover:shadow-[var(--shadow-md)] transition-all cursor-grab active:cursor-grabbing",
+                                dragTarefaId === t.id && "opacity-50 scale-95",
+                                prazoExpirado && "border-destructive/50 bg-destructive/5"
+                              )}>
+                                <CardContent className="p-3 sm:p-4 space-y-2">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <h3 className="font-semibold text-xs sm:text-sm flex-1">{t.titulo}</h3>
+                                    {prazoExpirado && <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />}
+                                  </div>
+                                  {t.descricao && <p className="text-xs text-muted-foreground line-clamp-2">{t.descricao}</p>}
+                                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                    <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{format(new Date(t.created_at), "dd/MM/yyyy")}</span>
+                                    {t.prazo && (
+                                      <span className={cn("flex items-center gap-1", prazoExpirado ? "text-destructive font-semibold" : "text-warning")}>
+                                        <Clock className="h-3 w-3" />Prazo: {format(new Date(t.prazo), "dd/MM/yyyy")}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {t.status !== "Concluído" && (
+                                    <div className="flex gap-1 pt-1">
+                                      {t.status === "Pendente" && (
+                                        <Button size="sm" variant="ghost" className="text-xs h-7 text-info hover:text-info" onClick={() => moveTarefaStatus(t.id, "Em Andamento")}>Iniciar</Button>
+                                      )}
+                                      {t.status === "Em Andamento" && (
+                                        <Button size="sm" variant="ghost" className="text-xs h-7 text-success hover:text-success" onClick={() => moveTarefaStatus(t.id, "Concluído")}>Concluir</Button>
+                                      )}
+                                    </div>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            </motion.div>
+                          );
+                        })}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 
