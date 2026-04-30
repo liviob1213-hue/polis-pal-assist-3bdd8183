@@ -494,7 +494,7 @@ const Tarefas = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6 overflow-x-auto">
         {columns.map((col) => {
-          const colTarefas = filteredTarefas.filter((t) => t.status === col.key);
+          const colTarefas = filteredTarefas.filter((t) => normalizeStatus(t.status) === col.key);
           return (
             <div key={col.key} className="space-y-3" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, col.key)}>
               <div className="flex items-center gap-2 pb-2">
