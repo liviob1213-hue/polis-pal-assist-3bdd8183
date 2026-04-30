@@ -4,7 +4,37 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Content-Type": "application/json; charset=utf-8",
 };
+
+// Gera todas as variações plausíveis de um telefone BR (com/sem 55, com/sem 9 extra)
+function phoneVariants(phone: string): string[] {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (!digits) return [];
+  const set = new Set<string>();
+  set.add(digits);
+
+  // Sem o 55 inicial
+  let local = digits;
+  if (local.startsWith("55") && local.length >= 12) local = local.slice(2);
+  set.add(local);
+
+  // Com 55 forçado
+  set.add(`55${local}`);
+
+  // Local com e sem o 9 (apenas celular: DDD + 9XXXXXXXX)
+  if (local.length === 11 && local[2] === "9") {
+    const sem9 = local.slice(0, 2) + local.slice(3);
+    set.add(sem9);
+    set.add(`55${sem9}`);
+  } else if (local.length === 10) {
+    const com9 = local.slice(0, 2) + "9" + local.slice(2);
+    set.add(com9);
+    set.add(`55${com9}`);
+  }
+
+  return [...set].filter(Boolean);
+}
 
 // ─── Helpers ────────────────────────────────────────────────
 
@@ -21,7 +51,7 @@ function supabaseAdmin() {
 function jsonResponse(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" },
   });
 }
 
@@ -194,21 +224,30 @@ async function getAuthorizedNumbers(): Promise<string[]> {
 }
 
 async function isAuthorized(phone: string): Promise<boolean> {
-  const authorized = await getAuthorizedNumbers();
-  return authorized.includes(formatPhoneForUazapi(phone));
+  const sb = supabaseAdmin();
+  const variants = phoneVariants(phone);
+  if (variants.length === 0) return false;
+  const { data } = await sb
+    .from("profiles")
+    .select("telefone")
+    .eq("is_authorized", true)
+    .eq("whatsapp_verified", true)
+    .in("telefone", variants);
+  return !!(data && data.length > 0);
 }
 
 // ─── Get sender profile and role ────────────────────────────
 
 async function getSenderProfile(phone: string) {
   const sb = supabaseAdmin();
-  const formatted = formatPhoneForUazapi(phone);
+  const variants = phoneVariants(phone);
+  if (variants.length === 0) return null;
   const { data } = await sb
     .from("profiles")
     .select("user_id, nome, role")
-    .eq("telefone", formatted)
-    .single();
-  return data;
+    .in("telefone", variants)
+    .limit(1);
+  return data && data.length > 0 ? data[0] : null;
 }
 
 // ─── Find assessor by name ──────────────────────────────────
@@ -246,7 +285,7 @@ async function sendMessage(phone: string, text: string) {
   const fullPhone = formatPhoneForUazapi(phone);
   const res = await fetch(`${url}/send/text`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", token },
+    headers: { "Content-Type": "application/json; charset=utf-8", token },
     body: JSON.stringify({ number: fullPhone, text }),
   });
   if (!res.ok) {
