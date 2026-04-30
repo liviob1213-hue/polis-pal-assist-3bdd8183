@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { useGoogleMapsKey } from "@/hooks/useGoogleMapsKey";
+import { STATUS_ELEITOR_LIST, getStatusEleitor, type StatusEleitor } from "@/lib/statusEleitor";
 
 interface Eleitor {
   id: string;
@@ -28,6 +29,7 @@ interface Eleitor {
   longitude: number | null;
   data_nascimento: string | null;
   agente_ativo: boolean;
+  status_eleitor: string | null;
 }
 
 interface DemandaEleitor {
@@ -54,7 +56,7 @@ const Eleitores = () => {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "" });
+  const [form, setForm] = useState({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "" });
   const [whatsappDialog, setWhatsappDialog] = useState<Eleitor | null>(null);
   const [whatsappMsg, setWhatsappMsg] = useState("");
   const [demandaDialog, setDemandaDialog] = useState<{ eleitor: Eleitor; demandas: DemandaEleitor[] } | null>(null);
@@ -76,7 +78,7 @@ const Eleitores = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("eleitores")
-        .select("id, nome, endereco, telefone, interesse, observacoes, latitude, longitude, data_nascimento, agente_ativo")
+        .select("id, nome, endereco, telefone, interesse, observacoes, latitude, longitude, data_nascimento, agente_ativo, status_eleitor")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as Eleitor[];
@@ -113,6 +115,7 @@ const Eleitores = () => {
           endereco: endereco || null,
           telefone: payload.telefone || null,
           interesse: payload.interesse || null,
+          status_eleitor: payload.status_eleitor || "possivel_eleitor",
           observacoes: payload.observacoes || null,
           data_nascimento: payload.data_nascimento || null,
         }).eq("id", payload.id);
@@ -123,6 +126,7 @@ const Eleitores = () => {
           endereco: endereco || null,
           telefone: payload.telefone || null,
           interesse: payload.interesse || null,
+          status_eleitor: payload.status_eleitor || "possivel_eleitor",
           observacoes: payload.observacoes || null,
           data_nascimento: payload.data_nascimento || null,
         }).select("id").single();
@@ -157,7 +161,7 @@ const Eleitores = () => {
       queryClient.invalidateQueries({ queryKey: ["demandas-por-eleitor"] });
       queryClient.invalidateQueries({ queryKey: ["demandas"] });
       toast({ title: editingId ? "Eleitor atualizado!" : "Eleitor adicionado!" });
-      setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "" });
+      setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "" });
       setEditingId(null);
       setDialogOpen(false);
     },
@@ -273,6 +277,7 @@ const Eleitores = () => {
       cep: parts[5] || "",
       telefone: eleitor.telefone || "",
       interesse: eleitor.interesse || "",
+      status_eleitor: ((eleitor.status_eleitor as StatusEleitor) || "possivel_eleitor"),
       observacoes: eleitor.observacoes || "",
       data_nascimento: eleitor.data_nascimento || "",
       demanda_titulo: "",
@@ -311,7 +316,7 @@ const Eleitores = () => {
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Base de Eleitores</h1>
           <p className="text-muted-foreground text-xs sm:text-sm mt-1">Gerencie os contatos e interesses da sua base.</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingId(null); setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "" }); } }}>
+        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingId(null); setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "" }); } }}>
           <DialogTrigger asChild>
             <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
               <Plus className="h-4 w-4" /> Novo Eleitor
@@ -350,6 +355,19 @@ const Eleitores = () => {
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
                     {interesses.map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Status do Eleitor</Label>
+                <Select value={form.status_eleitor} onValueChange={(v) => setForm({ ...form, status_eleitor: v as StatusEleitor })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o status" /></SelectTrigger>
+                  <SelectContent>
+                    {STATUS_ELEITOR_LIST.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        <span className="mr-2">{s.emoji}</span>{s.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -447,6 +465,14 @@ const Eleitores = () => {
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-semibold text-sm sm:text-base">{eleitor.nome}</p>
+                          {(() => {
+                            const s = getStatusEleitor(eleitor.status_eleitor);
+                            return (
+                              <Badge variant="outline" className={s.badgeClass}>
+                                <span className="mr-1">{s.emoji}</span>{s.label}
+                              </Badge>
+                            );
+                          })()}
                           {eleitor.interesse && (
                             <Badge variant="outline" className={interestColors[eleitor.interesse] || ""}>
                               {eleitor.interesse}

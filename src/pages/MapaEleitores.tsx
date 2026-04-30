@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Loader2, MapPin, Phone, Navigation, Users, Search, BarChart3 } from "lucide-react";
 import { useGoogleMapsKey } from "@/hooks/useGoogleMapsKey";
+import { getStatusEleitor, STATUS_ELEITOR_LIST } from "@/lib/statusEleitor";
 
 interface Eleitor {
   id: string;
@@ -15,21 +16,9 @@ interface Eleitor {
   endereco: string | null;
   telefone: string | null;
   interesse: string | null;
+  status_eleitor: string | null;
   latitude: number | null;
   longitude: number | null;
-}
-
-// Color map for interesse
-const interesseColors: Record<string, string> = {
-  "Saúde": "bg-green-500",
-  "Educação": "bg-blue-500",
-  "Segurança": "bg-yellow-500",
-};
-const defaultPinColor = "bg-accent";
-
-function getPinColor(interesse: string | null) {
-  if (!interesse) return defaultPinColor;
-  return interesseColors[interesse] || defaultPinColor;
 }
 
 // Helper: group eleitores by a street/region key
@@ -110,7 +99,7 @@ const MapContent = ({ eleitores, searchQuery }: { eleitores: Eleitor[]; searchQu
           onClick={() => setSelectedEleitor(eleitor)}
           title={eleitor.nome}
         >
-          <div className={`flex items-center justify-center w-6 h-6 rounded-full ${getPinColor(eleitor.interesse)} text-white shadow-md border-[1.5px] border-white cursor-pointer hover:scale-125 transition-transform`}>
+          <div className={`flex items-center justify-center w-6 h-6 rounded-full ${getStatusEleitor(eleitor.status_eleitor).pinClass} text-white shadow-md border-[1.5px] border-white cursor-pointer hover:scale-125 transition-transform`} title={getStatusEleitor(eleitor.status_eleitor).label}>
             <span className="text-[10px] font-bold leading-none">E</span>
           </div>
         </AdvancedMarker>
@@ -123,6 +112,10 @@ const MapContent = ({ eleitores, searchQuery }: { eleitores: Eleitor[]; searchQu
         >
           <div className="p-1 min-w-[200px] max-w-[280px]">
             <h3 className="font-bold text-sm text-gray-900 mb-1">{selectedEleitor.nome}</h3>
+            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full mb-2" style={{ backgroundColor: `${getStatusEleitor(selectedEleitor.status_eleitor).hex}22`, color: getStatusEleitor(selectedEleitor.status_eleitor).hex }}>
+              <span>{getStatusEleitor(selectedEleitor.status_eleitor).emoji}</span>
+              {getStatusEleitor(selectedEleitor.status_eleitor).label}
+            </span>
             {selectedEleitor.interesse && (
               <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 mb-2">
                 {selectedEleitor.interesse}
@@ -166,7 +159,7 @@ const MapaEleitores = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("eleitores")
-        .select("id, nome, endereco, telefone, interesse, latitude, longitude")
+        .select("id, nome, endereco, telefone, interesse, latitude, longitude, status_eleitor")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as Eleitor[];
@@ -289,6 +282,24 @@ const MapaEleitores = () => {
 
         {/* Metrics sidebar */}
         <div className="space-y-4">
+          <Card className="glass-card">
+            <CardContent className="p-4">
+              <h3 className="text-sm font-semibold mb-3">Legenda — Status</h3>
+              <div className="space-y-1.5">
+                {STATUS_ELEITOR_LIST.map((s) => {
+                  const count = eleitores.filter((e) => (e.status_eleitor || "possivel_eleitor") === s.value && e.latitude && e.longitude).length;
+                  return (
+                    <div key={s.value} className="flex items-center gap-2 text-xs">
+                      <span className={`inline-block w-3 h-3 rounded-full ${s.pinClass} border border-white shadow`} />
+                      <span className="flex-1 text-muted-foreground">{s.emoji} {s.label}</span>
+                      <Badge variant="secondary" className="text-[10px] h-5 px-1.5 min-w-[28px] justify-center">{count}</Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="glass-card">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-3">
