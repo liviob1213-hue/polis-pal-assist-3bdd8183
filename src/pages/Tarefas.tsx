@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Plus, Calendar, Clock, GripVertical, Pencil, UserCheck, AlertTriangle, Filter, X, Trash2 } from "lucide-react";
+import { Plus, Calendar, Clock, GripVertical, Pencil, UserCheck, AlertTriangle, Filter, X, Trash2, Link2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +26,9 @@ interface Tarefa {
   status: string;
   assessor_id: string | null;
   created_at: string;
+  demanda_id: string | null;
+  tipo: string | null;
+  setor: string | null;
 }
 
 interface AssessorOption {
@@ -33,12 +36,32 @@ interface AssessorOption {
   nome: string;
 }
 
+interface DemandaOption {
+  id: string;
+  titulo: string;
+  tipo: string | null;
+  setor: string | null;
+}
+
+const TIPOS = [
+  { value: "Reclamação", label: "Reclamação" },
+  { value: "Sugestão", label: "Sugestão" },
+  { value: "Solicitação", label: "Solicitação" },
+  { value: "Elogio", label: "Elogio" },
+];
+
+const SETORES = [
+  { value: "Jurídico", label: "⚖️ Jurídico" },
+  { value: "Comunicação", label: "📢 Comunicação" },
+  { value: "Administrativo", label: "📊 Administrativo" },
+];
+
 type StatusKey = "Novas Tarefas" | "Em Andamento" | "Finalizadas";
 
 const columns: { key: StatusKey; title: string; dotColor: string }[] = [
-  { key: "Novas Tarefas", title: "Novas Tarefas", dotColor: "bg-warning" },
+  { key: "Novas Tarefas", title: "Pendente", dotColor: "bg-warning" },
   { key: "Em Andamento", title: "Em Andamento", dotColor: "bg-info" },
-  { key: "Finalizadas", title: "Finalizadas", dotColor: "bg-success" },
+  { key: "Finalizadas", title: "Concluído", dotColor: "bg-success" },
 ];
 
 const Tarefas = () => {
@@ -46,12 +69,17 @@ const Tarefas = () => {
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [assessores, setAssessores] = useState<AssessorOption[]>([]);
   const [assessorMap, setAssessorMap] = useState<Record<string, string>>({});
+  const [demandas, setDemandas] = useState<DemandaOption[]>([]);
+  const [demandaMap, setDemandaMap] = useState<Record<string, DemandaOption>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTarefa, setEditingTarefa] = useState<Tarefa | null>(null);
-  const [form, setForm] = useState({ titulo: "", descricao: "", prazo: "", assessor_id: "" });
+  const [form, setForm] = useState({ titulo: "", descricao: "", prazo: "", assessor_id: "", demanda_id: "", tipo: "", setor: "" });
   const [dragId, setDragId] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [filterDateEnd, setFilterDateEnd] = useState<Date | undefined>(undefined);
+  const [filterTipo, setFilterTipo] = useState<string>("all");
+  const [filterSetor, setFilterSetor] = useState<string>("all");
+  const [filterResponsavel, setFilterResponsavel] = useState<string>("all");
   const [filterOpen, setFilterOpen] = useState(false);
   const { toast } = useToast();
 
@@ -75,6 +103,18 @@ const Tarefas = () => {
     }
   };
 
+  const fetchDemandas = async () => {
+    const { data, error } = await supabase
+      .from("demandas")
+      .select("id, titulo, tipo, setor")
+      .order("created_at", { ascending: false });
+    if (error) { console.error("Erro ao buscar demandas:", error); return; }
+    setDemandas(data || []);
+    const map: Record<string, DemandaOption> = {};
+    (data || []).forEach((d) => { map[d.id] = d as DemandaOption; });
+    setDemandaMap(map);
+  };
+
   const fetchTarefas = async () => {
     const { data, error } = await supabase
       .from("tarefas")
@@ -90,6 +130,7 @@ const Tarefas = () => {
   useEffect(() => {
     fetchTarefas();
     fetchAssessores();
+    fetchDemandas();
     const channel = supabase
       .channel("tarefas-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "tarefas" }, () => fetchTarefas())
@@ -98,13 +139,34 @@ const Tarefas = () => {
   }, [user, role]);
 
   const filteredTarefas = tarefas.filter((t) => {
-    if (!filterDate) return true;
-    const createdAt = new Date(t.created_at);
-    if (filterDateEnd) {
-      return isWithinInterval(createdAt, { start: startOfDay(filterDate), end: endOfDay(filterDateEnd) });
+    if (filterDate) {
+      const createdAt = new Date(t.created_at);
+      if (filterDateEnd) {
+        if (!isWithinInterval(createdAt, { start: startOfDay(filterDate), end: endOfDay(filterDateEnd) })) return false;
+      } else if (!isSameDay(createdAt, filterDate)) return false;
     }
-    return isSameDay(createdAt, filterDate);
+    if (filterTipo !== "all" && t.tipo !== filterTipo) return false;
+    if (filterSetor !== "all" && t.setor !== filterSetor) return false;
+    if (filterResponsavel !== "all") {
+      const isMatch = filterResponsavel === "none" ? !t.assessor_id : t.assessor_id === filterResponsavel;
+      if (!isMatch) return false;
+    }
+    return true;
   });
+
+  const handleDemandaChange = (v: string) => {
+    if (v === "none") {
+      setForm({ ...form, demanda_id: "" });
+      return;
+    }
+    const d = demandaMap[v];
+    setForm({
+      ...form,
+      demanda_id: v,
+      tipo: d?.tipo || form.tipo,
+      setor: d?.setor || form.setor,
+    });
+  };
 
   const handleSave = async () => {
     if (!form.titulo) {
@@ -116,6 +178,9 @@ const Tarefas = () => {
       titulo: form.titulo,
       descricao: form.descricao || null,
       prazo: form.prazo || null,
+      demanda_id: form.demanda_id || null,
+      tipo: form.tipo || null,
+      setor: form.setor || null,
     };
     if (role === "politico") {
       payload.assessor_id = form.assessor_id || null;
@@ -134,7 +199,7 @@ const Tarefas = () => {
       toast({ title: "Tarefa criada!" });
     }
 
-    setForm({ titulo: "", descricao: "", prazo: "", assessor_id: "" });
+    setForm({ titulo: "", descricao: "", prazo: "", assessor_id: "", demanda_id: "", tipo: "", setor: "" });
     setEditingTarefa(null);
     setDialogOpen(false);
     fetchTarefas();
@@ -147,6 +212,9 @@ const Tarefas = () => {
       descricao: tarefa.descricao || "",
       prazo: tarefa.prazo ? tarefa.prazo.split("T")[0] : "",
       assessor_id: tarefa.assessor_id || "",
+      demanda_id: tarefa.demanda_id || "",
+      tipo: tarefa.tipo || "",
+      setor: tarefa.setor || "",
     });
     setDialogOpen(true);
   };
@@ -193,6 +261,12 @@ const Tarefas = () => {
     try { return new Date(dateStr).toLocaleDateString("pt-BR"); } catch { return dateStr; }
   };
 
+  const clearFilters = () => {
+    setFilterDate(undefined); setFilterDateEnd(undefined);
+    setFilterTipo("all"); setFilterSetor("all"); setFilterResponsavel("all");
+  };
+
+  const hasFilters = !!filterDate || filterTipo !== "all" || filterSetor !== "all" || filterResponsavel !== "all";
   const total = filteredTarefas.length;
 
   return (
@@ -237,22 +311,63 @@ const Tarefas = () => {
             </PopoverContent>
           </Popover>
           <Badge variant="secondary" className="text-sm">{total} Total</Badge>
-          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingTarefa(null); setForm({ titulo: "", descricao: "", prazo: "", assessor_id: "" }); } }}>
+          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingTarefa(null); setForm({ titulo: "", descricao: "", prazo: "", assessor_id: "", demanda_id: "", tipo: "", setor: "" }); } }}>
             <DialogTrigger asChild>
               <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
                 <Plus className="h-4 w-4" /> Nova Tarefa
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{editingTarefa ? "Editar Tarefa" : "Nova Tarefa"}</DialogTitle></DialogHeader>
               <div className="space-y-4 pt-2">
                 <div><Label>Título</Label><Input value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} placeholder="Título da tarefa" /></div>
                 <div><Label>Descrição</Label><Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} placeholder="Descreva a tarefa (opcional)" rows={3} /></div>
-                <div><Label>Prazo</Label><Input type="date" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} /></div>
+
+                <div>
+                  <Label>📌 Demanda vinculada</Label>
+                  <Select value={form.demanda_id || "none"} onValueChange={handleDemandaChange}>
+                    <SelectTrigger><SelectValue placeholder="Vincular a uma demanda (opcional)" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem vínculo</SelectItem>
+                      {demandas.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>{d.titulo}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label>🏷️ Tipo</Label>
+                    <Select value={form.tipo || "none"} onValueChange={(v) => setForm({ ...form, tipo: v === "none" ? "" : v })}>
+                      <SelectTrigger><SelectValue placeholder="Tipo" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">—</SelectItem>
+                        {TIPOS.map((t) => (
+                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>🏢 Setor responsável</Label>
+                    <Select value={form.setor || "none"} onValueChange={(v) => setForm({ ...form, setor: v === "none" ? "" : v })}>
+                      <SelectTrigger><SelectValue placeholder="Setor" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">—</SelectItem>
+                        {SETORES.map((s) => (
+                          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div><Label>📅 Prazo</Label><Input type="date" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} /></div>
                 {role === "politico" && assessores.length > 0 && (
                   <div>
-                    <Label>Atribuir a Assessor</Label>
-                    <Select value={form.assessor_id} onValueChange={(v) => setForm({ ...form, assessor_id: v === "none" ? "" : v })}>
+                    <Label>👤 Responsável pela execução</Label>
+                    <Select value={form.assessor_id || "none"} onValueChange={(v) => setForm({ ...form, assessor_id: v === "none" ? "" : v })}>
                       <SelectTrigger><SelectValue placeholder="Selecione um assessor (opcional)" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Nenhum</SelectItem>
@@ -272,6 +387,52 @@ const Tarefas = () => {
         </div>
       </div>
 
+      {/* Filtros principais */}
+      <Card className="glass-card">
+        <CardContent className="p-3 sm:p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">🏷️ Tipo</Label>
+              <Select value={filterTipo} onValueChange={setFilterTipo}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os tipos</SelectItem>
+                  {TIPOS.map((t) => (<SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">🏢 Setor</Label>
+              <Select value={filterSetor} onValueChange={setFilterSetor}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os setores</SelectItem>
+                  {SETORES.map((s) => (<SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">👤 Responsável</Label>
+              <Select value={filterResponsavel} onValueChange={setFilterResponsavel}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="none">Sem responsável</SelectItem>
+                  {assessores.map((a) => (<SelectItem key={a.user_id} value={a.user_id}>{a.nome}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              {hasFilters && (
+                <Button variant="outline" size="sm" className="w-full gap-2" onClick={clearFilters}>
+                  <X className="h-3.5 w-3.5" /> Limpar filtros
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6 overflow-x-auto">
         {columns.map((col) => {
           const colTarefas = filteredTarefas.filter((t) => t.status === col.key);
@@ -286,6 +447,7 @@ const Tarefas = () => {
                 <AnimatePresence>
                   {colTarefas.map((tarefa) => {
                     const prazoExpirado = isPrazoExpired(tarefa.prazo, tarefa.status);
+                    const demandaVinc = tarefa.demanda_id ? demandaMap[tarefa.demanda_id] : null;
                     return (
                       <motion.div
                         key={tarefa.id}
@@ -318,9 +480,29 @@ const Tarefas = () => {
                                 <GripVertical className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors hidden md:block" />
                               </div>
                             </div>
+
                             {tarefa.descricao && (
                               <p className="text-xs text-muted-foreground line-clamp-2">{tarefa.descricao}</p>
                             )}
+
+                            {demandaVinc && (
+                              <div className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-md bg-primary/10 text-primary border border-primary/20">
+                                <Link2 className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{demandaVinc.titulo}</span>
+                              </div>
+                            )}
+
+                            {(tarefa.tipo || tarefa.setor) && (
+                              <div className="flex flex-wrap gap-1">
+                                {tarefa.tipo && (
+                                  <Badge variant="outline" className="text-[10px] h-5">🏷️ {tarefa.tipo}</Badge>
+                                )}
+                                {tarefa.setor && (
+                                  <Badge variant="outline" className="text-[10px] h-5">{SETORES.find(s => s.value === tarefa.setor)?.label || tarefa.setor}</Badge>
+                                )}
+                              </div>
+                            )}
+
                             <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-1">
                               <span className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
