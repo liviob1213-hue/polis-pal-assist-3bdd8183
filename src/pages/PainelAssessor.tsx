@@ -154,13 +154,25 @@ export default function PainelAssessor() {
     setDemandasAbertas((abertas as Demanda[]) || []);
   };
 
+  const fetchMinhasTarefas = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("tarefas")
+      .select("id, titulo, descricao, prazo, status, created_at")
+      .eq("assessor_id", user.id)
+      .order("created_at", { ascending: false });
+    setMinhasTarefas((data as TarefaAssessor[]) || []);
+  };
+
   useEffect(() => {
     fetchDemandas();
     fetchMeusEleitores();
+    fetchMinhasTarefas();
     const ch = supabase
       .channel("assessor-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "demandas" }, fetchDemandas)
       .on("postgres_changes", { event: "*", schema: "public", table: "eleitores" }, fetchMeusEleitores)
+      .on("postgres_changes", { event: "*", schema: "public", table: "tarefas" }, fetchMinhasTarefas)
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
@@ -265,12 +277,21 @@ export default function PainelAssessor() {
       toast({ title: "Informe o título", variant: "destructive" });
       return;
     }
+    // Buscar político vinculado
+    const { data: link } = await supabase
+      .from("politician_assessors")
+      .select("politician_id")
+      .eq("assessor_id", user?.id ?? "")
+      .maybeSingle();
+
     const { error } = await supabase.from("tarefas").insert({
       titulo: tarefaForm.titulo.trim(),
       descricao: tarefaForm.descricao || null,
       prazo: tarefaForm.prazo ? new Date(tarefaForm.prazo).toISOString() : null,
       assessor_id: user?.id,
+      politician_id: link?.politician_id ?? null,
       criado_por: user?.id,
+      status: "Pendente",
     });
     if (error) {
       toast({ title: "Erro ao criar tarefa", variant: "destructive" });
@@ -279,6 +300,7 @@ export default function PainelAssessor() {
     toast({ title: "✅ Tarefa criada!" });
     setTarefaForm({ titulo: "", descricao: "", prazo: "" });
     setTarefaOpen(false);
+    fetchMinhasTarefas();
   };
 
   const assumirDemanda = async (id: string) => {
