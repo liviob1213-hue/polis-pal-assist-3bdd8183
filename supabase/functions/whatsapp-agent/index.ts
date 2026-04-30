@@ -311,10 +311,23 @@ async function sendMessage(phone: string, text: string) {
   const url = getEnv("UAZAPI_URL");
   const token = getEnv("UAZAPI_TOKEN");
   const fullPhone = formatPhoneForUazapi(phone);
+
+  // CORREÇÃO MOJIBAKE: codifica o body como UTF-8 explícito (Uint8Array)
+  // e força Content-Length correto, garantindo que a Uazapi não interprete
+  // os bytes como Latin-1.
+  const payload = JSON.stringify({ number: fullPhone, text });
+  const bodyBytes = new TextEncoder().encode(payload);
+
   const res = await fetch(`${url}/send/text`, {
     method: "POST",
-    headers: { "Content-Type": "application/json; charset=utf-8", token },
-    body: JSON.stringify({ number: fullPhone, text }),
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Accept": "application/json; charset=utf-8",
+      "Accept-Charset": "utf-8",
+      "Content-Length": String(bodyBytes.byteLength),
+      token,
+    },
+    body: bodyBytes,
   });
   if (!res.ok) {
     const t = await res.text();
