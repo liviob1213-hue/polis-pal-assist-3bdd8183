@@ -359,6 +359,19 @@ const Eleitores = () => {
                 </Select>
               </div>
               <div>
+                <Label>Status do Eleitor</Label>
+                <Select value={form.status_eleitor} onValueChange={(v) => setForm({ ...form, status_eleitor: v as StatusEleitor })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o status" /></SelectTrigger>
+                  <SelectContent>
+                    {STATUS_ELEITOR_LIST.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        <span className="mr-2">{s.emoji}</span>{s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label>Observações</Label>
                 <Textarea
                   value={form.observacoes}
