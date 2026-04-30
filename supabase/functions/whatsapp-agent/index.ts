@@ -224,21 +224,30 @@ async function getAuthorizedNumbers(): Promise<string[]> {
 }
 
 async function isAuthorized(phone: string): Promise<boolean> {
-  const authorized = await getAuthorizedNumbers();
-  return authorized.includes(formatPhoneForUazapi(phone));
+  const sb = supabaseAdmin();
+  const variants = phoneVariants(phone);
+  if (variants.length === 0) return false;
+  const { data } = await sb
+    .from("profiles")
+    .select("telefone")
+    .eq("is_authorized", true)
+    .eq("whatsapp_verified", true)
+    .in("telefone", variants);
+  return !!(data && data.length > 0);
 }
 
 // ─── Get sender profile and role ────────────────────────────
 
 async function getSenderProfile(phone: string) {
   const sb = supabaseAdmin();
-  const formatted = formatPhoneForUazapi(phone);
+  const variants = phoneVariants(phone);
+  if (variants.length === 0) return null;
   const { data } = await sb
     .from("profiles")
     .select("user_id, nome, role")
-    .eq("telefone", formatted)
-    .single();
-  return data;
+    .in("telefone", variants)
+    .limit(1);
+  return data && data.length > 0 ? data[0] : null;
 }
 
 // ─── Find assessor by name ──────────────────────────────────
