@@ -28,7 +28,12 @@ interface Demanda {
   assessor_id: string | null;
   prazo: string | null;
   created_at: string;
+  origem: string | null;
+  tipo: string | null;
 }
+
+const ORIGENS = ["WhatsApp", "Presencial", "Telefone", "E-mail", "Redes Sociais", "Site", "Evento", "Outro"];
+const TIPOS = ["Saúde", "Educação", "Infraestrutura", "Segurança", "Transporte", "Meio Ambiente", "Assistência Social", "Cultura/Esporte", "Outro"];
 
 interface AssessorOption {
   user_id: string;
@@ -58,11 +63,15 @@ const Demandas = () => {
   const [assessorMap, setAssessorMap] = useState<Record<string, string>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingDemanda, setEditingDemanda] = useState<Demanda | null>(null);
-  const [form, setForm] = useState({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "" });
+  const [form, setForm] = useState({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "", origem: "", tipo: "" });
   const [dragId, setDragId] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [filterDateEnd, setFilterDateEnd] = useState<Date | undefined>(undefined);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [filterOrigem, setFilterOrigem] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterResponsavel, setFilterResponsavel] = useState<string>("all");
+  const [filterTipo, setFilterTipo] = useState<string>("all");
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -101,12 +110,20 @@ const Demandas = () => {
   }, [user, role]);
 
   const filteredDemandas = demandas.filter((d) => {
-    if (!filterDate) return true;
-    const createdAt = new Date(d.created_at);
-    if (filterDateEnd) {
-      return isWithinInterval(createdAt, { start: startOfDay(filterDate), end: endOfDay(filterDateEnd) });
+    if (filterDate) {
+      const createdAt = new Date(d.created_at);
+      if (filterDateEnd) {
+        if (!isWithinInterval(createdAt, { start: startOfDay(filterDate), end: endOfDay(filterDateEnd) })) return false;
+      } else if (!isSameDay(createdAt, filterDate)) return false;
     }
-    return isSameDay(createdAt, filterDate);
+    if (filterOrigem !== "all" && (d.origem || "") !== filterOrigem) return false;
+    if (filterStatus !== "all" && d.status !== filterStatus) return false;
+    if (filterTipo !== "all" && (d.tipo || "") !== filterTipo) return false;
+    if (filterResponsavel !== "all") {
+      if (filterResponsavel === "none" && d.assessor_id) return false;
+      if (filterResponsavel !== "none" && d.assessor_id !== filterResponsavel) return false;
+    }
+    return true;
   });
 
   const handleSave = async () => {
@@ -117,6 +134,8 @@ const Demandas = () => {
       descricao: form.descricao || null,
       localizacao: form.localizacao || null,
       prazo: form.prazo ? new Date(form.prazo).toISOString() : null,
+      origem: form.origem || null,
+      tipo: form.tipo || null,
     };
     if (role === "politico") {
       payload.assessor_id = form.assessor_id || null;
@@ -135,7 +154,7 @@ const Demandas = () => {
       toast({ title: "Demanda criada!" });
     }
 
-    setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "" });
+    setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "", origem: "", tipo: "" });
     setEditingDemanda(null);
     setDialogOpen(false);
   };
@@ -148,6 +167,8 @@ const Demandas = () => {
       localizacao: demanda.localizacao || "",
       assessor_id: demanda.assessor_id || "",
       prazo: demanda.prazo ? demanda.prazo.split("T")[0] : "",
+      origem: demanda.origem || "",
+      tipo: demanda.tipo || "",
     });
     setDialogOpen(true);
   };
@@ -238,17 +259,39 @@ const Demandas = () => {
             </PopoverContent>
           </Popover>
           <Badge variant="secondary" className="text-sm">{total} Total</Badge>
-          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingDemanda(null); setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "" }); } }}>
+          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingDemanda(null); setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "", origem: "", tipo: "" }); } }}>
             <DialogTrigger asChild>
               <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
                 <Plus className="h-4 w-4" /> Nova Demanda
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{editingDemanda ? "Editar Demanda" : "Nova Demanda"}</DialogTitle></DialogHeader>
               <div className="space-y-4 pt-2">
                 <div><Label>Título</Label><Input value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} placeholder="Título da demanda" /></div>
                 <div><Label>Descrição</Label><Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} placeholder="Descreva a demanda" /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>📍 Origem</Label>
+                    <Select value={form.origem || "none"} onValueChange={(v) => setForm({ ...form, origem: v === "none" ? "" : v })}>
+                      <SelectTrigger><SelectValue placeholder="De onde veio" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Não informado</SelectItem>
+                        {ORIGENS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>🏷️ Tipo</Label>
+                    <Select value={form.tipo || "none"} onValueChange={(v) => setForm({ ...form, tipo: v === "none" ? "" : v })}>
+                      <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Não informado</SelectItem>
+                        {TIPOS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
                 <div><Label>Localização</Label><Input value={form.localizacao} onChange={(e) => setForm({ ...form, localizacao: e.target.value })} placeholder="Local da demanda" /></div>
                 <div><Label>Prazo</Label><Input type="date" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} /></div>
                 {role === "politico" && assessores.length > 0 && (
@@ -272,6 +315,57 @@ const Demandas = () => {
             </DialogContent>
           </Dialog>
         </div>
+      </div>
+
+      {/* Filtros */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
+        <div>
+          <Label className="text-xs text-muted-foreground mb-1 block">📍 Origem</Label>
+          <Select value={filterOrigem} onValueChange={setFilterOrigem}>
+            <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as origens</SelectItem>
+              {ORIGENS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground mb-1 block">📌 Status</Label>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os status</SelectItem>
+              {columns.map((c) => <SelectItem key={c.key} value={c.key}>{c.title}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground mb-1 block">👤 Responsável</Label>
+          <Select value={filterResponsavel} onValueChange={setFilterResponsavel}>
+            <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="none">Sem responsável</SelectItem>
+              {assessores.map((a) => <SelectItem key={a.user_id} value={a.user_id}>{a.nome}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground mb-1 block">🏷️ Tipo</Label>
+          <Select value={filterTipo} onValueChange={setFilterTipo}>
+            <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os tipos</SelectItem>
+              {TIPOS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        {(filterOrigem !== "all" || filterStatus !== "all" || filterResponsavel !== "all" || filterTipo !== "all" || filterDate) && (
+          <Button variant="ghost" size="sm" className="col-span-2 md:col-span-4 h-8 text-xs gap-1 justify-start text-muted-foreground hover:text-foreground"
+            onClick={() => { setFilterOrigem("all"); setFilterStatus("all"); setFilterResponsavel("all"); setFilterTipo("all"); setFilterDate(undefined); setFilterDateEnd(undefined); }}>
+            <X className="h-3 w-3" /> Limpar todos os filtros
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
@@ -308,8 +402,10 @@ const Demandas = () => {
                         )}>
                           <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
                             <div className="flex items-start justify-between">
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex flex-wrap items-center gap-1.5">
                                 <Badge variant="outline" className={`text-[10px] ${statusStyles[demanda.status] || ""}`}>{demanda.status}</Badge>
+                                {demanda.tipo && <Badge variant="secondary" className="text-[10px]">🏷️ {demanda.tipo}</Badge>}
+                                {demanda.origem && <Badge variant="outline" className="text-[10px]">📍 {demanda.origem}</Badge>}
                                 {prazoExpirado && <AlertTriangle className="h-3.5 w-3.5 text-destructive" />}
                               </div>
                               <div className="flex items-center gap-1 shrink-0">
