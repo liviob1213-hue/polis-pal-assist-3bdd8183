@@ -656,21 +656,27 @@ async function handleCriarDemanda(params: any, senderProfile: any): Promise<stri
   return `✅ Demanda *${params.titulo || "Nova demanda"}* registrada com status "Em Análise".${prazoStr}${assessorNotification}`;
 }
 
-// Map user synonyms to actual DB status values for demanda queries
+// Map user synonyms to real DB status variants for demanda queries.
+// Returns multiple possible values because older records may have been saved
+// as "Aberto" while newer records use "Em Análise".
 const DEMANDA_STATUS_SYNONYMS: Record<string, string[]> = {
-  "Em Análise": ["em analise", "em análise", "analise", "análise", "aberta", "aberto", "nova", "novas"],
-  "Em Andamento": ["em andamento", "andamento", "progresso", "em progresso"],
-  "Resolvido": ["resolvido", "resolvida", "resolvidas", "resolvidos", "concluida", "concluída", "concluidas", "concluídas", "finalizada", "finalizadas", "fechada", "fechadas", "pronta", "prontas"],
+  analise: ["Em Análise", "Em Analise", "Aberto", "aberto", "Pendente", "pendente"],
+  andamento: ["Em Andamento", "em andamento", "Andamento", "andamento"],
+  resolvido: ["Resolvido", "Resolvida", "resolvido", "resolvida", "Finalizado", "Finalizada"],
 };
 
-function resolveStatusFilter(raw: string): string | null {
-  const needle = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-  for (const [dbStatus, synonyms] of Object.entries(DEMANDA_STATUS_SYNONYMS)) {
-    if (synonyms.some(s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(needle) || needle.includes(s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")))) {
-      return dbStatus;
-    }
+function resolveStatusFilter(raw: string): string[] {
+  const needle = normalizeText(raw);
+  if (["em analise", "analise", "analisando", "aberto", "aberta", "nova", "novas", "pendente"].some((s) => needle.includes(s))) {
+    return DEMANDA_STATUS_SYNONYMS.analise;
   }
-  return raw; // fallback to original
+  if (["em andamento", "andamento", "progresso"].some((s) => needle.includes(s))) {
+    return DEMANDA_STATUS_SYNONYMS.andamento;
+  }
+  if (["resolvido", "resolvida", "concluido", "concluida", "finalizado", "finalizada", "fechado", "fechada"].some((s) => needle.includes(s))) {
+    return DEMANDA_STATUS_SYNONYMS.resolvido;
+  }
+  return [raw, normalizeText(raw)];
 }
 
 async function handleConsultarDemanda(params: any, senderProfile: any): Promise<string> {
@@ -684,7 +690,7 @@ async function handleConsultarDemanda(params: any, senderProfile: any): Promise<
   
   if (params.status_filtro) {
     const resolved = resolveStatusFilter(params.status_filtro);
-    query = query.eq("status", resolved);
+    query = query.in("status", resolved);
   }
   if (params.busca_texto) query = query.or(`titulo.ilike.%${params.busca_texto}%,descricao.ilike.%${params.busca_texto}%`);
   const { data, error } = await query.limit(10);
