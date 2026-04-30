@@ -63,11 +63,15 @@ const Demandas = () => {
   const [assessorMap, setAssessorMap] = useState<Record<string, string>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingDemanda, setEditingDemanda] = useState<Demanda | null>(null);
-  const [form, setForm] = useState({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "" });
+  const [form, setForm] = useState({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "", origem: "", tipo: "" });
   const [dragId, setDragId] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [filterDateEnd, setFilterDateEnd] = useState<Date | undefined>(undefined);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [filterOrigem, setFilterOrigem] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterResponsavel, setFilterResponsavel] = useState<string>("all");
+  const [filterTipo, setFilterTipo] = useState<string>("all");
   const { toast } = useToast();
   const navigate = useNavigate();
 
