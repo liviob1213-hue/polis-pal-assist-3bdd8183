@@ -284,6 +284,24 @@ const MapaEleitores = () => {
         <div className="space-y-4">
           <Card className="glass-card">
             <CardContent className="p-4">
+              <h3 className="text-sm font-semibold mb-3">Legenda — Status</h3>
+              <div className="space-y-1.5">
+                {STATUS_ELEITOR_LIST.map((s) => {
+                  const count = eleitores.filter((e) => (e.status_eleitor || "possivel_eleitor") === s.value && e.latitude && e.longitude).length;
+                  return (
+                    <div key={s.value} className="flex items-center gap-2 text-xs">
+                      <span className={`inline-block w-3 h-3 rounded-full ${s.pinClass} border border-white shadow`} />
+                      <span className="flex-1 text-muted-foreground">{s.emoji} {s.label}</span>
+                      <Badge variant="secondary" className="text-[10px] h-5 px-1.5 min-w-[28px] justify-center">{count}</Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-card">
+            <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-3">
                 <BarChart3 className="h-4 w-4 text-accent" />
                 <h3 className="text-sm font-semibold">Por Região</h3>
