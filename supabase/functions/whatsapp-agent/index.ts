@@ -321,8 +321,9 @@ async function sendMessage(phone: string, text: string) {
   const url = getEnv("UAZAPI_URL");
   const token = getEnv("UAZAPI_TOKEN");
   const fullPhone = formatPhoneForUazapi(phone);
+  const safeText = sanitizeTextForUazapi(text);
 
-  const payload = JSON.stringify({ number: fullPhone, text });
+  const payload = JSON.stringify({ number: fullPhone, text: safeText });
 
   const res = await fetch(`${url}/send/text`, {
     method: "POST",
