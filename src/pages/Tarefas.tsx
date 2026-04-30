@@ -576,16 +576,16 @@ const Tarefas = () => {
                               {tarefa.assessor_id && assessorMap[tarefa.assessor_id] && (
                                 <span className="flex items-center gap-1 text-primary"><UserCheck className="h-3 w-3" />{assessorMap[tarefa.assessor_id]}</span>
                               )}
-                              {tarefa.status === "Concluído" && (
+                              {normalizeStatus(tarefa.status) === "Concluído" && (
                                 <span className="flex items-center gap-1 text-success"><Clock className="h-3 w-3" />Concluído</span>
                               )}
                             </div>
-                            {tarefa.status !== "Concluído" && (
+                            {normalizeStatus(tarefa.status) !== "Concluído" && (
                               <div className="flex gap-1 pt-1">
-                                {tarefa.status === "Pendente" && (
+                                {normalizeStatus(tarefa.status) === "Pendente" && (
                                   <Button size="sm" variant="ghost" className="text-xs h-7 text-info hover:text-info" onClick={() => moveTask(tarefa.id, "Em Andamento")}>Iniciar</Button>
                                 )}
-                                {tarefa.status === "Em Andamento" && (
+                                {normalizeStatus(tarefa.status) === "Em Andamento" && (
                                   <Button size="sm" variant="ghost" className="text-xs h-7 text-success hover:text-success" onClick={() => moveTask(tarefa.id, "Concluído")}>Concluir</Button>
                                 )}
                               </div>
