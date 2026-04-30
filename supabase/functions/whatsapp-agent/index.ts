@@ -661,7 +661,7 @@ async function handleCriarDemanda(params: any, senderProfile: any): Promise<stri
 // Returns multiple possible values because older records may have been saved
 // as "Aberto" while newer records use "Em Análise".
 const DEMANDA_STATUS_SYNONYMS: Record<string, string[]> = {
-  analise: ["Em Análise", "Em Analise", "Aberto", "aberto", "Pendente", "pendente"],
+  analise: ["Em Análise", "Em análise", "Em Analise", "Em analise", "em análise", "em analise", "Análise", "Analise", "Aberto", "Aberta", "aberto", "aberta", "Pendente", "pendente"],
   andamento: ["Em Andamento", "em andamento", "Andamento", "andamento"],
   resolvido: ["Resolvido", "Resolvida", "resolvido", "resolvida", "Finalizado", "Finalizada"],
 };
