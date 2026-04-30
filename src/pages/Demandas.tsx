@@ -30,10 +30,27 @@ interface Demanda {
   created_at: string;
   origem: string | null;
   tipo: string | null;
+  setor: string | null;
 }
 
-const ORIGENS = ["WhatsApp", "Presencial", "Telefone", "E-mail", "Redes Sociais", "Site", "Evento", "Outro"];
-const TIPOS = ["Saúde", "Educação", "Infraestrutura", "Segurança", "Transporte", "Meio Ambiente", "Assistência Social", "Cultura/Esporte", "Outro"];
+const ORIGENS = [
+  { value: "Rua", label: "🏠 Rua" },
+  { value: "Gabinete", label: "🏢 Gabinete" },
+  { value: "Instagram/TikTok", label: "📱 Instagram / TikTok" },
+  { value: "WhatsApp", label: "💬 WhatsApp" },
+  { value: "Pessoal", label: "🤝 Pessoal (contato direto)" },
+];
+const TIPOS = [
+  { value: "Reclamação", label: "Reclamação" },
+  { value: "Sugestão", label: "Sugestão" },
+  { value: "Solicitação", label: "Solicitação" },
+  { value: "Elogio", label: "Elogio" },
+];
+const SETORES = [
+  { value: "Jurídico", label: "⚖️ Jurídico" },
+  { value: "Comunicação", label: "📢 Comunicação" },
+  { value: "Administrativo", label: "📊 Administrativo" },
+];
 
 interface AssessorOption {
   user_id: string;
