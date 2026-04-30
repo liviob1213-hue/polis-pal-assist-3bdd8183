@@ -1252,7 +1252,7 @@ IMPORTANTE:
         reply = await handleMoverDemanda(finalExtracted);
         break;
       case "criar_projeto_lei":
-        reply = await handleCriarProjetoLei(finalExtracted);
+        reply = await handleCriarProjetoLei(finalExtracted, senderPhone);
         break;
       case "criar_tarefa":
         reply = await handleCriarTarefa(finalExtracted, senderProfile);
