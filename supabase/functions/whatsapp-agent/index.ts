@@ -223,31 +223,59 @@ async function getAuthorizedNumbers(): Promise<string[]> {
   return [...new Set(all.filter(Boolean))];
 }
 
-async function isAuthorized(phone: string): Promise<boolean> {
+// Busca profile por telefone tentando múltiplas variações + fallback LIKE pelos últimos 8 dígitos
+async function findProfileByPhone(phone: string) {
   const sb = supabaseAdmin();
   const variants = phoneVariants(phone);
-  if (variants.length === 0) return false;
-  const { data } = await sb
+  console.log(`🔍 findProfileByPhone — input: "${phone}" | variantes: ${JSON.stringify(variants)}`);
+  if (variants.length === 0) return null;
+
+  // 1) Match exato em qualquer variação (sem filtros restritivos — basta existir o profile com role)
+  const { data: exact, error: exactErr } = await sb
     .from("profiles")
-    .select("telefone")
-    .eq("is_authorized", true)
-    .eq("whatsapp_verified", true)
-    .in("telefone", variants);
-  return !!(data && data.length > 0);
+    .select("user_id, nome, role, telefone, is_authorized, whatsapp_verified")
+    .in("telefone", variants)
+    .limit(1);
+  if (exactErr) console.error("findProfileByPhone exact error:", exactErr);
+  if (exact && exact.length > 0) {
+    console.log(`✅ Profile encontrado (exato): ${exact[0].nome} | role=${exact[0].role} | tel=${exact[0].telefone}`);
+    return exact[0];
+  }
+
+  // 2) Fallback: LIKE pelos últimos 8 dígitos (núcleo do número, sem DDD nem 9 nem 55)
+  const digits = String(phone).replace(/\D/g, "");
+  if (digits.length >= 8) {
+    const tail = digits.slice(-8);
+    const { data: fuzzy, error: fuzzyErr } = await sb
+      .from("profiles")
+      .select("user_id, nome, role, telefone, is_authorized, whatsapp_verified")
+      .ilike("telefone", `%${tail}%`)
+      .limit(1);
+    if (fuzzyErr) console.error("findProfileByPhone fuzzy error:", fuzzyErr);
+    if (fuzzy && fuzzy.length > 0) {
+      console.log(`✅ Profile encontrado (fuzzy ...${tail}): ${fuzzy[0].nome} | role=${fuzzy[0].role} | tel=${fuzzy[0].telefone}`);
+      return fuzzy[0];
+    }
+  }
+
+  console.log(`❌ Nenhum profile encontrado para "${phone}". Variantes testadas: ${JSON.stringify(variants)}`);
+  return null;
+}
+
+async function isAuthorized(phone: string): Promise<boolean> {
+  const profile = await findProfileByPhone(phone);
+  if (!profile) return false;
+  // Autorizado se for político ou assessor — não exigimos is_authorized/whatsapp_verified aqui,
+  // pois o webhook do WhatsApp não tem como "verificar" o número novamente.
+  return profile.role === "politico" || profile.role === "assessor";
 }
 
 // ─── Get sender profile and role ────────────────────────────
 
 async function getSenderProfile(phone: string) {
-  const sb = supabaseAdmin();
-  const variants = phoneVariants(phone);
-  if (variants.length === 0) return null;
-  const { data } = await sb
-    .from("profiles")
-    .select("user_id, nome, role")
-    .in("telefone", variants)
-    .limit(1);
-  return data && data.length > 0 ? data[0] : null;
+  const profile = await findProfileByPhone(phone);
+  if (!profile) return null;
+  return { user_id: profile.user_id, nome: profile.nome, role: profile.role };
 }
 
 // ─── Find assessor by name ──────────────────────────────────
