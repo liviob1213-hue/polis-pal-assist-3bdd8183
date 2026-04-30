@@ -348,15 +348,14 @@ const Demandas = () => {
         </div>
       </div>
 
-      {/* Filtros */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">📍 Origem</Label>
           <Select value={filterOrigem} onValueChange={setFilterOrigem}>
             <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas as origens</SelectItem>
-              {ORIGENS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+              {ORIGENS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -387,13 +386,23 @@ const Demandas = () => {
             <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os tipos</SelectItem>
-              {TIPOS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              {TIPOS.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
-        {(filterOrigem !== "all" || filterStatus !== "all" || filterResponsavel !== "all" || filterTipo !== "all" || filterDate) && (
-          <Button variant="ghost" size="sm" className="col-span-2 md:col-span-4 h-8 text-xs gap-1 justify-start text-muted-foreground hover:text-foreground"
-            onClick={() => { setFilterOrigem("all"); setFilterStatus("all"); setFilterResponsavel("all"); setFilterTipo("all"); setFilterDate(undefined); setFilterDateEnd(undefined); }}>
+        <div>
+          <Label className="text-xs text-muted-foreground mb-1 block">🏛️ Setor</Label>
+          <Select value={filterSetor} onValueChange={setFilterSetor}>
+            <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os setores</SelectItem>
+              {SETORES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        {(filterOrigem !== "all" || filterStatus !== "all" || filterResponsavel !== "all" || filterTipo !== "all" || filterSetor !== "all" || filterDate) && (
+          <Button variant="ghost" size="sm" className="col-span-2 md:col-span-3 lg:col-span-5 h-8 text-xs gap-1 justify-start text-muted-foreground hover:text-foreground"
+            onClick={() => { setFilterOrigem("all"); setFilterStatus("all"); setFilterResponsavel("all"); setFilterTipo("all"); setFilterSetor("all"); setFilterDate(undefined); setFilterDateEnd(undefined); }}>
             <X className="h-3 w-3" /> Limpar todos os filtros
           </Button>
         )}
