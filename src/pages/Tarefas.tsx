@@ -64,6 +64,36 @@ const columns: { key: StatusKey; title: string; dotColor: string }[] = [
   { key: "Concluído", title: "Concluído", dotColor: "bg-success" },
 ];
 
+// Normaliza qualquer variante de status (sem acento, caixa, sinônimos antigos)
+// para uma das chaves do Kanban. Garante que tarefas concluídas via WhatsApp
+// (que podem vir como "Concluido", "concluído", "Finalizada", etc.) caiam
+// sempre na coluna correta.
+const normalizeStatus = (raw: string | null | undefined): StatusKey => {
+  const s = (raw || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+  if (
+    s === "concluido" ||
+    s === "concluida" ||
+    s === "finalizada" ||
+    s === "finalizado" ||
+    s === "feito" ||
+    s === "feita" ||
+    s === "done"
+  ) return "Concluído";
+  if (
+    s === "em andamento" ||
+    s === "andamento" ||
+    s === "em progresso" ||
+    s === "iniciada" ||
+    s === "iniciado" ||
+    s === "in progress"
+  ) return "Em Andamento";
+  return "Pendente";
+};
+
 const Tarefas = () => {
   const { user, role } = useAuth();
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
