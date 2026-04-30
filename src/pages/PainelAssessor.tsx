@@ -53,6 +53,22 @@ interface Demanda {
   eleitor_id: string | null;
 }
 
+interface TarefaAssessor {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  prazo: string | null;
+  status: string;
+  created_at: string;
+}
+
+type TarefaStatusKey = "Pendente" | "Em Andamento" | "Concluído";
+const tarefaColumns: { key: TarefaStatusKey; title: string; dotColor: string }[] = [
+  { key: "Pendente", title: "Pendente", dotColor: "bg-warning" },
+  { key: "Em Andamento", title: "Em Andamento", dotColor: "bg-info" },
+  { key: "Concluído", title: "Concluído", dotColor: "bg-success" },
+];
+
 const interesses = ["Saúde", "Obras", "Educação", "Segurança", "Transporte", "Meio Ambiente"];
 
 type StatusKey = "Aberto" | "Em Análise" | "Em Andamento" | "Resolvido";
@@ -75,7 +91,9 @@ export default function PainelAssessor() {
 
   const [minhasDemandas, setMinhasDemandas] = useState<Demanda[]>([]);
   const [demandasAbertas, setDemandasAbertas] = useState<Demanda[]>([]);
+  const [minhasTarefas, setMinhasTarefas] = useState<TarefaAssessor[]>([]);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [dragTarefaId, setDragTarefaId] = useState<string | null>(null);
 
   // Eleitores cadastrados pelo próprio assessor (RLS permite SELECT onde criado_por = auth.uid())
   const [meusEleitoresSessao, setMeusEleitoresSessao] = useState<{ id: string; nome: string }[]>([]);
