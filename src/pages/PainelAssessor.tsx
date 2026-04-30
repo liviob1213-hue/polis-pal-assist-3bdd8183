@@ -332,6 +332,32 @@ export default function PainelAssessor() {
     fetchDemandas();
   };
 
+  const moveTarefaStatus = async (id: string, newStatus: TarefaStatusKey) => {
+    if (!user) return;
+    const { error } = await supabase
+      .from("tarefas")
+      .update({ status: newStatus })
+      .eq("id", id)
+      .eq("assessor_id", user.id);
+    if (error) {
+      toast({ title: "Erro ao mover tarefa", description: error.message, variant: "destructive" });
+      return;
+    }
+    fetchMinhasTarefas();
+  };
+
+  const handleTarefaDragStart = (e: React.DragEvent, id: string) => {
+    setDragTarefaId(id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+  const handleTarefaDrop = (e: React.DragEvent, status: TarefaStatusKey) => {
+    e.preventDefault();
+    if (dragTarefaId) {
+      moveTarefaStatus(dragTarefaId, status);
+      setDragTarefaId(null);
+    }
+  };
+
   const handleDragStart = (e: React.DragEvent, id: string) => {
     setDragId(id);
     e.dataTransfer.effectAllowed = "move";
