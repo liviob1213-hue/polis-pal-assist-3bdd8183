@@ -28,7 +28,12 @@ interface Demanda {
   assessor_id: string | null;
   prazo: string | null;
   created_at: string;
+  origem: string | null;
+  tipo: string | null;
 }
+
+const ORIGENS = ["WhatsApp", "Presencial", "Telefone", "E-mail", "Redes Sociais", "Site", "Evento", "Outro"];
+const TIPOS = ["Saúde", "Educação", "Infraestrutura", "Segurança", "Transporte", "Meio Ambiente", "Assistência Social", "Cultura/Esporte", "Outro"];
 
 interface AssessorOption {
   user_id: string;
