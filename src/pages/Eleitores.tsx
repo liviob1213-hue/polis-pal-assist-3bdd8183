@@ -126,6 +126,7 @@ const Eleitores = () => {
           endereco: endereco || null,
           telefone: payload.telefone || null,
           interesse: payload.interesse || null,
+          status_eleitor: payload.status_eleitor || "possivel_eleitor",
           observacoes: payload.observacoes || null,
           data_nascimento: payload.data_nascimento || null,
         }).select("id").single();
