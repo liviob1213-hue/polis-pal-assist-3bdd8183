@@ -749,7 +749,7 @@ async function handleMoverDemanda(params: any): Promise<string> {
   return `✅ Demanda *${match.titulo}* movida para *${novoStatus}*!`;
 }
 
-async function handleCriarProjetoLei(params: any): Promise<string> {
+async function handleCriarProjetoLei(params: any, senderPhone?: string): Promise<string> {
   const sb = supabaseAdmin();
   let demandaContext = "";
   let demandaId: string | null = null;
@@ -760,13 +760,56 @@ async function handleCriarProjetoLei(params: any): Promise<string> {
       demandaId = data.id;
     }
   }
-  const prompt = `Você é um Assistente Legislativo Especialista. Gere um Projeto de Lei formal para uma Câmara Municipal com base na demanda abaixo. Use formato oficial: EMENTA, JUSTIFICATIVA, e os ARTIGOS numerados.\nDemanda: ${demandaContext || params.descricao || params.titulo || "demanda geral"}`;
-  const textoLei = await callAI(prompt, "Gere o projeto de lei completo.");
+  const prompt = `Você é um *Assistente Legislativo Especialista*. Gere um *Projeto de Lei* formal e COMPLETO para uma Câmara Municipal com base na demanda abaixo.
+
+Use formato oficial e a *formatação do WhatsApp* (asteriscos para negrito, sem markdown). Estruture com:
+*EMENTA*, *JUSTIFICATIVA* e os *ARTIGOS* numerados (Art. 1º, Art. 2º...).
+
+Use emojis com moderação nos cabeçalhos (📜 ⚖️ 📌). Não corte o texto.
+
+Demanda: ${demandaContext || params.descricao || params.titulo || "demanda geral"}`;
+  // 8192 tokens para garantir que o PL gigante não seja cortado
+  const textoLei = await callAI(prompt, "Gere o projeto de lei completo, sem omitir nenhuma parte.", [], 8192);
   const titulo = params.titulo || `PL - ${params.busca_texto || "Novo Projeto"}`;
   const { error } = await sb.from("projetos_lei").insert({ titulo, texto_completo: textoLei, demanda_id: demandaId });
   if (error) throw new Error(`DB error: ${error.message}`);
-  if (textoLei.length > 3500) return `📜 *Projeto de Lei gerado:* ${titulo}\n\n${textoLei.substring(0, 3500)}...\n\n_(Texto completo salvo no sistema)_`;
-  return `📜 *Projeto de Lei gerado:* ${titulo}\n\n${textoLei}`;
+
+  const cabecalho = `📜 *Projeto de Lei gerado:* ${titulo}\n\n`;
+  const fullText = cabecalho + textoLei;
+
+  // WhatsApp tem limite ~4096 chars. Se o PL for maior, enviamos em partes.
+  const LIMITE = 3800;
+  if (fullText.length <= LIMITE) {
+    return fullText;
+  }
+
+  // Quebra em partes e envia as adicionais já aqui (a primeira é retornada normalmente)
+  if (senderPhone) {
+    const partes: string[] = [];
+    let resto = fullText;
+    let n = 1;
+    while (resto.length > LIMITE) {
+      // tenta quebrar em uma quebra de linha próxima
+      let corte = resto.lastIndexOf("\n", LIMITE);
+      if (corte < LIMITE * 0.6) corte = LIMITE;
+      partes.push(resto.slice(0, corte));
+      resto = resto.slice(corte).trimStart();
+      n++;
+    }
+    if (resto.length > 0) partes.push(resto);
+
+    // Envia da parte 2 em diante
+    for (let i = 1; i < partes.length; i++) {
+      try {
+        await sendMessage(senderPhone, `📜 *Continuação (${i + 1}/${partes.length}):*\n\n${partes[i]}`);
+      } catch (e) {
+        console.error("Erro enviando parte do PL:", e);
+      }
+    }
+    return `${partes[0]}\n\n_📄 Continua nas próximas mensagens (${partes.length} partes no total)..._`;
+  }
+
+  return fullText.slice(0, LIMITE) + "\n\n_(Texto completo salvo no sistema)_";
 }
 
 async function handleCriarTarefa(params: any, senderProfile: any): Promise<string> {
