@@ -67,6 +67,16 @@ function formatPhoneForUazapi(phone: string): string {
   return digits;
 }
 
+function sanitizeTextForUazapi(text: string): string {
+  return String(text || "")
+    .normalize("NFC")
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]\uFE0F?/gu, "")
+    .replace(/\uFE0F/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function extractMessageFromWebhook(body: any): string {
   const candidates = [
     body?.message?.content,
