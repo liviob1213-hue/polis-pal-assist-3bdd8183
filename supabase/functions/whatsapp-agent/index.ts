@@ -77,6 +77,14 @@ function sanitizeTextForUazapi(text: string): string {
     .trim();
 }
 
+function stringifyJsonAscii(payload: unknown): string {
+  // Envia JSON como ASCII puro: acentos/emojis viram escapes \uXXXX.
+  // A Uazapi decodifica os escapes ao ler o JSON, evitando mojibake no transporte/copia.
+  return JSON.stringify(payload).replace(/[\u007f-\uffff]/g, (char) => {
+    return `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`;
+  });
+}
+
 function extractMessageFromWebhook(body: any): string {
   const candidates = [
     body?.message?.content,
@@ -323,8 +331,6 @@ async function sendMessage(phone: string, text: string) {
   const fullPhone = formatPhoneForUazapi(phone);
   const safeText = sanitizeTextForUazapi(text);
 
-  const payload = JSON.stringify({ number: fullPhone, text: safeText });
-
   const res = await fetch(`${url}/send/text`, {
     method: "POST",
     headers: {
@@ -332,7 +338,7 @@ async function sendMessage(phone: string, text: string) {
       "Accept": "application/json; charset=utf-8",
       token,
     },
-    body: payload,
+    body: stringifyJsonAscii({ number: fullPhone, text: safeText }),
   });
   if (!res.ok) {
     const t = await res.text();
@@ -642,6 +648,7 @@ async function handleCriarDemanda(params: any, senderProfile: any): Promise<stri
     titulo: params.titulo || params.descricao || "Nova demanda",
     descricao: params.descricao || null,
     localizacao: params.localizacao || null,
+    status: "Em Análise",
     assessor_id: assessorId,
     prazo: prazoValue,
   });
@@ -650,21 +657,27 @@ async function handleCriarDemanda(params: any, senderProfile: any): Promise<stri
   return `✅ Demanda *${params.titulo || "Nova demanda"}* registrada com status "Em Análise".${prazoStr}${assessorNotification}`;
 }
 
-// Map user synonyms to actual DB status values for demanda queries
+// Map user synonyms to real DB status variants for demanda queries.
+// Returns multiple possible values because older records may have been saved
+// as "Aberto" while newer records use "Em Análise".
 const DEMANDA_STATUS_SYNONYMS: Record<string, string[]> = {
-  "Em Análise": ["em analise", "em análise", "analise", "análise", "aberta", "aberto", "nova", "novas"],
-  "Em Andamento": ["em andamento", "andamento", "progresso", "em progresso"],
-  "Resolvido": ["resolvido", "resolvida", "resolvidas", "resolvidos", "concluida", "concluída", "concluidas", "concluídas", "finalizada", "finalizadas", "fechada", "fechadas", "pronta", "prontas"],
+  analise: ["Em Análise", "Em análise", "Em Analise", "Em analise", "em análise", "em analise", "Análise", "Analise", "Aberto", "Aberta", "aberto", "aberta", "Pendente", "pendente"],
+  andamento: ["Em Andamento", "em andamento", "Andamento", "andamento"],
+  resolvido: ["Resolvido", "Resolvida", "resolvido", "resolvida", "Finalizado", "Finalizada"],
 };
 
-function resolveStatusFilter(raw: string): string | null {
-  const needle = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-  for (const [dbStatus, synonyms] of Object.entries(DEMANDA_STATUS_SYNONYMS)) {
-    if (synonyms.some(s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(needle) || needle.includes(s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")))) {
-      return dbStatus;
-    }
+function resolveStatusFilter(raw: string): string[] {
+  const needle = normalizeText(raw);
+  if (["em analise", "analise", "analisando", "aberto", "aberta", "nova", "novas", "pendente"].some((s) => needle.includes(s))) {
+    return DEMANDA_STATUS_SYNONYMS.analise;
   }
-  return raw; // fallback to original
+  if (["em andamento", "andamento", "progresso"].some((s) => needle.includes(s))) {
+    return DEMANDA_STATUS_SYNONYMS.andamento;
+  }
+  if (["resolvido", "resolvida", "concluido", "concluida", "finalizado", "finalizada", "fechado", "fechada"].some((s) => needle.includes(s))) {
+    return DEMANDA_STATUS_SYNONYMS.resolvido;
+  }
+  return [raw, normalizeText(raw)];
 }
 
 async function handleConsultarDemanda(params: any, senderProfile: any): Promise<string> {
@@ -678,7 +691,7 @@ async function handleConsultarDemanda(params: any, senderProfile: any): Promise<
   
   if (params.status_filtro) {
     const resolved = resolveStatusFilter(params.status_filtro);
-    query = query.eq("status", resolved);
+    query = query.in("status", resolved);
   }
   if (params.busca_texto) query = query.or(`titulo.ilike.%${params.busca_texto}%,descricao.ilike.%${params.busca_texto}%`);
   const { data, error } = await query.limit(10);
