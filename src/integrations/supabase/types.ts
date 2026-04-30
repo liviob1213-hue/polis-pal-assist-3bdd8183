@@ -126,6 +126,7 @@ export type Database = {
           localizacao: string | null
           origem: string | null
           prazo: string | null
+          setor: string | null
           status: string
           tipo: string | null
           titulo: string
@@ -141,6 +142,7 @@ export type Database = {
           localizacao?: string | null
           origem?: string | null
           prazo?: string | null
+          setor?: string | null
           status?: string
           tipo?: string | null
           titulo: string
@@ -156,6 +158,7 @@ export type Database = {
           localizacao?: string | null
           origem?: string | null
           prazo?: string | null
+          setor?: string | null
           status?: string
           tipo?: string | null
           titulo?: string

@@ -30,10 +30,27 @@ interface Demanda {
   created_at: string;
   origem: string | null;
   tipo: string | null;
+  setor: string | null;
 }
 
-const ORIGENS = ["WhatsApp", "Presencial", "Telefone", "E-mail", "Redes Sociais", "Site", "Evento", "Outro"];
-const TIPOS = ["Saúde", "Educação", "Infraestrutura", "Segurança", "Transporte", "Meio Ambiente", "Assistência Social", "Cultura/Esporte", "Outro"];
+const ORIGENS = [
+  { value: "Rua", label: "🏠 Rua" },
+  { value: "Gabinete", label: "🏢 Gabinete" },
+  { value: "Instagram/TikTok", label: "📱 Instagram / TikTok" },
+  { value: "WhatsApp", label: "💬 WhatsApp" },
+  { value: "Pessoal", label: "🤝 Pessoal (contato direto)" },
+];
+const TIPOS = [
+  { value: "Reclamação", label: "Reclamação" },
+  { value: "Sugestão", label: "Sugestão" },
+  { value: "Solicitação", label: "Solicitação" },
+  { value: "Elogio", label: "Elogio" },
+];
+const SETORES = [
+  { value: "Jurídico", label: "⚖️ Jurídico" },
+  { value: "Comunicação", label: "📢 Comunicação" },
+  { value: "Administrativo", label: "📊 Administrativo" },
+];
 
 interface AssessorOption {
   user_id: string;
@@ -63,7 +80,7 @@ const Demandas = () => {
   const [assessorMap, setAssessorMap] = useState<Record<string, string>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingDemanda, setEditingDemanda] = useState<Demanda | null>(null);
-  const [form, setForm] = useState({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "", origem: "", tipo: "" });
+  const [form, setForm] = useState({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "", origem: "", tipo: "", setor: "" });
   const [dragId, setDragId] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [filterDateEnd, setFilterDateEnd] = useState<Date | undefined>(undefined);
@@ -72,6 +89,7 @@ const Demandas = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterResponsavel, setFilterResponsavel] = useState<string>("all");
   const [filterTipo, setFilterTipo] = useState<string>("all");
+  const [filterSetor, setFilterSetor] = useState<string>("all");
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -119,6 +137,7 @@ const Demandas = () => {
     if (filterOrigem !== "all" && (d.origem || "") !== filterOrigem) return false;
     if (filterStatus !== "all" && d.status !== filterStatus) return false;
     if (filterTipo !== "all" && (d.tipo || "") !== filterTipo) return false;
+    if (filterSetor !== "all" && (d.setor || "") !== filterSetor) return false;
     if (filterResponsavel !== "all") {
       if (filterResponsavel === "none" && d.assessor_id) return false;
       if (filterResponsavel !== "none" && d.assessor_id !== filterResponsavel) return false;
@@ -136,6 +155,7 @@ const Demandas = () => {
       prazo: form.prazo ? new Date(form.prazo).toISOString() : null,
       origem: form.origem || null,
       tipo: form.tipo || null,
+      setor: form.setor || null,
     };
     if (role === "politico") {
       payload.assessor_id = form.assessor_id || null;
@@ -154,7 +174,7 @@ const Demandas = () => {
       toast({ title: "Demanda criada!" });
     }
 
-    setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "", origem: "", tipo: "" });
+    setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "", origem: "", tipo: "", setor: "" });
     setEditingDemanda(null);
     setDialogOpen(false);
   };
@@ -169,6 +189,7 @@ const Demandas = () => {
       prazo: demanda.prazo ? demanda.prazo.split("T")[0] : "",
       origem: demanda.origem || "",
       tipo: demanda.tipo || "",
+      setor: (demanda as any).setor || "",
     });
     setDialogOpen(true);
   };
@@ -259,7 +280,7 @@ const Demandas = () => {
             </PopoverContent>
           </Popover>
           <Badge variant="secondary" className="text-sm">{total} Total</Badge>
-          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingDemanda(null); setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "", origem: "", tipo: "" }); } }}>
+          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingDemanda(null); setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "", origem: "", tipo: "", setor: "" }); } }}>
             <DialogTrigger asChild>
               <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
                 <Plus className="h-4 w-4" /> Nova Demanda
@@ -277,7 +298,7 @@ const Demandas = () => {
                       <SelectTrigger><SelectValue placeholder="De onde veio" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Não informado</SelectItem>
-                        {ORIGENS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                        {ORIGENS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -287,10 +308,20 @@ const Demandas = () => {
                       <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Não informado</SelectItem>
-                        {TIPOS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                        {TIPOS.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                <div>
+                  <Label>🏛️ Setor responsável</Label>
+                  <Select value={form.setor || "none"} onValueChange={(v) => setForm({ ...form, setor: v === "none" ? "" : v })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Não informado</SelectItem>
+                      {SETORES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div><Label>Localização</Label><Input value={form.localizacao} onChange={(e) => setForm({ ...form, localizacao: e.target.value })} placeholder="Local da demanda" /></div>
                 <div><Label>Prazo</Label><Input type="date" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} /></div>
@@ -317,15 +348,14 @@ const Demandas = () => {
         </div>
       </div>
 
-      {/* Filtros */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">📍 Origem</Label>
           <Select value={filterOrigem} onValueChange={setFilterOrigem}>
             <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas as origens</SelectItem>
-              {ORIGENS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+              {ORIGENS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -356,13 +386,23 @@ const Demandas = () => {
             <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os tipos</SelectItem>
-              {TIPOS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              {TIPOS.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
-        {(filterOrigem !== "all" || filterStatus !== "all" || filterResponsavel !== "all" || filterTipo !== "all" || filterDate) && (
-          <Button variant="ghost" size="sm" className="col-span-2 md:col-span-4 h-8 text-xs gap-1 justify-start text-muted-foreground hover:text-foreground"
-            onClick={() => { setFilterOrigem("all"); setFilterStatus("all"); setFilterResponsavel("all"); setFilterTipo("all"); setFilterDate(undefined); setFilterDateEnd(undefined); }}>
+        <div>
+          <Label className="text-xs text-muted-foreground mb-1 block">🏛️ Setor</Label>
+          <Select value={filterSetor} onValueChange={setFilterSetor}>
+            <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os setores</SelectItem>
+              {SETORES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        {(filterOrigem !== "all" || filterStatus !== "all" || filterResponsavel !== "all" || filterTipo !== "all" || filterSetor !== "all" || filterDate) && (
+          <Button variant="ghost" size="sm" className="col-span-2 md:col-span-3 lg:col-span-5 h-8 text-xs gap-1 justify-start text-muted-foreground hover:text-foreground"
+            onClick={() => { setFilterOrigem("all"); setFilterStatus("all"); setFilterResponsavel("all"); setFilterTipo("all"); setFilterSetor("all"); setFilterDate(undefined); setFilterDateEnd(undefined); }}>
             <X className="h-3 w-3" /> Limpar todos os filtros
           </Button>
         )}
@@ -405,7 +445,8 @@ const Demandas = () => {
                               <div className="flex flex-wrap items-center gap-1.5">
                                 <Badge variant="outline" className={`text-[10px] ${statusStyles[demanda.status] || ""}`}>{demanda.status}</Badge>
                                 {demanda.tipo && <Badge variant="secondary" className="text-[10px]">🏷️ {demanda.tipo}</Badge>}
-                                {demanda.origem && <Badge variant="outline" className="text-[10px]">📍 {demanda.origem}</Badge>}
+                                {demanda.origem && <Badge variant="outline" className="text-[10px]">{ORIGENS.find(o => o.value === demanda.origem)?.label || `📍 ${demanda.origem}`}</Badge>}
+                                {(demanda as any).setor && <Badge variant="outline" className="text-[10px]">{SETORES.find(s => s.value === (demanda as any).setor)?.label || `🏛️ ${(demanda as any).setor}`}</Badge>}
                                 {prazoExpirado && <AlertTriangle className="h-3.5 w-3.5 text-destructive" />}
                               </div>
                               <div className="flex items-center gap-1 shrink-0">
