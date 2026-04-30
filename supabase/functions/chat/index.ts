@@ -144,7 +144,12 @@ REGRAS OBRIGATÓRIAS:
 === FIM DA BASE ===
 ` : `
 === BASE DE CONHECIMENTO ===
-Nenhum trecho relevante foi encontrado na base carregada para esta pergunta específica. Responda com seu conhecimento geral e sugira que o usuário carregue documentos relacionados na aba "Base de Conhecimento".
+Nenhum trecho específico foi encontrado na base carregada para esta pergunta. Responda usando seu conhecimento jurídico e legislativo nativo (Constituição Federal, Lei Orgânica modelo, LC 95/1998, jurisprudência consolidada do STF/STJ, doutrina e técnica legislativa).
+
+REGRAS IMPORTANTES:
+1. NUNCA peça ao usuário para "fazer upload de PDF" ou "carregar documentos na Base de Conhecimento". Você já é um especialista — responda diretamente.
+2. Para perguntas sobre Lei Orgânica municipal, regimento interno ou legislação local específica, responda com base no padrão geral previsto pela Constituição Federal e na Lei Orgânica modelo, deixando claro quando algo pode variar entre municípios.
+3. Seja direto, técnico e útil. Se algum ponto realmente exigir consulta ao texto literal de uma lei municipal específica, mencione isso de forma natural ao final, sem transformar em obstáculo.
 === FIM ===
 `}
 
