@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Loader2, MapPin, Phone, Navigation, Users, Search, BarChart3 } from "lucide-react";
 import { useGoogleMapsKey } from "@/hooks/useGoogleMapsKey";
+import { getStatusEleitor, STATUS_ELEITOR_LIST } from "@/lib/statusEleitor";
 
 interface Eleitor {
   id: string;
@@ -15,21 +16,9 @@ interface Eleitor {
   endereco: string | null;
   telefone: string | null;
   interesse: string | null;
+  status_eleitor: string | null;
   latitude: number | null;
   longitude: number | null;
-}
-
-// Color map for interesse
-const interesseColors: Record<string, string> = {
-  "Saúde": "bg-green-500",
-  "Educação": "bg-blue-500",
-  "Segurança": "bg-yellow-500",
-};
-const defaultPinColor = "bg-accent";
-
-function getPinColor(interesse: string | null) {
-  if (!interesse) return defaultPinColor;
-  return interesseColors[interesse] || defaultPinColor;
 }
 
 // Helper: group eleitores by a street/region key
