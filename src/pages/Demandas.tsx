@@ -134,6 +134,8 @@ const Demandas = () => {
       descricao: form.descricao || null,
       localizacao: form.localizacao || null,
       prazo: form.prazo ? new Date(form.prazo).toISOString() : null,
+      origem: form.origem || null,
+      tipo: form.tipo || null,
     };
     if (role === "politico") {
       payload.assessor_id = form.assessor_id || null;
@@ -152,7 +154,7 @@ const Demandas = () => {
       toast({ title: "Demanda criada!" });
     }
 
-    setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "" });
+    setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "", origem: "", tipo: "" });
     setEditingDemanda(null);
     setDialogOpen(false);
   };
@@ -165,6 +167,8 @@ const Demandas = () => {
       localizacao: demanda.localizacao || "",
       assessor_id: demanda.assessor_id || "",
       prazo: demanda.prazo ? demanda.prazo.split("T")[0] : "",
+      origem: demanda.origem || "",
+      tipo: demanda.tipo || "",
     });
     setDialogOpen(true);
   };
