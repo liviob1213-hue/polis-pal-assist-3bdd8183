@@ -145,7 +145,7 @@ async function transcribeAudio(audioUrl: string): Promise<string> {
     audioB64 = btoa(binary);
   }
 
-  // Lovable AI Gateway (Gemini) — transcrição multimodal de áudio
+  // Lovable AI Gateway (Gemini) - transcrição multimodal de áudio
   const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -237,10 +237,10 @@ async function getAuthorizedNumbers(): Promise<string[]> {
 async function findProfileByPhone(phone: string) {
   const sb = supabaseAdmin();
   const variants = phoneVariants(phone);
-  console.log(`🔍 findProfileByPhone — input: "${phone}" | variantes: ${JSON.stringify(variants)}`);
+  console.log(`[BUSCA] findProfileByPhone - input: "${phone}" | variantes: ${JSON.stringify(variants)}`);
   if (variants.length === 0) return null;
 
-  // 1) Match exato em qualquer variação (sem filtros restritivos — basta existir o profile com role)
+  // 1) Match exato em qualquer variação (sem filtros restritivos - basta existir o profile com role)
   const { data: exact, error: exactErr } = await sb
     .from("profiles")
     .select("user_id, nome, role, telefone, is_authorized, whatsapp_verified")
@@ -248,7 +248,7 @@ async function findProfileByPhone(phone: string) {
     .limit(1);
   if (exactErr) console.error("findProfileByPhone exact error:", exactErr);
   if (exact && exact.length > 0) {
-    console.log(`✅ Profile encontrado (exato): ${exact[0].nome} | role=${exact[0].role} | tel=${exact[0].telefone}`);
+    console.log(`[OK] Profile encontrado (exato): ${exact[0].nome} | role=${exact[0].role} | tel=${exact[0].telefone}`);
     return exact[0];
   }
 
@@ -263,19 +263,19 @@ async function findProfileByPhone(phone: string) {
       .limit(1);
     if (fuzzyErr) console.error("findProfileByPhone fuzzy error:", fuzzyErr);
     if (fuzzy && fuzzy.length > 0) {
-      console.log(`✅ Profile encontrado (fuzzy ...${tail}): ${fuzzy[0].nome} | role=${fuzzy[0].role} | tel=${fuzzy[0].telefone}`);
+      console.log(`[OK] Profile encontrado (fuzzy ...${tail}): ${fuzzy[0].nome} | role=${fuzzy[0].role} | tel=${fuzzy[0].telefone}`);
       return fuzzy[0];
     }
   }
 
-  console.log(`❌ Nenhum profile encontrado para "${phone}". Variantes testadas: ${JSON.stringify(variants)}`);
+  console.log(`[ERRO] Nenhum profile encontrado para "${phone}". Variantes testadas: ${JSON.stringify(variants)}`);
   return null;
 }
 
 async function isAuthorized(phone: string): Promise<boolean> {
   const profile = await findProfileByPhone(phone);
   if (!profile) return false;
-  // Autorizado se for político ou assessor — não exigimos is_authorized/whatsapp_verified aqui,
+  // Autorizado se for político ou assessor - não exigimos is_authorized/whatsapp_verified aqui,
   // pois o webhook do WhatsApp não tem como "verificar" o número novamente.
   return profile.role === "politico" || profile.role === "assessor";
 }
@@ -385,7 +385,7 @@ async function queueAssessorNotification(
     referencia_id: referenciaId || null,
   });
   
-  console.log(`📋 Queued ${tipo} notification for ${nome} at ${scheduledTime.toISOString()}`);
+  console.log(`[LISTA] Queued ${tipo} notification for ${nome} at ${scheduledTime.toISOString()}`);
 }
 
 // ─── Chat History ───────────────────────────────────────────
@@ -562,7 +562,7 @@ async function handleCadastrarEleitor(params: any): Promise<string> {
     interesse: params.interesse || null,
   });
   if (error) throw new Error(`DB error: ${error.message}`);
-  return `✅ Eleitor *${params.nome}* cadastrado com sucesso!`;
+  return `[OK] Eleitor *${params.nome}* cadastrado com sucesso!`;
 }
 
 async function handleConsultarEleitor(params: any): Promise<string> {
@@ -575,9 +575,9 @@ async function handleConsultarEleitor(params: any): Promise<string> {
   }
   const { data, error } = await query.limit(20);
   if (error) throw new Error(`DB error: ${error.message}`);
-  if (!data || data.length === 0) return `📋 Nenhum eleitor encontrado.`;
-  const lines = data.map((e: any, i: number) => `${i + 1}. *${e.nome}*\n   📍 ${e.endereco || "Sem endereço"}\n   📞 ${e.telefone || "Sem telefone"}\n   🎯 ${e.interesse || "Sem interesse"}`);
-  return `👥 *${data.length} eleitor(es) encontrado(s):*\n\n${lines.join("\n\n")}`;
+  if (!data || data.length === 0) return `[LISTA] Nenhum eleitor encontrado.`;
+  const lines = data.map((e: any, i: number) => `${i + 1}. *${e.nome}*\n   [LOCAL] ${e.endereco || "Sem endereço"}\n   [TEL] ${e.telefone || "Sem telefone"}\n   [INTERESSE] ${e.interesse || "Sem interesse"}`);
+  return `[ELEITORES] *${data.length} eleitor(es) encontrado(s):*\n\n${lines.join("\n\n")}`;
 }
 
 async function handleCriarDemanda(params: any, senderProfile: any): Promise<string> {
@@ -592,7 +592,7 @@ async function handleCriarDemanda(params: any, senderProfile: any): Promise<stri
   if (missing.length > 0 && params.campos_faltantes && params.campos_faltantes.length > 0) {
     // The AI detected missing fields - ask the user
     const camposTexto = missing.join(", ");
-    return `📝 Para cadastrar a demanda *${params.titulo || params.descricao || ""}*, faltam algumas informações:\n\n${missing.map(c => `• ${c.charAt(0).toUpperCase() + c.slice(1)}`).join("\n")}\n\nDeseja adicionar esses dados? Envie as informações ou responda "criar assim mesmo" para cadastrar sem eles.`;
+    return `[INFO] Para cadastrar a demanda *${params.titulo || params.descricao || ""}*, faltam algumas informações:\n\n${missing.map(c => `• ${c.charAt(0).toUpperCase() + c.slice(1)}`).join("\n")}\n\nDeseja adicionar esses dados? Envie as informações ou responda "criar assim mesmo" para cadastrar sem eles.`;
   }
   
   let assessorId: string | null = null;
@@ -605,7 +605,7 @@ async function handleCriarDemanda(params: any, senderProfile: any): Promise<stri
     
     if (isSelfAssign) {
       assessorId = senderProfile.user_id;
-      assessorNotification = `\n📌 Atribuída a você mesmo.`;
+      assessorNotification = `\n[ITEM] Atribuída a você mesmo.`;
     } else {
       const assessor = await findAssessorByName(params.assessor_nome, senderProfile.user_id);
       if (assessor) {
@@ -614,15 +614,15 @@ async function handleCriarDemanda(params: any, senderProfile: any): Promise<stri
           await queueAssessorNotification(
             assessor.telefone,
             assessor.nome,
-            `📋 *Nova demanda atribuída a você!*\n\n📌 ${params.titulo || params.descricao || "Nova demanda"}\n${params.descricao ? `📝 ${params.descricao}` : ""}\n${params.localizacao ? `📍 ${params.localizacao}` : ""}\n${params.prazo ? `📅 Prazo: ${params.prazo}` : ""}\n\n_Atribuída por ${senderProfile.nome}_\n\n⚠️ *Por favor, confirme o recebimento respondendo: você consegue assumir essa demanda?*`,
+            `[LISTA] *Nova demanda atribuída a você!*\n\n[ITEM] ${params.titulo || params.descricao || "Nova demanda"}\n${params.descricao ? `[INFO] ${params.descricao}` : ""}\n${params.localizacao ? `[LOCAL] ${params.localizacao}` : ""}\n${params.prazo ? `[PRAZO] Prazo: ${params.prazo}` : ""}\n\n_Atribuída por ${senderProfile.nome}_\n\n[ATENCAO] *Por favor, confirme o recebimento respondendo: você consegue assumir essa demanda?*`,
             "demanda"
           );
-          assessorNotification = `\n📨 Notificação enfileirada para o assessor *${assessor.nome}*!`;
+          assessorNotification = `\n[MSG] Notificação enfileirada para o assessor *${assessor.nome}*!`;
         } catch (e) {
           console.error("Error queuing assessor notification:", e);
         }
       } else {
-        return `❌ Assessor "${params.assessor_nome}" não encontrado entre seus assessores cadastrados.`;
+        return `[ERRO] Assessor "${params.assessor_nome}" não encontrado entre seus assessores cadastrados.`;
       }
     }
   }
@@ -646,8 +646,8 @@ async function handleCriarDemanda(params: any, senderProfile: any): Promise<stri
     prazo: prazoValue,
   });
   if (error) throw new Error(`DB error: ${error.message}`);
-  const prazoStr = prazoValue ? `\n📅 Prazo: ${prazoValue}` : "";
-  return `✅ Demanda *${params.titulo || "Nova demanda"}* registrada com status "Em Análise".${prazoStr}${assessorNotification}`;
+  const prazoStr = prazoValue ? `\n[PRAZO] Prazo: ${prazoValue}` : "";
+  return `[OK] Demanda *${params.titulo || "Nova demanda"}* registrada com status "Em Análise".${prazoStr}${assessorNotification}`;
 }
 
 // Map user synonyms to actual DB status values for demanda queries
@@ -683,22 +683,22 @@ async function handleConsultarDemanda(params: any, senderProfile: any): Promise<
   if (params.busca_texto) query = query.or(`titulo.ilike.%${params.busca_texto}%,descricao.ilike.%${params.busca_texto}%`);
   const { data, error } = await query.limit(10);
   if (error) throw new Error(`DB error: ${error.message}`);
-  if (!data || data.length === 0) return "📋 Nenhuma demanda encontrada com esse filtro.";
+  if (!data || data.length === 0) return "[LISTA] Nenhuma demanda encontrada com esse filtro.";
   const lines = data.map((d: any, i: number) => {
-    const prazoInfo = d.prazo ? `\n   📅 Prazo: ${new Date(d.prazo).toLocaleDateString("pt-BR")}` : "";
-    return `${i + 1}. *${d.titulo}*\n   📍 ${d.localizacao || "Sem local"}\n   📌 Status: ${d.status}${prazoInfo}`;
+    const prazoInfo = d.prazo ? `\n   [PRAZO] Prazo: ${new Date(d.prazo).toLocaleDateString("pt-BR")}` : "";
+    return `${i + 1}. *${d.titulo}*\n   [LOCAL] ${d.localizacao || "Sem local"}\n   [ITEM] Status: ${d.status}${prazoInfo}`;
   });
-  return `📋 *${data.length} demanda(s) encontrada(s):*\n\n${lines.join("\n\n")}`;
+  return `[LISTA] *${data.length} demanda(s) encontrada(s):*\n\n${lines.join("\n\n")}`;
 }
 
 async function handleConcluirDemanda(params: any): Promise<string> {
   const sb = supabaseAdmin();
   const busca = params.busca_texto || params.titulo || "";
   const { data, error: fErr } = await sb.from("demandas").select("id, titulo, status").ilike("titulo", `%${busca}%`).neq("status", "Resolvido").limit(1).single();
-  if (fErr || !data) return `❌ Demanda "${busca}" não encontrada ou já resolvida.`;
+  if (fErr || !data) return `[ERRO] Demanda "${busca}" não encontrada ou já resolvida.`;
   const { error: uErr } = await sb.from("demandas").update({ status: "Resolvido" }).eq("id", data.id);
   if (uErr) throw new Error(`DB error: ${uErr.message}`);
-  return `✅ Demanda *${data.titulo}* marcada como Resolvida!`;
+  return `[OK] Demanda *${data.titulo}* marcada como Resolvida!`;
 }
 
 // ─── Status normalization ────────────────────────────────────
@@ -737,16 +737,16 @@ async function handleMoverDemanda(params: any): Promise<string> {
   
   // Fuzzy search: get all non-resolved and match in code
   const { data: allDemandas } = await sb.from("demandas").select("id, titulo, status").neq("status", "Resolvido").limit(50);
-  if (!allDemandas || allDemandas.length === 0) return `❌ Nenhuma demanda ativa encontrada.`;
+  if (!allDemandas || allDemandas.length === 0) return `[ERRO] Nenhuma demanda ativa encontrada.`;
   
   const needle = normalizeText(busca);
   const match = allDemandas.find((d: any) => normalizeText(d.titulo).includes(needle));
-  if (!match) return `❌ Demanda "${busca}" não encontrada.`;
+  if (!match) return `[ERRO] Demanda "${busca}" não encontrada.`;
   
-  if (match.status === novoStatus) return `ℹ️ Demanda *${match.titulo}* já está em *${novoStatus}*.`;
+  if (match.status === novoStatus) return `[INFO] Demanda *${match.titulo}* já está em *${novoStatus}*.`;
   const { error: uErr } = await sb.from("demandas").update({ status: novoStatus }).eq("id", match.id);
   if (uErr) throw new Error(`DB error: ${uErr.message}`);
-  return `✅ Demanda *${match.titulo}* movida para *${novoStatus}*!`;
+  return `[OK] Demanda *${match.titulo}* movida para *${novoStatus}*!`;
 }
 
 async function handleCriarProjetoLei(params: any): Promise<string> {
@@ -765,8 +765,8 @@ async function handleCriarProjetoLei(params: any): Promise<string> {
   const titulo = params.titulo || `PL - ${params.busca_texto || "Novo Projeto"}`;
   const { error } = await sb.from("projetos_lei").insert({ titulo, texto_completo: textoLei, demanda_id: demandaId });
   if (error) throw new Error(`DB error: ${error.message}`);
-  if (textoLei.length > 3500) return `📜 *Projeto de Lei gerado:* ${titulo}\n\n${textoLei.substring(0, 3500)}...\n\n_(Texto completo salvo no sistema)_`;
-  return `📜 *Projeto de Lei gerado:* ${titulo}\n\n${textoLei}`;
+  if (textoLei.length > 3500) return `[PL] *Projeto de Lei gerado:* ${titulo}\n\n${textoLei.substring(0, 3500)}...\n\n_(Texto completo salvo no sistema)_`;
+  return `[PL] *Projeto de Lei gerado:* ${titulo}\n\n${textoLei}`;
 }
 
 async function handleCriarTarefa(params: any, senderProfile: any): Promise<string> {
@@ -783,7 +783,7 @@ async function handleCriarTarefa(params: any, senderProfile: any): Promise<strin
   
   if (missing.length > 0 && params.campos_faltantes && params.campos_faltantes.length > 0) {
     const camposTexto = missing.join(", ");
-    return `📝 Para criar a tarefa *${titulo}*, faltam algumas informações:\n\n${missing.map(c => `• ${c.charAt(0).toUpperCase() + c.slice(1)}`).join("\n")}\n\nDeseja adicionar? Envie as informações ou responda "criar assim mesmo" para cadastrar sem eles.`;
+    return `[INFO] Para criar a tarefa *${titulo}*, faltam algumas informações:\n\n${missing.map(c => `• ${c.charAt(0).toUpperCase() + c.slice(1)}`).join("\n")}\n\nDeseja adicionar? Envie as informações ou responda "criar assim mesmo" para cadastrar sem eles.`;
   }
 
   if (params.assessor_nome && senderProfile?.role === "politico") {
@@ -792,7 +792,7 @@ async function handleCriarTarefa(params: any, senderProfile: any): Promise<strin
     
     if (isSelfAssign) {
       assessorId = senderProfile.user_id;
-      assessorNotification = `\n📌 Atribuída a você mesmo.`;
+      assessorNotification = `\n[ITEM] Atribuída a você mesmo.`;
     } else {
       const assessor = await findAssessorByName(params.assessor_nome, senderProfile.user_id);
       if (assessor) {
@@ -801,15 +801,15 @@ async function handleCriarTarefa(params: any, senderProfile: any): Promise<strin
           await queueAssessorNotification(
             assessor.telefone,
             assessor.nome,
-            `✅ *Nova tarefa atribuída a você!*\n\n📌 ${titulo}\n${params.descricao ? `📝 ${params.descricao}` : ""}\n${prazo ? `📅 Prazo: ${new Date(prazo).toLocaleString("pt-BR")}` : ""}\n\n_Atribuída por ${senderProfile.nome}_\n\n⚠️ *Por favor, confirme o recebimento respondendo: você consegue realizar essa tarefa no prazo?*`,
+            `[OK] *Nova tarefa atribuída a você!*\n\n[ITEM] ${titulo}\n${params.descricao ? `[INFO] ${params.descricao}` : ""}\n${prazo ? `[PRAZO] Prazo: ${new Date(prazo).toLocaleString("pt-BR")}` : ""}\n\n_Atribuída por ${senderProfile.nome}_\n\n[ATENCAO] *Por favor, confirme o recebimento respondendo: você consegue realizar essa tarefa no prazo?*`,
             "tarefa"
           );
-          assessorNotification = `\n📨 Notificação enfileirada para o assessor *${assessor.nome}*!`;
+          assessorNotification = `\n[MSG] Notificação enfileirada para o assessor *${assessor.nome}*!`;
         } catch (e) {
           console.error("Error queuing assessor notification:", e);
         }
       } else {
-        return `❌ Assessor "${params.assessor_nome}" não encontrado entre seus assessores cadastrados.`;
+        return `[ERRO] Assessor "${params.assessor_nome}" não encontrado entre seus assessores cadastrados.`;
       }
     }
   }
@@ -840,8 +840,8 @@ async function handleCriarTarefa(params: any, senderProfile: any): Promise<strin
     });
   }
 
-  const prazoStr = prazo ? `\n📅 Prazo: ${new Date(prazo).toLocaleString("pt-BR")}` : "";
-  return `✅ Tarefa *${titulo}* criada com sucesso!${prazoStr}\n📌 Status: Novas Tarefas${assessorNotification}`;
+  const prazoStr = prazo ? `\n[PRAZO] Prazo: ${new Date(prazo).toLocaleString("pt-BR")}` : "";
+  return `[OK] Tarefa *${titulo}* criada com sucesso!${prazoStr}\n[ITEM] Status: Novas Tarefas${assessorNotification}`;
 }
 
 async function handleMoverTarefa(params: any, senderProfile: any): Promise<string> {
@@ -858,18 +858,18 @@ async function handleMoverTarefa(params: any, senderProfile: any): Promise<strin
   }
   
   const { data: allTarefas } = await query;
-  if (!allTarefas || allTarefas.length === 0) return `❌ Nenhuma tarefa encontrada.`;
+  if (!allTarefas || allTarefas.length === 0) return `[ERRO] Nenhuma tarefa encontrada.`;
   
   const needle = normalizeText(busca);
-  console.log(`🔍 Searching tasks: needle="${needle}", tasks=${allTarefas.map((t: any) => `"${t.titulo}"`).join(", ")}`);
+  console.log(`[BUSCA] Searching tasks: needle="${needle}", tasks=${allTarefas.map((t: any) => `"${t.titulo}"`).join(", ")}`);
   
   const match = allTarefas.find((t: any) => normalizeText(t.titulo).includes(needle));
-  if (!match) return `❌ Tarefa "${busca}" não encontrada. Tarefas disponíveis:\n${allTarefas.map((t: any) => `• ${t.titulo} (${t.status})`).join("\n")}`;
+  if (!match) return `[ERRO] Tarefa "${busca}" não encontrada. Tarefas disponíveis:\n${allTarefas.map((t: any) => `• ${t.titulo} (${t.status})`).join("\n")}`;
   
-  if (match.status === novoStatus) return `ℹ️ Tarefa *${match.titulo}* já está em *${novoStatus}*.`;
+  if (match.status === novoStatus) return `[INFO] Tarefa *${match.titulo}* já está em *${novoStatus}*.`;
   const { error: uErr } = await sb.from("tarefas").update({ status: novoStatus }).eq("id", match.id);
   if (uErr) throw new Error(`DB error: ${uErr.message}`);
-  return `✅ Tarefa *${match.titulo}* movida de *${match.status}* para *${novoStatus}*!`;
+  return `[OK] Tarefa *${match.titulo}* movida de *${match.status}* para *${novoStatus}*!`;
 }
 
 async function handleConcluirTarefa(params: any, senderProfile: any): Promise<string> {
@@ -882,15 +882,15 @@ async function handleConcluirTarefa(params: any, senderProfile: any): Promise<st
   }
   
   const { data: allTarefas } = await query;
-  if (!allTarefas || allTarefas.length === 0) return `❌ Nenhuma tarefa ativa encontrada.`;
+  if (!allTarefas || allTarefas.length === 0) return `[ERRO] Nenhuma tarefa ativa encontrada.`;
   
   const needle = normalizeText(busca);
   const match = allTarefas.find((t: any) => normalizeText(t.titulo).includes(needle));
-  if (!match) return `❌ Tarefa "${busca}" não encontrada ou já finalizada.`;
+  if (!match) return `[ERRO] Tarefa "${busca}" não encontrada ou já finalizada.`;
   
   const { error: uErr } = await sb.from("tarefas").update({ status: "Finalizadas" }).eq("id", match.id);
   if (uErr) throw new Error(`DB error: ${uErr.message}`);
-  return `✅ Tarefa *${match.titulo}* marcada como Finalizada!`;
+  return `[OK] Tarefa *${match.titulo}* marcada como Finalizada!`;
 }
 
 // ─── Atendimento humanizado a ELEITORES (não autorizados) ───
@@ -922,15 +922,15 @@ async function findEleitorByPhone(phone: string) {
 async function handleEleitorMessage(senderPhone: string, message: string): Promise<boolean> {
   const eleitor = await findEleitorByPhone(senderPhone);
   if (!eleitor) {
-    console.log(`ℹ️ Telefone ${senderPhone} não encontrado na base de eleitores.`);
+    console.log(`[INFO] Telefone ${senderPhone} não encontrado na base de eleitores.`);
     return false;
   }
   if (!eleitor.agente_ativo) {
-    console.log(`💤 Agente desativado para o eleitor ${eleitor.nome}.`);
+    console.log(`[INATIVO] Agente desativado para o eleitor ${eleitor.nome}.`);
     return false;
   }
 
-  console.log(`🤖 Atendendo eleitor: ${eleitor.nome}`);
+  console.log(`[AGENTE] Atendendo eleitor: ${eleitor.nome}`);
   const sb = supabaseAdmin();
 
   // Salva mensagem do eleitor no histórico
@@ -948,7 +948,7 @@ async function handleEleitorMessage(senderPhone: string, message: string): Promi
     ? demandas.map((d: any, i: number) => {
         const data = new Date(d.created_at).toLocaleDateString("pt-BR");
         const prazo = d.prazo ? ` | Prazo: ${new Date(d.prazo).toLocaleDateString("pt-BR")}` : "";
-        return `${i + 1}. "${d.titulo}" — Status: ${d.status} (registrada em ${data})${prazo}${d.descricao ? `\n   Descrição: ${d.descricao}` : ""}`;
+        return `${i + 1}. "${d.titulo}" - Status: ${d.status} (registrada em ${data})${prazo}${d.descricao ? `\n   Descrição: ${d.descricao}` : ""}`;
       }).join("\n")
     : "Este eleitor ainda não tem demandas registradas no sistema.";
 
@@ -959,7 +959,7 @@ async function handleEleitorMessage(senderPhone: string, message: string): Promi
   const systemPrompt = `Você é a *assistente virtual do gabinete*, atendendo o(a) eleitor(a) *${eleitor.nome}* pelo WhatsApp.
 
 PERSONALIDADE:
-- Acolhedora, educada, calorosa e empática — fale como um atendente humano experiente, NUNCA como um robô.
+- Acolhedora, educada, calorosa e empática - fale como um atendente humano experiente, NUNCA como um robô.
 - Use o nome do eleitor com naturalidade (não em toda mensagem).
 - Tom brasileiro, informal-respeitoso. Pode usar "Olá", "Tudo bem?", "Pois não", "Ficamos à disposição".
 - Mensagens CURTAS (1 a 4 frases). Evite textão. Use 1 emoji no máximo, com moderação.
@@ -968,7 +968,7 @@ PERSONALIDADE:
 CAPACIDADES:
 - Pode consultar e informar o STATUS das demandas que o eleitor solicitou.
 - Pode responder dúvidas gerais sobre o atendimento do gabinete.
-- Pode anotar novas reclamações/solicitações (apenas confirme que vai registrar — não invente protocolos).
+- Pode anotar novas reclamações/solicitações (apenas confirme que vai registrar - não invente protocolos).
 - NÃO invente status, datas ou prazos. Use SOMENTE os dados abaixo.
 
 DADOS DO ELEITOR:
@@ -990,7 +990,7 @@ REGRAS:
     reply = await callAI(systemPrompt, message, chatMessages);
   } catch (e) {
     console.error("Erro AI eleitor:", e);
-    reply = `Olá, ${eleitor.nome.split(" ")[0]}! Recebi sua mensagem e nossa equipe vai te responder em breve. 🙏`;
+    reply = `Olá, ${eleitor.nome.split(" ")[0]}! Recebi sua mensagem e nossa equipe vai te responder em breve. `;
   }
 
   await saveChatMessage(senderPhone, "assistant", reply);
@@ -1013,24 +1013,24 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    console.log("📦 Webhook body (full):", JSON.stringify(body).substring(0, 2500));
+    console.log("[WEBHOOK] Webhook body (full):", JSON.stringify(body).substring(0, 2500));
 
     let message = extractMessageFromWebhook(body);
     const senderPhone = extractSenderPhone(body);
     const audioUrl = extractAudioUrl(body);
 
-    console.log("📱 Extracted phone:", senderPhone, "📝 Extracted message:", message, "🎤 Audio:", audioUrl ? "yes" : "no");
+    console.log("[PHONE] Extracted phone:", senderPhone, "[INFO] Extracted message:", message, "[AUDIO] Audio:", audioUrl ? "yes" : "no");
 
     // If audio message, transcribe with Whisper
     if (audioUrl && !message) {
       try {
-        console.log("🎤 Transcribing audio...");
+        console.log("[AUDIO] Transcribing audio...");
         message = await transcribeAudio(audioUrl);
-        console.log("🎤 Transcribed:", message);
+        console.log("[AUDIO] Transcribed:", message);
       } catch (e) {
         console.error("Audio transcription error:", e);
         if (senderPhone && (await isAuthorized(senderPhone))) {
-          await sendMessage(senderPhone, "❌ Não consegui entender o áudio. Tente enviar como texto ou gravar novamente.");
+          await sendMessage(senderPhone, "[ERRO] Não consegui entender o áudio. Tente enviar como texto ou gravar novamente.");
         }
         return jsonResponse({ status: "audio_error", error: e.message });
       }
@@ -1040,10 +1040,10 @@ Deno.serve(async (req) => {
       return jsonResponse({ status: "ignored", reason: "no message" });
     }
 
-    console.log(`📩 Mensagem de ${senderPhone}: ${message}`);
+    console.log(`[MSG] Mensagem de ${senderPhone}: ${message}`);
 
     if (!(await isAuthorized(senderPhone))) {
-      console.log(`🚫 Número não autorizado (não é político/assessor): ${senderPhone}`);
+      console.log(`[BLOQUEADO] Número não autorizado (não é político/assessor): ${senderPhone}`);
 
       // ─── Atendimento humanizado ao ELEITOR (se agente_ativo) ───
       try {
@@ -1074,7 +1074,7 @@ Deno.serve(async (req) => {
           await sb.from("message_queue").update({
             respondido_em: new Date().toISOString(),
           }).eq("id", queueMsg[0].id);
-          console.log(`✅ Eleitor ${queueMsg[0].destinatario_nome} respondeu! Campanha ${queueMsg[0].campanha_id} desbloqueada.`);
+          console.log(`[OK] Eleitor ${queueMsg[0].destinatario_nome} respondeu! Campanha ${queueMsg[0].campanha_id} desbloqueada.`);
         }
 
         // Also try matching without the 9th digit (phone stored differently)
@@ -1094,7 +1094,7 @@ Deno.serve(async (req) => {
             await sb.from("message_queue").update({
               respondido_em: new Date().toISOString(),
             }).eq("id", queueMsg2[0].id);
-            console.log(`✅ Eleitor ${queueMsg2[0].destinatario_nome} respondeu (alt phone)!`);
+            console.log(`[OK] Eleitor ${queueMsg2[0].destinatario_nome} respondeu (alt phone)!`);
           }
         }
       } catch (e) {
@@ -1111,7 +1111,7 @@ Deno.serve(async (req) => {
     const history = await getChatHistory(senderPhone, 10);
     const pendingCtx = await getPendingContext(senderPhone);
     
-    console.log("📜 History length:", history.length, "Pending context:", pendingCtx ? JSON.stringify(pendingCtx).substring(0, 200) : "none");
+    console.log("[PL] History length:", history.length, "Pending context:", pendingCtx ? JSON.stringify(pendingCtx).substring(0, 200) : "none");
 
     const senderProfile = await getSenderProfile(senderPhone);
     const isAssessor = senderProfile?.role === "assessor";
@@ -1182,10 +1182,10 @@ IMPORTANTE:
         merged.campos_faltantes = [];
       }
       finalExtracted = merged;
-      console.log("🔗 Merged with pending context:", JSON.stringify(finalExtracted).substring(0, 500));
+      console.log("[MERGE] Merged with pending context:", JSON.stringify(finalExtracted).substring(0, 500));
     }
     
-    console.log("🧠 Intent:", JSON.stringify(finalExtracted));
+    console.log("[INTENT] Intent:", JSON.stringify(finalExtracted));
 
     let reply: string;
 
