@@ -64,6 +64,36 @@ const columns: { key: StatusKey; title: string; dotColor: string }[] = [
   { key: "Concluído", title: "Concluído", dotColor: "bg-success" },
 ];
 
+// Normaliza qualquer variante de status (sem acento, caixa, sinônimos antigos)
+// para uma das chaves do Kanban. Garante que tarefas concluídas via WhatsApp
+// (que podem vir como "Concluido", "concluído", "Finalizada", etc.) caiam
+// sempre na coluna correta.
+const normalizeStatus = (raw: string | null | undefined): StatusKey => {
+  const s = (raw || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+  if (
+    s === "concluido" ||
+    s === "concluida" ||
+    s === "finalizada" ||
+    s === "finalizado" ||
+    s === "feito" ||
+    s === "feita" ||
+    s === "done"
+  ) return "Concluído";
+  if (
+    s === "em andamento" ||
+    s === "andamento" ||
+    s === "em progresso" ||
+    s === "iniciada" ||
+    s === "iniciado" ||
+    s === "in progress"
+  ) return "Em Andamento";
+  return "Pendente";
+};
+
 const Tarefas = () => {
   const { user, role } = useAuth();
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
@@ -281,7 +311,7 @@ const Tarefas = () => {
   };
 
   const isPrazoExpired = (prazo: string | null, status: string) => {
-    if (!prazo || status === "Concluído") return false;
+    if (!prazo || normalizeStatus(status) === "Concluído") return false;
     return isPast(new Date(prazo));
   };
 
@@ -464,7 +494,7 @@ const Tarefas = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6 overflow-x-auto">
         {columns.map((col) => {
-          const colTarefas = filteredTarefas.filter((t) => t.status === col.key);
+          const colTarefas = filteredTarefas.filter((t) => normalizeStatus(t.status) === col.key);
           return (
             <div key={col.key} className="space-y-3" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, col.key)}>
               <div className="flex items-center gap-2 pb-2">
@@ -546,16 +576,16 @@ const Tarefas = () => {
                               {tarefa.assessor_id && assessorMap[tarefa.assessor_id] && (
                                 <span className="flex items-center gap-1 text-primary"><UserCheck className="h-3 w-3" />{assessorMap[tarefa.assessor_id]}</span>
                               )}
-                              {tarefa.status === "Concluído" && (
+                              {normalizeStatus(tarefa.status) === "Concluído" && (
                                 <span className="flex items-center gap-1 text-success"><Clock className="h-3 w-3" />Concluído</span>
                               )}
                             </div>
-                            {tarefa.status !== "Concluído" && (
+                            {normalizeStatus(tarefa.status) !== "Concluído" && (
                               <div className="flex gap-1 pt-1">
-                                {tarefa.status === "Pendente" && (
+                                {normalizeStatus(tarefa.status) === "Pendente" && (
                                   <Button size="sm" variant="ghost" className="text-xs h-7 text-info hover:text-info" onClick={() => moveTask(tarefa.id, "Em Andamento")}>Iniciar</Button>
                                 )}
-                                {tarefa.status === "Em Andamento" && (
+                                {normalizeStatus(tarefa.status) === "Em Andamento" && (
                                   <Button size="sm" variant="ghost" className="text-xs h-7 text-success hover:text-success" onClick={() => moveTask(tarefa.id, "Concluído")}>Concluir</Button>
                                 )}
                               </div>
