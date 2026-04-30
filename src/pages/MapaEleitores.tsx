@@ -155,7 +155,7 @@ const MapaEleitores = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("eleitores")
-        .select("id, nome, endereco, telefone, interesse, latitude, longitude")
+        .select("id, nome, endereco, telefone, interesse, latitude, longitude, status_eleitor")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as Eleitor[];
