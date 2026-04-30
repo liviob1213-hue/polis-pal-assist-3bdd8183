@@ -648,6 +648,7 @@ async function handleCriarDemanda(params: any, senderProfile: any): Promise<stri
     titulo: params.titulo || params.descricao || "Nova demanda",
     descricao: params.descricao || null,
     localizacao: params.localizacao || null,
+    status: "Em Análise",
     assessor_id: assessorId,
     prazo: prazoValue,
   });
