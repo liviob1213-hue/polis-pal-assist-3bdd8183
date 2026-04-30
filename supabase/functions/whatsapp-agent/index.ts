@@ -68,10 +68,10 @@ function formatPhoneForUazapi(phone: string): string {
 }
 
 function sanitizeTextForUazapi(text: string): string {
+  // Mantém emojis intactos. Apenas normaliza para NFC (codificação correta) e
+  // limpa espaços/quebras excessivas. NÃO remove emojis nem variation selectors.
   return String(text || "")
     .normalize("NFC")
-    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]\uFE0F?/gu, "")
-    .replace(/\uFE0F/g, "")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
