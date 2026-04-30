@@ -56,12 +56,12 @@ const SETORES = [
   { value: "Administrativo", label: "📊 Administrativo" },
 ];
 
-type StatusKey = "Novas Tarefas" | "Em Andamento" | "Finalizadas";
+type StatusKey = "Pendente" | "Em Andamento" | "Concluído";
 
 const columns: { key: StatusKey; title: string; dotColor: string }[] = [
-  { key: "Novas Tarefas", title: "Pendente", dotColor: "bg-warning" },
+  { key: "Pendente", title: "Pendente", dotColor: "bg-warning" },
   { key: "Em Andamento", title: "Em Andamento", dotColor: "bg-info" },
-  { key: "Finalizadas", title: "Concluído", dotColor: "bg-success" },
+  { key: "Concluído", title: "Concluído", dotColor: "bg-success" },
 ];
 
 const Tarefas = () => {
@@ -116,10 +116,13 @@ const Tarefas = () => {
   };
 
   const fetchTarefas = async () => {
-    const { data, error } = await supabase
-      .from("tarefas")
-      .select("*")
-      .order("created_at", { ascending: false });
+    if (!user) return;
+    // Político: vê tarefas onde politician_id = seu id
+    // Assessor: vê tarefas onde assessor_id = seu id
+    const query = supabase.from("tarefas").select("*").order("created_at", { ascending: false });
+    const { data, error } = role === "assessor"
+      ? await query.eq("assessor_id", user.id)
+      : await query.eq("politician_id", user.id);
     if (error) {
       console.error("Erro ao buscar tarefas:", error);
       return;
@@ -182,8 +185,9 @@ const Tarefas = () => {
       tipo: form.tipo || null,
       setor: form.setor || null,
     };
-    if (role === "politico") {
+    if (role === "politico" && user) {
       payload.assessor_id = form.assessor_id || null;
+      payload.politician_id = user.id;
     }
 
     if (editingTarefa) {
@@ -193,6 +197,14 @@ const Tarefas = () => {
     } else {
       if (role === "assessor" && user) {
         payload.assessor_id = user.id;
+        // Vincula a tarefa ao político do assessor
+        const { data: link } = await supabase
+          .from("politician_assessors")
+          .select("politician_id")
+          .eq("assessor_id", user.id)
+          .maybeSingle();
+        if (link?.politician_id) payload.politician_id = link.politician_id;
+        payload.criado_por = user.id;
       }
       const { error } = await supabase.from("tarefas").insert(payload);
       if (error) { toast({ title: "Erro ao criar", variant: "destructive" }); return; }
@@ -252,7 +264,7 @@ const Tarefas = () => {
   };
 
   const isPrazoExpired = (prazo: string | null, status: string) => {
-    if (!prazo || status === "Finalizadas") return false;
+    if (!prazo || status === "Concluído") return false;
     return isPast(new Date(prazo));
   };
 
@@ -517,17 +529,17 @@ const Tarefas = () => {
                               {tarefa.assessor_id && assessorMap[tarefa.assessor_id] && (
                                 <span className="flex items-center gap-1 text-primary"><UserCheck className="h-3 w-3" />{assessorMap[tarefa.assessor_id]}</span>
                               )}
-                              {tarefa.status === "Finalizadas" && (
+                              {tarefa.status === "Concluído" && (
                                 <span className="flex items-center gap-1 text-success"><Clock className="h-3 w-3" />Concluído</span>
                               )}
                             </div>
-                            {tarefa.status !== "Finalizadas" && (
+                            {tarefa.status !== "Concluído" && (
                               <div className="flex gap-1 pt-1">
-                                {tarefa.status === "Novas Tarefas" && (
+                                {tarefa.status === "Pendente" && (
                                   <Button size="sm" variant="ghost" className="text-xs h-7 text-info hover:text-info" onClick={() => moveTask(tarefa.id, "Em Andamento")}>Iniciar</Button>
                                 )}
                                 {tarefa.status === "Em Andamento" && (
-                                  <Button size="sm" variant="ghost" className="text-xs h-7 text-success hover:text-success" onClick={() => moveTask(tarefa.id, "Finalizadas")}>Concluir</Button>
+                                  <Button size="sm" variant="ghost" className="text-xs h-7 text-success hover:text-success" onClick={() => moveTask(tarefa.id, "Concluído")}>Concluir</Button>
                                 )}
                               </div>
                             )}
