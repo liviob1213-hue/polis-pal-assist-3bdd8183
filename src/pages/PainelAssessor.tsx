@@ -646,6 +646,87 @@ export default function PainelAssessor() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="tarefas">
+          {minhasTarefas.length === 0 ? (
+            <Card className="glass-card">
+              <CardContent className="p-8 text-center">
+                <p className="text-sm text-muted-foreground italic">Você ainda não tem tarefas atribuídas. Crie uma em "Criar Tarefa".</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+              {tarefaColumns.map((col) => {
+                const colTarefas = minhasTarefas.filter((t) => t.status === col.key);
+                return (
+                  <div
+                    key={col.key}
+                    className="space-y-3"
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleTarefaDrop(e, col.key)}
+                  >
+                    <div className="flex items-center gap-2 pb-2">
+                      <div className={`h-2.5 w-2.5 rounded-full ${col.dotColor}`} />
+                      <h3 className="font-semibold text-sm">{col.title}</h3>
+                      <Badge variant="secondary" className="text-xs ml-auto">{colTarefas.length}</Badge>
+                    </div>
+                    <div className={`space-y-2 sm:space-y-3 min-h-[120px] md:min-h-[200px] p-2 sm:p-3 rounded-xl bg-secondary/30 border border-border/50 transition-colors ${dragTarefaId ? "border-primary/20 bg-primary/5" : ""}`}>
+                      <AnimatePresence>
+                        {colTarefas.map((t) => {
+                          const prazoExpirado = isPrazoExpired(t.prazo, t.status);
+                          return (
+                            <motion.div
+                              key={t.id}
+                              layout
+                              initial={{ opacity: 0, y: 8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.95 }}
+                              draggable
+                              onDragStart={(e: any) => handleTarefaDragStart(e, t.id)}
+                              onDragEnd={() => setDragTarefaId(null)}
+                            >
+                              <Card className={cn(
+                                "glass-card hover:shadow-[var(--shadow-md)] transition-all cursor-grab active:cursor-grabbing",
+                                dragTarefaId === t.id && "opacity-50 scale-95",
+                                prazoExpirado && "border-destructive/50 bg-destructive/5"
+                              )}>
+                                <CardContent className="p-3 sm:p-4 space-y-2">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <h3 className="font-semibold text-xs sm:text-sm flex-1">{t.titulo}</h3>
+                                    {prazoExpirado && <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />}
+                                  </div>
+                                  {t.descricao && <p className="text-xs text-muted-foreground line-clamp-2">{t.descricao}</p>}
+                                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                    <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{format(new Date(t.created_at), "dd/MM/yyyy")}</span>
+                                    {t.prazo && (
+                                      <span className={cn("flex items-center gap-1", prazoExpirado ? "text-destructive font-semibold" : "text-warning")}>
+                                        <Clock className="h-3 w-3" />Prazo: {format(new Date(t.prazo), "dd/MM/yyyy")}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {t.status !== "Concluído" && (
+                                    <div className="flex gap-1 pt-1">
+                                      {t.status === "Pendente" && (
+                                        <Button size="sm" variant="ghost" className="text-xs h-7 text-info hover:text-info" onClick={() => moveTarefaStatus(t.id, "Em Andamento")}>Iniciar</Button>
+                                      )}
+                                      {t.status === "Em Andamento" && (
+                                        <Button size="sm" variant="ghost" className="text-xs h-7 text-success hover:text-success" onClick={() => moveTarefaStatus(t.id, "Concluído")}>Concluir</Button>
+                                      )}
+                                    </div>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            </motion.div>
+                          );
+                        })}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
 
       {/* Histórico de Eleitores Cadastrados por mim */}
