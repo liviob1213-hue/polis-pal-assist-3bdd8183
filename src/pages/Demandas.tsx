@@ -280,7 +280,7 @@ const Demandas = () => {
             </PopoverContent>
           </Popover>
           <Badge variant="secondary" className="text-sm">{total} Total</Badge>
-          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingDemanda(null); setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "", origem: "", tipo: "" }); } }}>
+          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingDemanda(null); setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "", origem: "", tipo: "", setor: "" }); } }}>
             <DialogTrigger asChild>
               <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
                 <Plus className="h-4 w-4" /> Nova Demanda
@@ -298,7 +298,7 @@ const Demandas = () => {
                       <SelectTrigger><SelectValue placeholder="De onde veio" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Não informado</SelectItem>
-                        {ORIGENS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                        {ORIGENS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -308,10 +308,20 @@ const Demandas = () => {
                       <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Não informado</SelectItem>
-                        {TIPOS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                        {TIPOS.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                <div>
+                  <Label>🏛️ Setor responsável</Label>
+                  <Select value={form.setor || "none"} onValueChange={(v) => setForm({ ...form, setor: v === "none" ? "" : v })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Não informado</SelectItem>
+                      {SETORES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div><Label>Localização</Label><Input value={form.localizacao} onChange={(e) => setForm({ ...form, localizacao: e.target.value })} placeholder="Local da demanda" /></div>
                 <div><Label>Prazo</Label><Input type="date" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} /></div>
