@@ -285,7 +285,7 @@ async function sendMessage(phone: string, text: string) {
   const fullPhone = formatPhoneForUazapi(phone);
   const res = await fetch(`${url}/send/text`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", token },
+    headers: { "Content-Type": "application/json; charset=utf-8", token },
     body: JSON.stringify({ number: fullPhone, text }),
   });
   if (!res.ok) {
