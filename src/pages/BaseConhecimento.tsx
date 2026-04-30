@@ -12,6 +12,9 @@ import { BookOpen, Upload, FileText, Trash2, Loader2, Brain, CheckCircle2, FileU
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
+const SUPABASE_URL = "https://aecwbjydyoxkonqbkfft.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFlY3dianlkeW94a29ucWJrZmZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1MTQwMTcsImV4cCI6MjA5MzA5MDAxN30.9Q7U3XiXAkOqd7MvB8gSJjpBdiP9KGxGHL4VAlp3vQw";
+
 interface ArquivoBase {
   arquivo: string;
   paginas: number;
@@ -90,12 +93,12 @@ export default function BaseConhecimento() {
       setProgresso(30);
       setStatusTexto("Extraindo texto e gerando embeddings...");
 
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/processar-pdf-conhecimento`;
+      const url = `${SUPABASE_URL}/functions/v1/processar-pdf-conhecimento`;
       const { data: session } = await supabase.auth.getSession();
       const r = await fetch(url, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${session.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.session?.access_token || SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: formData,
       });
