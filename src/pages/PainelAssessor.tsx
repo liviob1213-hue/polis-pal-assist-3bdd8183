@@ -540,6 +540,9 @@ export default function PainelAssessor() {
           <TabsTrigger value="abertas">
             Em Aberto <Badge variant="secondary" className="ml-2">{demandasAbertas.length}</Badge>
           </TabsTrigger>
+          <TabsTrigger value="tarefas">
+            Minhas Tarefas <Badge variant="secondary" className="ml-2">{minhasTarefas.length}</Badge>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="minhas">
