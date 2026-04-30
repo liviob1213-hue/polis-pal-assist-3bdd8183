@@ -275,6 +275,7 @@ const Eleitores = () => {
       cep: parts[5] || "",
       telefone: eleitor.telefone || "",
       interesse: eleitor.interesse || "",
+      status_eleitor: ((eleitor.status_eleitor as StatusEleitor) || "possivel_eleitor"),
       observacoes: eleitor.observacoes || "",
       data_nascimento: eleitor.data_nascimento || "",
       demanda_titulo: "",
