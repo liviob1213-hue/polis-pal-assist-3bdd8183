@@ -117,16 +117,33 @@ const Tarefas = () => {
 
   const fetchTarefas = async () => {
     if (!user) return;
-    // Político: vê tarefas onde politician_id = seu id
-    // Assessor: vê tarefas onde assessor_id = seu id
-    const query = supabase.from("tarefas").select("*").order("created_at", { ascending: false });
-    const { data, error } = role === "assessor"
-      ? await query.eq("assessor_id", user.id)
-      : await query.eq("politician_id", user.id);
-    if (error) {
-      console.error("Erro ao buscar tarefas:", error);
+    if (role === "assessor") {
+      const { data, error } = await supabase
+        .from("tarefas")
+        .select("*")
+        .eq("assessor_id", user.id)
+        .order("created_at", { ascending: false });
+      if (error) { console.error("Erro ao buscar tarefas:", error); return; }
+      setTarefas(data || []);
       return;
     }
+    // Político: tarefas atribuídas a ele OU dos seus assessores vinculados (cobre tarefas
+    // criadas via WhatsApp que vêm sem politician_id preenchido).
+    const { data: links } = await supabase
+      .from("politician_assessors")
+      .select("assessor_id")
+      .eq("politician_id", user.id);
+    const assessorIds = (links || []).map((l) => l.assessor_id);
+    const orParts = [`politician_id.eq.${user.id}`];
+    if (assessorIds.length > 0) {
+      orParts.push(`assessor_id.in.(${assessorIds.join(",")})`);
+    }
+    const { data, error } = await supabase
+      .from("tarefas")
+      .select("*")
+      .or(orParts.join(","))
+      .order("created_at", { ascending: false });
+    if (error) { console.error("Erro ao buscar tarefas:", error); return; }
     setTarefas(data || []);
   };
 
