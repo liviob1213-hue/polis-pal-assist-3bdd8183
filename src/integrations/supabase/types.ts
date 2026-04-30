@@ -179,6 +179,7 @@ export type Database = {
           nome: string
           observacoes: string | null
           politico_id: string | null
+          status_eleitor: string
           telefone: string | null
           updated_at: string
         }
@@ -195,6 +196,7 @@ export type Database = {
           nome: string
           observacoes?: string | null
           politico_id?: string | null
+          status_eleitor?: string
           telefone?: string | null
           updated_at?: string
         }
@@ -211,6 +213,7 @@ export type Database = {
           nome?: string
           observacoes?: string | null
           politico_id?: string | null
+          status_eleitor?: string
           telefone?: string | null
           updated_at?: string
         }
