@@ -311,7 +311,7 @@ const Tarefas = () => {
   };
 
   const isPrazoExpired = (prazo: string | null, status: string) => {
-    if (!prazo || status === "Concluído") return false;
+    if (!prazo || normalizeStatus(status) === "Concluído") return false;
     return isPast(new Date(prazo));
   };
 
