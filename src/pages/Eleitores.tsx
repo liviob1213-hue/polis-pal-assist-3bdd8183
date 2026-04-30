@@ -29,6 +29,7 @@ interface Eleitor {
   longitude: number | null;
   data_nascimento: string | null;
   agente_ativo: boolean;
+  status_eleitor: string | null;
 }
 
 interface DemandaEleitor {
