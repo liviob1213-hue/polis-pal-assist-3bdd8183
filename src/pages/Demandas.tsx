@@ -110,12 +110,20 @@ const Demandas = () => {
   }, [user, role]);
 
   const filteredDemandas = demandas.filter((d) => {
-    if (!filterDate) return true;
-    const createdAt = new Date(d.created_at);
-    if (filterDateEnd) {
-      return isWithinInterval(createdAt, { start: startOfDay(filterDate), end: endOfDay(filterDateEnd) });
+    if (filterDate) {
+      const createdAt = new Date(d.created_at);
+      if (filterDateEnd) {
+        if (!isWithinInterval(createdAt, { start: startOfDay(filterDate), end: endOfDay(filterDateEnd) })) return false;
+      } else if (!isSameDay(createdAt, filterDate)) return false;
     }
-    return isSameDay(createdAt, filterDate);
+    if (filterOrigem !== "all" && (d.origem || "") !== filterOrigem) return false;
+    if (filterStatus !== "all" && d.status !== filterStatus) return false;
+    if (filterTipo !== "all" && (d.tipo || "") !== filterTipo) return false;
+    if (filterResponsavel !== "all") {
+      if (filterResponsavel === "none" && d.assessor_id) return false;
+      if (filterResponsavel !== "none" && d.assessor_id !== filterResponsavel) return false;
+    }
+    return true;
   });
 
   const handleSave = async () => {
