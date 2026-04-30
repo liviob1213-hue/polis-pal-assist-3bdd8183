@@ -137,6 +137,7 @@ const Demandas = () => {
     if (filterOrigem !== "all" && (d.origem || "") !== filterOrigem) return false;
     if (filterStatus !== "all" && d.status !== filterStatus) return false;
     if (filterTipo !== "all" && (d.tipo || "") !== filterTipo) return false;
+    if (filterSetor !== "all" && (d.setor || "") !== filterSetor) return false;
     if (filterResponsavel !== "all") {
       if (filterResponsavel === "none" && d.assessor_id) return false;
       if (filterResponsavel !== "none" && d.assessor_id !== filterResponsavel) return false;
@@ -154,6 +155,7 @@ const Demandas = () => {
       prazo: form.prazo ? new Date(form.prazo).toISOString() : null,
       origem: form.origem || null,
       tipo: form.tipo || null,
+      setor: form.setor || null,
     };
     if (role === "politico") {
       payload.assessor_id = form.assessor_id || null;
@@ -172,7 +174,7 @@ const Demandas = () => {
       toast({ title: "Demanda criada!" });
     }
 
-    setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "", origem: "", tipo: "" });
+    setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "", origem: "", tipo: "", setor: "" });
     setEditingDemanda(null);
     setDialogOpen(false);
   };
@@ -187,6 +189,7 @@ const Demandas = () => {
       prazo: demanda.prazo ? demanda.prazo.split("T")[0] : "",
       origem: demanda.origem || "",
       tipo: demanda.tipo || "",
+      setor: (demanda as any).setor || "",
     });
     setDialogOpen(true);
   };
