@@ -415,10 +415,13 @@ export type Database = {
           assessor_id: string | null
           created_at: string
           criado_por: string | null
+          demanda_id: string | null
           descricao: string | null
           id: string
           prazo: string | null
+          setor: string | null
           status: string
+          tipo: string | null
           titulo: string
           updated_at: string
         }
@@ -426,10 +429,13 @@ export type Database = {
           assessor_id?: string | null
           created_at?: string
           criado_por?: string | null
+          demanda_id?: string | null
           descricao?: string | null
           id?: string
           prazo?: string | null
+          setor?: string | null
           status?: string
+          tipo?: string | null
           titulo: string
           updated_at?: string
         }
@@ -437,10 +443,13 @@ export type Database = {
           assessor_id?: string | null
           created_at?: string
           criado_por?: string | null
+          demanda_id?: string | null
           descricao?: string | null
           id?: string
           prazo?: string | null
+          setor?: string | null
           status?: string
+          tipo?: string | null
           titulo?: string
           updated_at?: string
         }
