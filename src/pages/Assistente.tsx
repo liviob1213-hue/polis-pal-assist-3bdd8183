@@ -13,6 +13,9 @@ import { useAuth } from "@/hooks/useAuth";
 import jsPDF from "jspdf";
 import { BRAND, drawCover, drawHeader, drawFooter, getLogoDataUrl } from "@/lib/pdfBranding";
 
+const SUPABASE_URL = "https://aecwbjydyoxkonqbkfft.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFlY3dianlkeW94a29ucWJrZmZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1MTQwMTcsImV4cCI6MjA5MzA5MDAxN30.9Q7U3XiXAkOqd7MvB8gSJjpBdiP9KGxGHL4VAlp3vQw";
+
 interface Message {
   id: string;
   role: "assistant" | "user";
@@ -25,7 +28,7 @@ interface Sessao {
   ultima: string;
 }
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+const CHAT_URL = `${SUPABASE_URL}/functions/v1/chat`;
 
 const WELCOME: Message = {
   id: "welcome",
@@ -304,7 +307,7 @@ const Assistente = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
           messages: newMessages.map((m) => ({ role: m.role, content: m.content })),

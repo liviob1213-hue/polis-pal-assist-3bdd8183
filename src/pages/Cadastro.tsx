@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Phone, Mail, User, Lock, ArrowRight, CheckCircle } from "lucide-react";
 import logoDemocrat from "@/assets/logo-democrat.png";
+
+const SUPABASE_FUNCTIONS_URL = "https://aecwbjydyoxkonqbkfft.supabase.co/functions/v1";
 
 function formatPhoneDisplay(value: string): string {
   const digits = value.replace(/\D/g, "");
@@ -60,9 +61,8 @@ export default function Cadastro() {
 
     setLoading(true);
     try {
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/send-otp`,
+        `${SUPABASE_FUNCTIONS_URL}/send-otp`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -89,9 +89,8 @@ export default function Cadastro() {
 
     setLoading(true);
     try {
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/verify-otp`,
+        `${SUPABASE_FUNCTIONS_URL}/verify-otp`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
