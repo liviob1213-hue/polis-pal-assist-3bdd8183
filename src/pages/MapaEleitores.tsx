@@ -112,6 +112,10 @@ const MapContent = ({ eleitores, searchQuery }: { eleitores: Eleitor[]; searchQu
         >
           <div className="p-1 min-w-[200px] max-w-[280px]">
             <h3 className="font-bold text-sm text-gray-900 mb-1">{selectedEleitor.nome}</h3>
+            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full mb-2" style={{ backgroundColor: `${getStatusEleitor(selectedEleitor.status_eleitor).hex}22`, color: getStatusEleitor(selectedEleitor.status_eleitor).hex }}>
+              <span>{getStatusEleitor(selectedEleitor.status_eleitor).emoji}</span>
+              {getStatusEleitor(selectedEleitor.status_eleitor).label}
+            </span>
             {selectedEleitor.interesse && (
               <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 mb-2">
                 {selectedEleitor.interesse}
