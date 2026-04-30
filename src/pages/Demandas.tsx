@@ -402,8 +402,10 @@ const Demandas = () => {
                         )}>
                           <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
                             <div className="flex items-start justify-between">
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex flex-wrap items-center gap-1.5">
                                 <Badge variant="outline" className={`text-[10px] ${statusStyles[demanda.status] || ""}`}>{demanda.status}</Badge>
+                                {demanda.tipo && <Badge variant="secondary" className="text-[10px]">🏷️ {demanda.tipo}</Badge>}
+                                {demanda.origem && <Badge variant="outline" className="text-[10px]">📍 {demanda.origem}</Badge>}
                                 {prazoExpirado && <AlertTriangle className="h-3.5 w-3.5 text-destructive" />}
                               </div>
                               <div className="flex items-center gap-1 shrink-0">
