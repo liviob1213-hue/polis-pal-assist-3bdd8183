@@ -445,7 +445,8 @@ const Demandas = () => {
                               <div className="flex flex-wrap items-center gap-1.5">
                                 <Badge variant="outline" className={`text-[10px] ${statusStyles[demanda.status] || ""}`}>{demanda.status}</Badge>
                                 {demanda.tipo && <Badge variant="secondary" className="text-[10px]">🏷️ {demanda.tipo}</Badge>}
-                                {demanda.origem && <Badge variant="outline" className="text-[10px]">📍 {demanda.origem}</Badge>}
+                                {demanda.origem && <Badge variant="outline" className="text-[10px]">{ORIGENS.find(o => o.value === demanda.origem)?.label || `📍 ${demanda.origem}`}</Badge>}
+                                {(demanda as any).setor && <Badge variant="outline" className="text-[10px]">{SETORES.find(s => s.value === (demanda as any).setor)?.label || `🏛️ ${(demanda as any).setor}`}</Badge>}
                                 {prazoExpirado && <AlertTriangle className="h-3.5 w-3.5 text-destructive" />}
                               </div>
                               <div className="flex items-center gap-1 shrink-0">
