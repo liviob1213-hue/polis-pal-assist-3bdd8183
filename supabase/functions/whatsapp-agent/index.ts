@@ -4,7 +4,37 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Content-Type": "application/json; charset=utf-8",
 };
+
+// Gera todas as variações plausíveis de um telefone BR (com/sem 55, com/sem 9 extra)
+function phoneVariants(phone: string): string[] {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (!digits) return [];
+  const set = new Set<string>();
+  set.add(digits);
+
+  // Sem o 55 inicial
+  let local = digits;
+  if (local.startsWith("55") && local.length >= 12) local = local.slice(2);
+  set.add(local);
+
+  // Com 55 forçado
+  set.add(`55${local}`);
+
+  // Local com e sem o 9 (apenas celular: DDD + 9XXXXXXXX)
+  if (local.length === 11 && local[2] === "9") {
+    const sem9 = local.slice(0, 2) + local.slice(3);
+    set.add(sem9);
+    set.add(`55${sem9}`);
+  } else if (local.length === 10) {
+    const com9 = local.slice(0, 2) + "9" + local.slice(2);
+    set.add(com9);
+    set.add(`55${com9}`);
+  }
+
+  return [...set].filter(Boolean);
+}
 
 // ─── Helpers ────────────────────────────────────────────────
 
