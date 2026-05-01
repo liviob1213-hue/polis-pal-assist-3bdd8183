@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -60,6 +61,7 @@ const Eleitores = () => {
   const [whatsappDialog, setWhatsappDialog] = useState<Eleitor | null>(null);
   const [whatsappMsg, setWhatsappMsg] = useState("");
   const [demandaDialog, setDemandaDialog] = useState<{ eleitor: Eleitor; demandas: DemandaEleitor[] } | null>(null);
+  const [demandaUnicaDialog, setDemandaUnicaDialog] = useState<{ eleitor: Eleitor; demanda: DemandaEleitor } | null>(null);
   const [novaDemandaDialog, setNovaDemandaDialog] = useState<Eleitor | null>(null);
   const [novaDemandaForm, setNovaDemandaForm] = useState({ titulo: "", descricao: "" });
   const [savedMessages, setSavedMessages] = useState<{ id: string; label: string; text: string }[]>(() => {
@@ -435,28 +437,6 @@ const Eleitores = () => {
             const abertas = demandas.filter((d) => d.status !== "Resolvido");
             return (
               <div key={eleitor.id} className="space-y-2">
-                {/* Card de demanda em cima do eleitor — clicável */}
-                {abertas.length > 0 && (
-                  <button
-                    onClick={() => setDemandaDialog({ eleitor, demandas })}
-                    className="w-full text-left rounded-lg border border-warning/30 bg-warning/5 hover:bg-warning/10 transition-colors p-3 flex items-center gap-3 group"
-                  >
-                    <div className="h-9 w-9 rounded-full bg-warning/15 flex items-center justify-center shrink-0">
-                      <AlertCircle className="h-4 w-4 text-warning" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-muted-foreground">Demanda solicitada por {eleitor.nome}</p>
-                      <p className="text-sm font-semibold truncate">{abertas[0].titulo}</p>
-                    </div>
-                    <Badge variant="outline" className={statusBadgeClass(abertas[0].status)}>
-                      {abertas[0].status}
-                    </Badge>
-                    {abertas.length > 1 && (
-                      <Badge variant="outline" className="bg-secondary">+{abertas.length - 1}</Badge>
-                    )}
-                    <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-                  </button>
-                )}
 
                 {/* Card do eleitor */}
                 <Card className="glass-card">
@@ -504,6 +484,48 @@ const Eleitores = () => {
                         <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => setNovaDemandaDialog(eleitor)}>
                           <Megaphone className="h-3.5 w-3.5" /> Demanda
                         </Button>
+                        {demandas.length > 0 && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1 text-xs border-warning/40 bg-warning/5 hover:bg-warning/10 text-warning"
+                                title="Ver demandas deste eleitor"
+                              >
+                                <AlertCircle className="h-3.5 w-3.5" />
+                                Demandas
+                                <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">
+                                  {demandas.length}
+                                </Badge>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-72 max-h-80 overflow-y-auto bg-popover">
+                              <DropdownMenuLabel className="text-xs">Demandas de {eleitor.nome}</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              {demandas.map((d) => (
+                                <DropdownMenuItem
+                                  key={d.id}
+                                  onClick={() => setDemandaUnicaDialog({ eleitor, demanda: d })}
+                                  className="flex items-start gap-2 py-2 cursor-pointer"
+                                >
+                                  <AlertCircle className="h-3.5 w-3.5 text-warning mt-0.5 shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-medium truncate">{d.titulo}</p>
+                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                      <Badge variant="outline" className={`${statusBadgeClass(d.status)} text-[10px] px-1.5 py-0 h-4`}>
+                                        {d.status}
+                                      </Badge>
+                                      <span className="text-[10px] text-muted-foreground">
+                                        {new Date(d.created_at).toLocaleDateString("pt-BR")}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
@@ -627,6 +649,52 @@ const Eleitores = () => {
               </div>
             );
           })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: visualização de uma demanda específica */}
+      <Dialog open={!!demandaUnicaDialog} onOpenChange={(o) => { if (!o) setDemandaUnicaDialog(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-warning" />
+              Demanda
+            </DialogTitle>
+          </DialogHeader>
+          {demandaUnicaDialog && (
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">Eleitor: <span className="font-medium text-foreground">{demandaUnicaDialog.eleitor.nome}</span></p>
+                <Badge variant="outline" className={statusBadgeClass(demandaUnicaDialog.demanda.status)}>
+                  {demandaUnicaDialog.demanda.status === "Resolvido" && <CheckCircle2 className="h-3 w-3 mr-1" />}
+                  {demandaUnicaDialog.demanda.status}
+                </Badge>
+              </div>
+              <div className="p-3 rounded-lg border border-border bg-secondary/30 space-y-2">
+                <p className="font-semibold text-sm">{demandaUnicaDialog.demanda.titulo}</p>
+                {demandaUnicaDialog.demanda.descricao && (
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{demandaUnicaDialog.demanda.descricao}</p>
+                )}
+                <p className="text-xs text-muted-foreground flex items-center gap-1 pt-1">
+                  <Clock className="h-3 w-3" />
+                  Registrada em {new Date(demandaUnicaDialog.demanda.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                </p>
+              </div>
+              {demandaUnicaDialog.demanda.status === "Em Análise" && (
+                <Button
+                  size="sm"
+                  className="w-full gradient-primary text-primary-foreground gap-1"
+                  onClick={() => {
+                    enviarParaGestaoMutation.mutate(demandaUnicaDialog.demanda.id);
+                    setDemandaUnicaDialog(null);
+                  }}
+                  disabled={enviarParaGestaoMutation.isPending}
+                >
+                  <Send className="h-3.5 w-3.5" /> Enviar para Gestão de Demandas
+                </Button>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
