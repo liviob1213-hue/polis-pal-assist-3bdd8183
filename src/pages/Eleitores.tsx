@@ -60,6 +60,7 @@ const Eleitores = () => {
   const [whatsappDialog, setWhatsappDialog] = useState<Eleitor | null>(null);
   const [whatsappMsg, setWhatsappMsg] = useState("");
   const [demandaDialog, setDemandaDialog] = useState<{ eleitor: Eleitor; demandas: DemandaEleitor[] } | null>(null);
+  const [demandaUnicaDialog, setDemandaUnicaDialog] = useState<{ eleitor: Eleitor; demanda: DemandaEleitor } | null>(null);
   const [novaDemandaDialog, setNovaDemandaDialog] = useState<Eleitor | null>(null);
   const [novaDemandaForm, setNovaDemandaForm] = useState({ titulo: "", descricao: "" });
   const [savedMessages, setSavedMessages] = useState<{ id: string; label: string; text: string }[]>(() => {
