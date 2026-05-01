@@ -43,7 +43,7 @@ export default function Login() {
           <div className="flex justify-center mb-4">
             <img src={logoDemocrat} alt="Democrat.AI" className="h-72 md:h-80 object-contain" />
           </div>
-          <CardTitle className="text-2xl font-bold">Entrar</CardTitle>
+          <CardTitle className="text-2xl font-bold">Entrar Agora</CardTitle>
           <CardDescription>Acesse sua conta DEMOCRAT.AI</CardDescription>
         </CardHeader>
 
@@ -88,7 +88,7 @@ export default function Login() {
           </div>
 
           <Button onClick={handleLogin} disabled={loading} className="w-full" size="lg">
-            {loading ? "Entrando..." : "Entrar"}
+            {loading ? "Entrando..." : "Entrar Agora"}
             <LogIn className="ml-2 h-4 w-4" />
           </Button>
 
