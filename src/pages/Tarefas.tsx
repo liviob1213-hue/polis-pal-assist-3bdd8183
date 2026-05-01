@@ -157,24 +157,39 @@ const Tarefas = () => {
       setTarefas(data || []);
       return;
     }
-    // Político: tarefas atribuídas a ele OU dos seus assessores vinculados (cobre tarefas
-    // criadas via WhatsApp que vêm sem politician_id preenchido).
+    // Político: tarefas atribuídas a ele OU dos seus assessores vinculados OU órfãs
+    // (sem politician_id e sem assessor_id — tipicamente criadas via WhatsApp antes
+    // do vínculo ter sido preenchido). Buscamos em duas queries e fazemos merge,
+    // pois `.or()` com `is.null` em múltiplos campos costuma falhar no PostgREST.
     const { data: links } = await supabase
       .from("politician_assessors")
       .select("assessor_id")
       .eq("politician_id", user.id);
     const assessorIds = (links || []).map((l) => l.assessor_id);
+
     const orParts = [`politician_id.eq.${user.id}`];
     if (assessorIds.length > 0) {
       orParts.push(`assessor_id.in.(${assessorIds.join(",")})`);
     }
-    const { data, error } = await supabase
+    const { data: ownData, error: ownErr } = await supabase
       .from("tarefas")
       .select("*")
       .or(orParts.join(","))
       .order("created_at", { ascending: false });
-    if (error) { console.error("Erro ao buscar tarefas:", error); return; }
-    setTarefas(data || []);
+    if (ownErr) { console.error("Erro ao buscar tarefas:", ownErr); return; }
+
+    // Tarefas órfãs (sem dono nenhum) — visíveis a qualquer político até serem atribuídas.
+    const { data: orphanData } = await supabase
+      .from("tarefas")
+      .select("*")
+      .is("politician_id", null)
+      .is("assessor_id", null)
+      .order("created_at", { ascending: false });
+
+    const merged = [...(ownData || [])];
+    const seen = new Set(merged.map((t) => t.id));
+    (orphanData || []).forEach((t) => { if (!seen.has(t.id)) merged.push(t); });
+    setTarefas(merged);
   };
 
   useEffect(() => {
