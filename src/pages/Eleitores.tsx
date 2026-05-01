@@ -437,28 +437,6 @@ const Eleitores = () => {
             const abertas = demandas.filter((d) => d.status !== "Resolvido");
             return (
               <div key={eleitor.id} className="space-y-2">
-                {/* Card de demanda em cima do eleitor — clicável */}
-                {abertas.length > 0 && (
-                  <button
-                    onClick={() => setDemandaDialog({ eleitor, demandas })}
-                    className="w-full text-left rounded-lg border border-warning/30 bg-warning/5 hover:bg-warning/10 transition-colors p-3 flex items-center gap-3 group"
-                  >
-                    <div className="h-9 w-9 rounded-full bg-warning/15 flex items-center justify-center shrink-0">
-                      <AlertCircle className="h-4 w-4 text-warning" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-muted-foreground">Demanda solicitada por {eleitor.nome}</p>
-                      <p className="text-sm font-semibold truncate">{abertas[0].titulo}</p>
-                    </div>
-                    <Badge variant="outline" className={statusBadgeClass(abertas[0].status)}>
-                      {abertas[0].status}
-                    </Badge>
-                    {abertas.length > 1 && (
-                      <Badge variant="outline" className="bg-secondary">+{abertas.length - 1}</Badge>
-                    )}
-                    <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-                  </button>
-                )}
 
                 {/* Card do eleitor */}
                 <Card className="glass-card">
