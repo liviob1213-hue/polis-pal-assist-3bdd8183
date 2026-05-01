@@ -484,6 +484,48 @@ const Eleitores = () => {
                         <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => setNovaDemandaDialog(eleitor)}>
                           <Megaphone className="h-3.5 w-3.5" /> Demanda
                         </Button>
+                        {demandas.length > 0 && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1 text-xs border-warning/40 bg-warning/5 hover:bg-warning/10 text-warning"
+                                title="Ver demandas deste eleitor"
+                              >
+                                <AlertCircle className="h-3.5 w-3.5" />
+                                Demandas
+                                <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">
+                                  {demandas.length}
+                                </Badge>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-72 max-h-80 overflow-y-auto bg-popover">
+                              <DropdownMenuLabel className="text-xs">Demandas de {eleitor.nome}</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              {demandas.map((d) => (
+                                <DropdownMenuItem
+                                  key={d.id}
+                                  onClick={() => setDemandaUnicaDialog({ eleitor, demanda: d })}
+                                  className="flex items-start gap-2 py-2 cursor-pointer"
+                                >
+                                  <AlertCircle className="h-3.5 w-3.5 text-warning mt-0.5 shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-medium truncate">{d.titulo}</p>
+                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                      <Badge variant="outline" className={`${statusBadgeClass(d.status)} text-[10px] px-1.5 py-0 h-4`}>
+                                        {d.status}
+                                      </Badge>
+                                      <span className="text-[10px] text-muted-foreground">
+                                        {new Date(d.created_at).toLocaleDateString("pt-BR")}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
