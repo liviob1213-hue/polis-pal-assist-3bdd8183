@@ -652,6 +652,52 @@ const Eleitores = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog: visualização de uma demanda específica */}
+      <Dialog open={!!demandaUnicaDialog} onOpenChange={(o) => { if (!o) setDemandaUnicaDialog(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-warning" />
+              Demanda
+            </DialogTitle>
+          </DialogHeader>
+          {demandaUnicaDialog && (
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">Eleitor: <span className="font-medium text-foreground">{demandaUnicaDialog.eleitor.nome}</span></p>
+                <Badge variant="outline" className={statusBadgeClass(demandaUnicaDialog.demanda.status)}>
+                  {demandaUnicaDialog.demanda.status === "Resolvido" && <CheckCircle2 className="h-3 w-3 mr-1" />}
+                  {demandaUnicaDialog.demanda.status}
+                </Badge>
+              </div>
+              <div className="p-3 rounded-lg border border-border bg-secondary/30 space-y-2">
+                <p className="font-semibold text-sm">{demandaUnicaDialog.demanda.titulo}</p>
+                {demandaUnicaDialog.demanda.descricao && (
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{demandaUnicaDialog.demanda.descricao}</p>
+                )}
+                <p className="text-xs text-muted-foreground flex items-center gap-1 pt-1">
+                  <Clock className="h-3 w-3" />
+                  Registrada em {new Date(demandaUnicaDialog.demanda.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                </p>
+              </div>
+              {demandaUnicaDialog.demanda.status === "Em Análise" && (
+                <Button
+                  size="sm"
+                  className="w-full gradient-primary text-primary-foreground gap-1"
+                  onClick={() => {
+                    enviarParaGestaoMutation.mutate(demandaUnicaDialog.demanda.id);
+                    setDemandaUnicaDialog(null);
+                  }}
+                  disabled={enviarParaGestaoMutation.isPending}
+                >
+                  <Send className="h-3.5 w-3.5" /> Enviar para Gestão de Demandas
+                </Button>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog: nova demanda para eleitor existente */}
       <Dialog open={!!novaDemandaDialog} onOpenChange={(o) => { if (!o) { setNovaDemandaDialog(null); setNovaDemandaForm({ titulo: "", descricao: "" }); } }}>
         <DialogContent>
