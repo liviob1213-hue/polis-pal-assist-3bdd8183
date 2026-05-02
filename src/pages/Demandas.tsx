@@ -173,6 +173,7 @@ const Demandas = () => {
       origem: form.origem || null,
       tipo: form.tipo || null,
       setor: form.setor || null,
+      eleitor_id: form.eleitor_id || null,
     };
     if (role === "politico") {
       payload.assessor_id = form.assessor_id || null;
@@ -191,7 +192,7 @@ const Demandas = () => {
       toast({ title: "Demanda criada!" });
     }
 
-    setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "", origem: "", tipo: "", setor: "" });
+    setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", eleitor_id: "", prazo: "", origem: "", tipo: "", setor: "" });
     setEditingDemanda(null);
     setDialogOpen(false);
   };
@@ -203,6 +204,7 @@ const Demandas = () => {
       descricao: demanda.descricao || "",
       localizacao: demanda.localizacao || "",
       assessor_id: demanda.assessor_id || "",
+      eleitor_id: demanda.eleitor_id || "",
       prazo: demanda.prazo ? demanda.prazo.split("T")[0] : "",
       origem: demanda.origem || "",
       tipo: demanda.tipo || "",
