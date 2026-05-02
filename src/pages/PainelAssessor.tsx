@@ -580,16 +580,52 @@ export default function PainelAssessor() {
               </CardContent>
             </Card>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Nova Demanda</DialogTitle></DialogHeader>
-            <div className="space-y-3 pt-2">
+            <div className="space-y-4 pt-2">
               <div>
                 <Label>Título <span className="text-destructive">*</span></Label>
-                <Input value={demandaForm.titulo} onChange={(e) => setDemandaForm({ ...demandaForm, titulo: e.target.value })} />
+                <Input value={demandaForm.titulo} onChange={(e) => setDemandaForm({ ...demandaForm, titulo: e.target.value })} placeholder="Título da demanda" />
               </div>
               <div>
                 <Label>Descrição</Label>
-                <Textarea value={demandaForm.descricao} onChange={(e) => setDemandaForm({ ...demandaForm, descricao: e.target.value })} rows={3} />
+                <Textarea value={demandaForm.descricao} onChange={(e) => setDemandaForm({ ...demandaForm, descricao: e.target.value })} placeholder="Descreva a demanda" rows={3} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>📍 Origem</Label>
+                  <Select value={demandaForm.origem || "none"} onValueChange={(v) => setDemandaForm({ ...demandaForm, origem: v === "none" ? "" : v })}>
+                    <SelectTrigger><SelectValue placeholder="De onde veio" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Não informado</SelectItem>
+                      {ORIGENS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>🏷️ Tipo</Label>
+                  <Select value={demandaForm.tipo || "none"} onValueChange={(v) => setDemandaForm({ ...demandaForm, tipo: v === "none" ? "" : v })}>
+                    <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Não informado</SelectItem>
+                      {TIPOS.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label>🏛️ Setor responsável</Label>
+                <Select value={demandaForm.setor || "none"} onValueChange={(v) => setDemandaForm({ ...demandaForm, setor: v === "none" ? "" : v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não informado</SelectItem>
+                    {SETORES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Localização</Label>
+                <Input value={demandaForm.localizacao} onChange={(e) => setDemandaForm({ ...demandaForm, localizacao: e.target.value })} placeholder="Local da demanda" />
               </div>
               <div>
                 <Label>Eleitor vinculado <span className="text-destructive">*</span></Label>
