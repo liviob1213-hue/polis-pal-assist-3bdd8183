@@ -17,7 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { useGoogleMapsKey } from "@/hooks/useGoogleMapsKey";
-import { STATUS_ELEITOR_LIST, getStatusEleitor, type StatusEleitor } from "@/lib/statusEleitor";
+import { STATUS_ELEITOR_LIST, getStatusEleitor, normalizeStatusEleitor, type StatusEleitor } from "@/lib/statusEleitor";
 
 interface Eleitor {
   id: string;
