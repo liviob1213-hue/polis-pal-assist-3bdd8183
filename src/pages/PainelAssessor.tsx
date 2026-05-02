@@ -76,6 +76,25 @@ const tarefaColumns: { key: TarefaStatusKey; title: string; dotColor: string }[]
 
 const interesses = ["Saúde", "Obras", "Educação", "Segurança", "Transporte", "Meio Ambiente"];
 
+const ORIGENS = [
+  { value: "Rua", label: "🏠 Rua" },
+  { value: "Gabinete", label: "🏢 Gabinete" },
+  { value: "Instagram/TikTok", label: "📱 Instagram / TikTok" },
+  { value: "WhatsApp", label: "💬 WhatsApp" },
+  { value: "Pessoal", label: "🤝 Pessoal (contato direto)" },
+];
+const TIPOS = [
+  { value: "Reclamação", label: "Reclamação" },
+  { value: "Sugestão", label: "Sugestão" },
+  { value: "Solicitação", label: "Solicitação" },
+  { value: "Elogio", label: "Elogio" },
+];
+const SETORES = [
+  { value: "Jurídico", label: "⚖️ Jurídico" },
+  { value: "Comunicação", label: "📢 Comunicação" },
+  { value: "Administrativo", label: "📊 Administrativo" },
+];
+
 type StatusKey = "Aberto" | "Em Análise" | "Em Andamento" | "Resolvido";
 const columns: { key: StatusKey; title: string; dotColor: string }[] = [
   { key: "Aberto", title: "Aberto", dotColor: "bg-warning" },
