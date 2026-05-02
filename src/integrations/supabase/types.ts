@@ -177,15 +177,22 @@ export type Database = {
       eleitores: {
         Row: {
           agente_ativo: boolean
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
+          complemento: string | null
           created_at: string
           criado_por: string | null
           data_nascimento: string | null
           endereco: string | null
+          estado: string | null
           id: string
           interesse: string | null
           latitude: number | null
+          logradouro: string | null
           longitude: number | null
           nome: string
+          numero: string | null
           observacoes: string | null
           politico_id: string | null
           status_eleitor: string
@@ -194,15 +201,22 @@ export type Database = {
         }
         Insert: {
           agente_ativo?: boolean
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          complemento?: string | null
           created_at?: string
           criado_por?: string | null
           data_nascimento?: string | null
           endereco?: string | null
+          estado?: string | null
           id?: string
           interesse?: string | null
           latitude?: number | null
+          logradouro?: string | null
           longitude?: number | null
           nome: string
+          numero?: string | null
           observacoes?: string | null
           politico_id?: string | null
           status_eleitor?: string
@@ -211,15 +225,22 @@ export type Database = {
         }
         Update: {
           agente_ativo?: boolean
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          complemento?: string | null
           created_at?: string
           criado_por?: string | null
           data_nascimento?: string | null
           endereco?: string | null
+          estado?: string | null
           id?: string
           interesse?: string | null
           latitude?: number | null
+          logradouro?: string | null
           longitude?: number | null
           nome?: string
+          numero?: string | null
           observacoes?: string | null
           politico_id?: string | null
           status_eleitor?: string
