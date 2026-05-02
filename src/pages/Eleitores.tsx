@@ -17,7 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { useGoogleMapsKey } from "@/hooks/useGoogleMapsKey";
-import { STATUS_ELEITOR_LIST, getStatusEleitor, type StatusEleitor } from "@/lib/statusEleitor";
+import { STATUS_ELEITOR_LIST, getStatusEleitor, normalizeStatusEleitor, type StatusEleitor } from "@/lib/statusEleitor";
 
 interface Eleitor {
   id: string;
@@ -297,7 +297,7 @@ const Eleitores = () => {
       cep: eleitor.cep || parts[5] || "",
       telefone: eleitor.telefone || "",
       interesse: eleitor.interesse || "",
-      status_eleitor: ((eleitor.status_eleitor as StatusEleitor) || "possivel_eleitor"),
+      status_eleitor: normalizeStatusEleitor(eleitor.status_eleitor),
       observacoes: eleitor.observacoes || "",
       data_nascimento: eleitor.data_nascimento || "",
       demanda_titulo: "",
