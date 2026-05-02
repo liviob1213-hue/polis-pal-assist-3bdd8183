@@ -69,7 +69,50 @@ export const STATUS_ELEITOR_LIST: StatusEleitorMeta[] = [
   STATUS_ELEITOR.voluntario,
 ];
 
+/**
+ * Normaliza qualquer variação do status (slug, label, com/sem acento, maiúsculas)
+ * para o slug canônico usado nos <Select> e na coluna `status_eleitor` do banco.
+ * Aceita: "possivel_eleitor", "Possível eleitor", "POSSIVEL ELEITOR", "possivel eleitor", etc.
+ */
+export function normalizeStatusEleitor(value: string | null | undefined): StatusEleitor {
+  if (!value) return "possivel_eleitor";
+
+  const raw = String(value).trim();
+
+  // 1) Já é um slug válido?
+  if (raw in STATUS_ELEITOR) return raw as StatusEleitor;
+
+  // 2) Normalizar: lowercase, remover acentos, trocar espaços/hífens por underscore
+  const normalized = raw
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\s-]+/g, "_")
+    .replace(/[^a-z_]/g, "");
+
+  if (normalized in STATUS_ELEITOR) return normalized as StatusEleitor;
+
+  // 3) Match por label (case/acento-insensitive)
+  const byLabel = STATUS_ELEITOR_LIST.find((s) => {
+    const labelNorm = s.label
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[\s-]+/g, "_");
+    return labelNorm === normalized;
+  });
+  if (byLabel) return byLabel.value;
+
+  // 4) Heurística por palavra-chave
+  if (normalized.includes("nao")) return "nao_eleitor";
+  if (normalized.includes("possivel")) return "possivel_eleitor";
+  if (normalized.includes("multiplicador")) return "multiplicador";
+  if (normalized.includes("voluntario")) return "voluntario";
+  if (normalized.includes("eleitor")) return "eleitor";
+
+  return "possivel_eleitor";
+}
+
 export function getStatusEleitor(value: string | null | undefined): StatusEleitorMeta {
-  if (!value) return STATUS_ELEITOR.possivel_eleitor;
-  return STATUS_ELEITOR[value as StatusEleitor] || STATUS_ELEITOR.possivel_eleitor;
+  return STATUS_ELEITOR[normalizeStatusEleitor(value)];
 }
