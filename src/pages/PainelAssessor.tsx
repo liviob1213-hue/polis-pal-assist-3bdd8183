@@ -220,19 +220,32 @@ export default function PainelAssessor() {
   }, [user]);
 
   // CADASTRAR ELEITOR
+  const resetEleitorForm = () => setEleitorForm({
+    nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "",
+    telefone: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor,
+    observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "",
+  });
+
   const handleCriarEleitor = async () => {
     if (!eleitorForm.nome.trim() || !eleitorForm.telefone.trim()) {
       toast({ title: "Nome e telefone são obrigatórios", variant: "destructive" });
       return;
     }
+    const endereco = [
+      eleitorForm.rua, eleitorForm.numero, eleitorForm.complemento,
+      eleitorForm.bairro, eleitorForm.cidade, eleitorForm.estado, eleitorForm.cep,
+    ].filter(Boolean).join(", ");
+
     const { data, error } = await supabase
       .from("eleitores")
       .insert({
         nome: eleitorForm.nome.trim(),
         telefone: eleitorForm.telefone.trim(),
-        endereco: eleitorForm.endereco || null,
+        endereco: endereco || null,
         interesse: eleitorForm.interesse || null,
+        status_eleitor: eleitorForm.status_eleitor || "possivel_eleitor",
         observacoes: eleitorForm.observacoes || null,
+        data_nascimento: eleitorForm.data_nascimento || null,
         criado_por: user?.id,
       })
       .select("id, nome")
@@ -246,9 +259,32 @@ export default function PainelAssessor() {
       });
       return;
     }
+
+    // Demanda inicial opcional vinculada ao eleitor
+    if (eleitorForm.demanda_titulo.trim()) {
+      const { error: dErr } = await supabase.from("demandas").insert({
+        titulo: eleitorForm.demanda_titulo.trim(),
+        descricao: eleitorForm.demanda_descricao.trim() || null,
+        eleitor_id: data.id,
+        assessor_id: user?.id,
+        criado_por: user?.id,
+        status: "Em Análise",
+      });
+      if (dErr) console.warn("Erro ao criar demanda do eleitor:", dErr);
+    }
+
+    // Geocoding (best-effort)
+    if (endereco) {
+      try {
+        await supabase.functions.invoke("geocode", { body: { eleitor_id: data.id, endereco } });
+      } catch (geoErr) {
+        console.warn("Geocoding failed:", geoErr);
+      }
+    }
+
     await fetchMeusEleitores();
     toast({ title: "✅ Eleitor cadastrado!" });
-    setEleitorForm({ nome: "", telefone: "", endereco: "", interesse: "", observacoes: "" });
+    resetEleitorForm();
     setEleitorOpen(false);
   };
 
@@ -272,6 +308,10 @@ export default function PainelAssessor() {
       eleitor_id: demandaForm.eleitor_id,
       assessor_id: demandaForm.responsavel === "eu" ? user?.id : null,
       prazo: demandaForm.prazo ? new Date(demandaForm.prazo).toISOString() : null,
+      localizacao: demandaForm.localizacao || null,
+      origem: demandaForm.origem || null,
+      tipo: demandaForm.tipo || null,
+      setor: demandaForm.setor || null,
       criado_por: user?.id,
       status: "Em Análise",
     });
@@ -280,7 +320,7 @@ export default function PainelAssessor() {
       return;
     }
     toast({ title: "✅ Demanda criada!" });
-    setDemandaForm({ titulo: "", descricao: "", eleitor_id: "", responsavel: "eu", prazo: "" });
+    setDemandaForm({ titulo: "", descricao: "", eleitor_id: "", responsavel: "eu", prazo: "", localizacao: "", origem: "", tipo: "", setor: "" });
     setDemandaOpen(false);
     fetchDemandas();
   };
