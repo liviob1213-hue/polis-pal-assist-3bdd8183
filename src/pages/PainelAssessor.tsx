@@ -482,34 +482,90 @@ export default function PainelAssessor() {
               </CardContent>
             </Card>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Novo Eleitor</DialogTitle>
             </DialogHeader>
-            <div className="space-y-3 pt-2">
+            <div className="space-y-4 pt-2 max-h-[70vh] overflow-y-auto pr-1">
               <div>
                 <Label>Nome <span className="text-destructive">*</span></Label>
                 <Input value={eleitorForm.nome} onChange={(e) => setEleitorForm({ ...eleitorForm, nome: e.target.value })} placeholder="Nome completo" />
               </div>
+
+              <div className="space-y-3 p-3 rounded-lg bg-secondary/30 border border-border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Endereço</p>
+                <div>
+                  <Label>Rua / Logradouro</Label>
+                  <AddressAutocomplete
+                    apiKey={mapsApiKey}
+                    value={eleitorForm.rua}
+                    onChange={(v) => setEleitorForm((prev) => ({ ...prev, rua: v }))}
+                    onAddressSelect={(c) => setEleitorForm((prev) => ({ ...prev, rua: c.rua, bairro: c.bairro, cidade: c.cidade, estado: c.estado, cep: c.cep }))}
+                    placeholder="Ex: Rua das Flores"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label>Número</Label><Input value={eleitorForm.numero} onChange={(e) => setEleitorForm({ ...eleitorForm, numero: e.target.value })} placeholder="Nº" /></div>
+                  <div><Label>Complemento</Label><Input value={eleitorForm.complemento} onChange={(e) => setEleitorForm({ ...eleitorForm, complemento: e.target.value })} placeholder="Apto, Bloco..." /></div>
+                </div>
+                <div><Label>Bairro</Label><Input value={eleitorForm.bairro} onChange={(e) => setEleitorForm({ ...eleitorForm, bairro: e.target.value })} placeholder="Bairro" /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label>Cidade</Label><Input value={eleitorForm.cidade} onChange={(e) => setEleitorForm({ ...eleitorForm, cidade: e.target.value })} placeholder="Cidade" /></div>
+                  <div><Label>Estado</Label><Input value={eleitorForm.estado} onChange={(e) => setEleitorForm({ ...eleitorForm, estado: e.target.value })} placeholder="UF" maxLength={2} /></div>
+                </div>
+                <div className="w-1/2"><Label>CEP</Label><Input value={eleitorForm.cep} onChange={(e) => setEleitorForm({ ...eleitorForm, cep: e.target.value })} placeholder="00000-000" /></div>
+              </div>
+
               <div>
                 <Label>Telefone <span className="text-destructive">*</span></Label>
                 <Input value={eleitorForm.telefone} onChange={(e) => setEleitorForm({ ...eleitorForm, telefone: e.target.value })} placeholder="(00) 00000-0000" />
               </div>
               <div>
-                <Label>Endereço</Label>
-                <Input value={eleitorForm.endereco} onChange={(e) => setEleitorForm({ ...eleitorForm, endereco: e.target.value })} />
+                <Label className="flex items-center gap-1.5"><Cake className="h-3.5 w-3.5 text-primary" /> Data de Nascimento</Label>
+                <Input type="date" value={eleitorForm.data_nascimento} onChange={(e) => setEleitorForm({ ...eleitorForm, data_nascimento: e.target.value })} />
               </div>
               <div>
-                <Label>Área de Interesse</Label>
+                <Label>Interesse</Label>
                 <Select value={eleitorForm.interesse} onValueChange={(v) => setEleitorForm({ ...eleitorForm, interesse: v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>{interesses.map((i) => (<SelectItem key={i} value={i}>{i}</SelectItem>))}</SelectContent>
                 </Select>
               </div>
               <div>
+                <Label>Status do Eleitor</Label>
+                <Select value={eleitorForm.status_eleitor} onValueChange={(v) => setEleitorForm({ ...eleitorForm, status_eleitor: v as StatusEleitor })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o status" /></SelectTrigger>
+                  <SelectContent>
+                    {STATUS_ELEITOR_LIST.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        <span className="mr-2">{s.emoji}</span>{s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label>Observações</Label>
                 <Textarea value={eleitorForm.observacoes} onChange={(e) => setEleitorForm({ ...eleitorForm, observacoes: e.target.value })} rows={3} />
               </div>
+
+              {/* Demanda inicial opcional */}
+              <div className="space-y-3 p-3 rounded-lg border border-warning/30 bg-warning/5">
+                <div className="flex items-center gap-2">
+                  <Megaphone className="h-4 w-4 text-warning" />
+                  <p className="text-xs font-semibold text-warning uppercase tracking-wider">Reclamação ou Solicitação (Opcional)</p>
+                </div>
+                <p className="text-xs text-muted-foreground">Caso o eleitor já tenha alguma demanda, registre aqui. Será criada automaticamente vinculada a ele.</p>
+                <div>
+                  <Label>Título da Demanda</Label>
+                  <Input value={eleitorForm.demanda_titulo} onChange={(e) => setEleitorForm({ ...eleitorForm, demanda_titulo: e.target.value })} placeholder="Ex: Buraco na rua, falta d'água..." />
+                </div>
+                <div>
+                  <Label>Descrição</Label>
+                  <Textarea value={eleitorForm.demanda_descricao} onChange={(e) => setEleitorForm({ ...eleitorForm, demanda_descricao: e.target.value })} placeholder="Detalhes da reclamação ou solicitação..." rows={2} />
+                </div>
+              </div>
+
               <Button onClick={handleCriarEleitor} className="w-full gradient-primary text-primary-foreground">Cadastrar Eleitor</Button>
             </div>
           </DialogContent>
