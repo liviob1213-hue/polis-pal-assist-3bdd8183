@@ -131,10 +131,20 @@ export default function PainelAssessor() {
 
   const [eleitorForm, setEleitorForm] = useState({
     nome: "",
+    rua: "",
+    numero: "",
+    complemento: "",
+    bairro: "",
+    cidade: "",
+    estado: "",
+    cep: "",
     telefone: "",
-    endereco: "",
     interesse: "",
+    status_eleitor: "possivel_eleitor" as StatusEleitor,
     observacoes: "",
+    data_nascimento: "",
+    demanda_titulo: "",
+    demanda_descricao: "",
   });
   const [demandaForm, setDemandaForm] = useState({
     titulo: "",
@@ -142,9 +152,14 @@ export default function PainelAssessor() {
     eleitor_id: "",
     responsavel: "eu" as "eu" | "aberto",
     prazo: "",
+    localizacao: "",
+    origem: "",
+    tipo: "",
+    setor: "",
   });
   const [agendaForm, setAgendaForm] = useState({ titulo: "", descricao: "", data: "", hora: "" });
   const [tarefaForm, setTarefaForm] = useState({ titulo: "", descricao: "", prazo: "" });
+  const { data: mapsApiKey = "" } = useGoogleMapsKey();
 
   const fetchMeusEleitores = async () => {
     if (!user) return;
