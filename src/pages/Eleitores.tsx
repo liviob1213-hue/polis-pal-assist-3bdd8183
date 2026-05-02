@@ -117,11 +117,21 @@ const Eleitores = () => {
   const upsertMutation = useMutation({
     mutationFn: async (payload: typeof form & { id?: string }) => {
       const endereco = [payload.rua, payload.numero, payload.complemento, payload.bairro, payload.cidade, payload.estado, payload.cep].filter(Boolean).join(", ");
+      const enderecoFields = {
+        logradouro: payload.rua || null,
+        numero: payload.numero || null,
+        complemento: payload.complemento || null,
+        bairro: payload.bairro || null,
+        cidade: payload.cidade || null,
+        estado: payload.estado || null,
+        cep: payload.cep || null,
+      };
       let eleitorId = payload.id;
       if (payload.id) {
         const { error } = await supabase.from("eleitores").update({
           nome: payload.nome,
           endereco: endereco || null,
+          ...enderecoFields,
           telefone: payload.telefone || null,
           interesse: payload.interesse || null,
           status_eleitor: payload.status_eleitor || "possivel_eleitor",
@@ -133,6 +143,7 @@ const Eleitores = () => {
         const { data, error } = await supabase.from("eleitores").insert({
           nome: payload.nome,
           endereco: endereco || null,
+          ...enderecoFields,
           telefone: payload.telefone || null,
           interesse: payload.interesse || null,
           status_eleitor: payload.status_eleitor || "possivel_eleitor",
