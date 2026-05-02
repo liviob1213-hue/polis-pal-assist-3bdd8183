@@ -57,6 +57,11 @@ interface AssessorOption {
   nome: string;
 }
 
+interface EleitorOption {
+  id: string;
+  nome: string;
+}
+
 type StatusKey = "Aberto" | "Em Análise" | "Em Andamento" | "Resolvido";
 
 const columns: { key: StatusKey; title: string; dotColor: string }[] = [
@@ -78,9 +83,10 @@ const Demandas = () => {
   const [demandas, setDemandas] = useState<Demanda[]>([]);
   const [assessores, setAssessores] = useState<AssessorOption[]>([]);
   const [assessorMap, setAssessorMap] = useState<Record<string, string>>({});
+  const [eleitores, setEleitores] = useState<EleitorOption[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingDemanda, setEditingDemanda] = useState<Demanda | null>(null);
-  const [form, setForm] = useState({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "", origem: "", tipo: "", setor: "" });
+  const [form, setForm] = useState({ titulo: "", descricao: "", localizacao: "", assessor_id: "", eleitor_id: "", prazo: "", origem: "", tipo: "", setor: "" });
   const [dragId, setDragId] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [filterDateEnd, setFilterDateEnd] = useState<Date | undefined>(undefined);
