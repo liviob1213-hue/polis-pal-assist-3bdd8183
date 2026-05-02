@@ -26,6 +26,7 @@ interface Demanda {
   status: string;
   localizacao: string | null;
   assessor_id: string | null;
+  eleitor_id: string | null;
   prazo: string | null;
   created_at: string;
   origem: string | null;
@@ -124,11 +125,21 @@ const Demandas = () => {
     setDemandas(data || []);
   };
 
+  const fetchEleitores = async () => {
+    const { data } = await supabase
+      .from("eleitores")
+      .select("id, nome")
+      .order("nome", { ascending: true });
+    setEleitores((data as EleitorOption[]) || []);
+  };
+
   useEffect(() => {
     fetchDemandas();
     fetchAssessores();
+    fetchEleitores();
     const channel = supabase.channel("demandas-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "demandas" }, () => fetchDemandas())
+      .on("postgres_changes", { event: "*", schema: "public", table: "eleitores" }, () => fetchEleitores())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user, role]);
