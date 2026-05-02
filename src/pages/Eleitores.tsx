@@ -23,6 +23,13 @@ interface Eleitor {
   id: string;
   nome: string;
   endereco: string | null;
+  logradouro: string | null;
+  numero: string | null;
+  complemento: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  estado: string | null;
+  cep: string | null;
   telefone: string | null;
   interesse: string | null;
   observacoes: string | null;
