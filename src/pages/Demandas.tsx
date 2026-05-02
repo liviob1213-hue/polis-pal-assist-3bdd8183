@@ -26,6 +26,7 @@ interface Demanda {
   status: string;
   localizacao: string | null;
   assessor_id: string | null;
+  eleitor_id: string | null;
   prazo: string | null;
   created_at: string;
   origem: string | null;
@@ -57,6 +58,11 @@ interface AssessorOption {
   nome: string;
 }
 
+interface EleitorOption {
+  id: string;
+  nome: string;
+}
+
 type StatusKey = "Aberto" | "Em Análise" | "Em Andamento" | "Resolvido";
 
 const columns: { key: StatusKey; title: string; dotColor: string }[] = [
@@ -78,9 +84,10 @@ const Demandas = () => {
   const [demandas, setDemandas] = useState<Demanda[]>([]);
   const [assessores, setAssessores] = useState<AssessorOption[]>([]);
   const [assessorMap, setAssessorMap] = useState<Record<string, string>>({});
+  const [eleitores, setEleitores] = useState<EleitorOption[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingDemanda, setEditingDemanda] = useState<Demanda | null>(null);
-  const [form, setForm] = useState({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "", origem: "", tipo: "", setor: "" });
+  const [form, setForm] = useState({ titulo: "", descricao: "", localizacao: "", assessor_id: "", eleitor_id: "", prazo: "", origem: "", tipo: "", setor: "" });
   const [dragId, setDragId] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [filterDateEnd, setFilterDateEnd] = useState<Date | undefined>(undefined);
@@ -118,11 +125,21 @@ const Demandas = () => {
     setDemandas(data || []);
   };
 
+  const fetchEleitores = async () => {
+    const { data } = await supabase
+      .from("eleitores")
+      .select("id, nome")
+      .order("nome", { ascending: true });
+    setEleitores((data as EleitorOption[]) || []);
+  };
+
   useEffect(() => {
     fetchDemandas();
     fetchAssessores();
+    fetchEleitores();
     const channel = supabase.channel("demandas-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "demandas" }, () => fetchDemandas())
+      .on("postgres_changes", { event: "*", schema: "public", table: "eleitores" }, () => fetchEleitores())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user, role]);
@@ -156,6 +173,7 @@ const Demandas = () => {
       origem: form.origem || null,
       tipo: form.tipo || null,
       setor: form.setor || null,
+      eleitor_id: form.eleitor_id || null,
     };
     if (role === "politico") {
       payload.assessor_id = form.assessor_id || null;
@@ -174,7 +192,7 @@ const Demandas = () => {
       toast({ title: "Demanda criada!" });
     }
 
-    setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "", origem: "", tipo: "", setor: "" });
+    setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", eleitor_id: "", prazo: "", origem: "", tipo: "", setor: "" });
     setEditingDemanda(null);
     setDialogOpen(false);
   };
@@ -186,6 +204,7 @@ const Demandas = () => {
       descricao: demanda.descricao || "",
       localizacao: demanda.localizacao || "",
       assessor_id: demanda.assessor_id || "",
+      eleitor_id: demanda.eleitor_id || "",
       prazo: demanda.prazo ? demanda.prazo.split("T")[0] : "",
       origem: demanda.origem || "",
       tipo: demanda.tipo || "",
@@ -280,7 +299,7 @@ const Demandas = () => {
             </PopoverContent>
           </Popover>
           <Badge variant="secondary" className="text-sm">{total} Total</Badge>
-          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingDemanda(null); setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", prazo: "", origem: "", tipo: "", setor: "" }); } }}>
+          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingDemanda(null); setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", eleitor_id: "", prazo: "", origem: "", tipo: "", setor: "" }); } }}>
             <DialogTrigger asChild>
               <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
                 <Plus className="h-4 w-4" /> Nova Demanda
@@ -325,6 +344,18 @@ const Demandas = () => {
                 </div>
                 <div><Label>Localização</Label><Input value={form.localizacao} onChange={(e) => setForm({ ...form, localizacao: e.target.value })} placeholder="Local da demanda" /></div>
                 <div><Label>Prazo</Label><Input type="date" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} /></div>
+                <div>
+                  <Label>👤 Vincular a Eleitor (opcional)</Label>
+                  <Select value={form.eleitor_id || "none"} onValueChange={(v) => setForm({ ...form, eleitor_id: v === "none" ? "" : v })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione um eleitor" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem vínculo</SelectItem>
+                      {eleitores.map((e) => (
+                        <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 {role === "politico" && assessores.length > 0 && (
                   <div>
                     <Label>Atribuir a Assessor</Label>
