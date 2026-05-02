@@ -33,6 +33,8 @@ import {
   GripVertical,
   AlertTriangle,
   CheckCircle2,
+  Cake,
+  Megaphone,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -40,6 +42,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
+import { useGoogleMapsKey } from "@/hooks/useGoogleMapsKey";
+import { STATUS_ELEITOR_LIST, type StatusEleitor } from "@/lib/statusEleitor";
 
 interface Demanda {
   id: string;
