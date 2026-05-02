@@ -87,7 +87,7 @@ const Eleitores = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("eleitores")
-        .select("id, nome, endereco, telefone, interesse, observacoes, latitude, longitude, data_nascimento, agente_ativo, status_eleitor")
+        .select("id, nome, endereco, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, interesse, observacoes, latitude, longitude, data_nascimento, agente_ativo, status_eleitor")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as Eleitor[];
