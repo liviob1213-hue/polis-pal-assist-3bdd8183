@@ -23,6 +23,13 @@ interface Eleitor {
   id: string;
   nome: string;
   endereco: string | null;
+  logradouro: string | null;
+  numero: string | null;
+  complemento: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  estado: string | null;
+  cep: string | null;
   telefone: string | null;
   interesse: string | null;
   observacoes: string | null;
@@ -80,7 +87,7 @@ const Eleitores = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("eleitores")
-        .select("id, nome, endereco, telefone, interesse, observacoes, latitude, longitude, data_nascimento, agente_ativo, status_eleitor")
+        .select("id, nome, endereco, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, interesse, observacoes, latitude, longitude, data_nascimento, agente_ativo, status_eleitor")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as Eleitor[];
@@ -110,11 +117,21 @@ const Eleitores = () => {
   const upsertMutation = useMutation({
     mutationFn: async (payload: typeof form & { id?: string }) => {
       const endereco = [payload.rua, payload.numero, payload.complemento, payload.bairro, payload.cidade, payload.estado, payload.cep].filter(Boolean).join(", ");
+      const enderecoFields = {
+        logradouro: payload.rua || null,
+        numero: payload.numero || null,
+        complemento: payload.complemento || null,
+        bairro: payload.bairro || null,
+        cidade: payload.cidade || null,
+        estado: payload.estado || null,
+        cep: payload.cep || null,
+      };
       let eleitorId = payload.id;
       if (payload.id) {
         const { error } = await supabase.from("eleitores").update({
           nome: payload.nome,
           endereco: endereco || null,
+          ...enderecoFields,
           telefone: payload.telefone || null,
           interesse: payload.interesse || null,
           status_eleitor: payload.status_eleitor || "possivel_eleitor",
@@ -126,6 +143,7 @@ const Eleitores = () => {
         const { data, error } = await supabase.from("eleitores").insert({
           nome: payload.nome,
           endereco: endereco || null,
+          ...enderecoFields,
           telefone: payload.telefone || null,
           interesse: payload.interesse || null,
           status_eleitor: payload.status_eleitor || "possivel_eleitor",
@@ -270,13 +288,13 @@ const Eleitores = () => {
     const parts = (eleitor.endereco || "").split(", ");
     setForm({
       nome: eleitor.nome,
-      rua: parts[0] || "",
-      numero: parts[1] || "",
-      complemento: "",
-      bairro: parts[2] || "",
-      cidade: parts[3] || "",
-      estado: parts[4] || "",
-      cep: parts[5] || "",
+      rua: eleitor.logradouro || parts[0] || "",
+      numero: eleitor.numero || parts[1] || "",
+      complemento: eleitor.complemento || "",
+      bairro: eleitor.bairro || parts[2] || "",
+      cidade: eleitor.cidade || parts[3] || "",
+      estado: eleitor.estado || parts[4] || "",
+      cep: eleitor.cep || parts[5] || "",
       telefone: eleitor.telefone || "",
       interesse: eleitor.interesse || "",
       status_eleitor: ((eleitor.status_eleitor as StatusEleitor) || "possivel_eleitor"),
