@@ -344,6 +344,18 @@ const Demandas = () => {
                 </div>
                 <div><Label>Localização</Label><Input value={form.localizacao} onChange={(e) => setForm({ ...form, localizacao: e.target.value })} placeholder="Local da demanda" /></div>
                 <div><Label>Prazo</Label><Input type="date" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} /></div>
+                <div>
+                  <Label>👤 Vincular a Eleitor (opcional)</Label>
+                  <Select value={form.eleitor_id || "none"} onValueChange={(v) => setForm({ ...form, eleitor_id: v === "none" ? "" : v })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione um eleitor" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem vínculo</SelectItem>
+                      {eleitores.map((e) => (
+                        <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 {role === "politico" && assessores.length > 0 && (
                   <div>
                     <Label>Atribuir a Assessor</Label>
