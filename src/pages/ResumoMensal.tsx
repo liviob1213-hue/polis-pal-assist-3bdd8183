@@ -100,15 +100,17 @@ const ResumoMensal = () => {
       supabase.from("eleitores").select("*").not("data_nascimento", "is", null),
     ]);
 
-    // Aniversariantes do mês passado
-    const mesAlvo = inicio.getMonth() + 1;
+    // Aniversariantes dentro do período
     const anivMes = (aniversariantes || []).filter((e: any) => {
       if (!e.data_nascimento) return false;
-      const m = parseInt(e.data_nascimento.split("-")[1], 10);
-      return m === mesAlvo;
+      const [, m, d] = e.data_nascimento.split("-").map((v: string) => parseInt(v, 10));
+      // Verifica se a data (mês/dia) cai no intervalo
+      const ano = inicio.getFullYear();
+      const tentativa = new Date(ano, m - 1, d);
+      return tentativa >= inicio && tentativa <= fim;
     });
 
-    // Top interesses dos eleitores cadastrados no mês
+    // Top interesses dos eleitores cadastrados no período
     const contInt: Record<string, number> = {};
     (eleitores || []).forEach((e: any) => {
       const i = (e.interesse || "Não informado").trim();
@@ -122,7 +124,7 @@ const ResumoMensal = () => {
     setData({
       inicio,
       fim,
-      rotuloMes: `${NOMES_MES[inicio.getMonth()]} de ${inicio.getFullYear()}`,
+      rotuloMes: rotulo,
       eleitores: eleitores || [],
       demandas: demandas || [],
       demandasResolvidas: demandasResolvidas || [],
