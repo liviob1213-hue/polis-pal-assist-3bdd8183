@@ -3,9 +3,15 @@ import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileBarChart, Download, Users, FileText, CheckSquare, CalendarDays, Cake, Loader2 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FileBarChart, Download, Users, FileText, CheckSquare, CalendarDays, Cake, Loader2, CalendarIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { BRAND, drawCover, drawHeader, drawFooter, drawSectionTitle, getLogoDataUrl } from "@/lib/pdfBranding";
@@ -25,34 +31,54 @@ interface ResumoData {
   topInteresses: { interesse: string; total: number }[];
 }
 
-function inicioMesAtual() {
-  const hoje = new Date();
-  return new Date(hoje.getFullYear(), hoje.getMonth(), 1, 0, 0, 0);
-}
-function fimMesAtual() {
-  const hoje = new Date();
-  return new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 23, 59, 59);
-}
+type PeriodoTipo = "semana" | "mes" | "mes_passado" | "personalizado";
 
 const NOMES_MES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
+function calcPeriodo(tipo: PeriodoTipo, custom?: { from?: Date; to?: Date }): { inicio: Date; fim: Date; rotulo: string } {
+  const hoje = new Date();
+  if (tipo === "semana") {
+    const ini = new Date(hoje);
+    ini.setDate(hoje.getDate() - 6);
+    ini.setHours(0, 0, 0, 0);
+    const fim = new Date(hoje); fim.setHours(23, 59, 59, 999);
+    return { inicio: ini, fim, rotulo: `${format(ini, "dd/MM")} – ${format(fim, "dd/MM/yyyy")}` };
+  }
+  if (tipo === "mes_passado") {
+    const ini = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1, 0, 0, 0);
+    const fim = new Date(hoje.getFullYear(), hoje.getMonth(), 0, 23, 59, 59);
+    return { inicio: ini, fim, rotulo: `${NOMES_MES[ini.getMonth()]} de ${ini.getFullYear()}` };
+  }
+  if (tipo === "personalizado" && custom?.from && custom?.to) {
+    const ini = new Date(custom.from); ini.setHours(0, 0, 0, 0);
+    const fim = new Date(custom.to); fim.setHours(23, 59, 59, 999);
+    return { inicio: ini, fim, rotulo: `${format(ini, "dd/MM/yyyy")} – ${format(fim, "dd/MM/yyyy")}` };
+  }
+  // mes atual (default)
+  const ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1, 0, 0, 0);
+  const fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 23, 59, 59);
+  return { inicio: ini, fim, rotulo: `${NOMES_MES[ini.getMonth()]} de ${ini.getFullYear()}` };
+}
+
 const ResumoMensal = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [gerandoPDF, setGerandoPDF] = useState(false);
   const [data, setData] = useState<ResumoData | null>(null);
+  const [periodoTipo, setPeriodoTipo] = useState<PeriodoTipo>("mes");
+  const [customRange, setCustomRange] = useState<{ from?: Date; to?: Date }>({});
 
   useEffect(() => {
+    if (periodoTipo === "personalizado" && (!customRange.from || !customRange.to)) return;
     carregar();
-  }, []);
+  }, [periodoTipo, customRange.from, customRange.to]);
 
   const carregar = async () => {
     setLoading(true);
-    const inicio = inicioMesAtual();
-    const fim = fimMesAtual();
+    const { inicio, fim, rotulo } = calcPeriodo(periodoTipo, customRange);
     const inicioIso = inicio.toISOString();
     const fimIso = fim.toISOString();
 
@@ -74,15 +100,17 @@ const ResumoMensal = () => {
       supabase.from("eleitores").select("*").not("data_nascimento", "is", null),
     ]);
 
-    // Aniversariantes do mês passado
-    const mesAlvo = inicio.getMonth() + 1;
+    // Aniversariantes dentro do período
     const anivMes = (aniversariantes || []).filter((e: any) => {
       if (!e.data_nascimento) return false;
-      const m = parseInt(e.data_nascimento.split("-")[1], 10);
-      return m === mesAlvo;
+      const [, m, d] = e.data_nascimento.split("-").map((v: string) => parseInt(v, 10));
+      // Verifica se a data (mês/dia) cai no intervalo
+      const ano = inicio.getFullYear();
+      const tentativa = new Date(ano, m - 1, d);
+      return tentativa >= inicio && tentativa <= fim;
     });
 
-    // Top interesses dos eleitores cadastrados no mês
+    // Top interesses dos eleitores cadastrados no período
     const contInt: Record<string, number> = {};
     (eleitores || []).forEach((e: any) => {
       const i = (e.interesse || "Não informado").trim();
@@ -96,7 +124,7 @@ const ResumoMensal = () => {
     setData({
       inicio,
       fim,
-      rotuloMes: `${NOMES_MES[inicio.getMonth()]} de ${inicio.getFullYear()}`,
+      rotuloMes: rotulo,
       eleitores: eleitores || [],
       demandas: demandas || [],
       demandasResolvidas: demandasResolvidas || [],
@@ -400,16 +428,54 @@ const ResumoMensal = () => {
         <div>
           <div className="flex items-center gap-2">
             <FileBarChart className="h-6 w-6 text-accent" />
-            <h1 className="text-2xl font-bold tracking-tight">Resumo Mensal</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Resumo do Período</h1>
           </div>
           <p className="text-muted-foreground text-sm mt-1">
             Tudo que aconteceu em <strong>{data.rotuloMes}</strong>. Baixe o relatório completo em PDF.
           </p>
         </div>
-        <Button onClick={gerarPDF} disabled={gerandoPDF} className="gradient-primary text-primary-foreground gap-2">
-          {gerandoPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          Baixar PDF Completo
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={periodoTipo} onValueChange={(v) => setPeriodoTipo(v as PeriodoTipo)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="semana">Últimos 7 dias</SelectItem>
+              <SelectItem value="mes">Mês atual</SelectItem>
+              <SelectItem value="mes_passado">Mês passado</SelectItem>
+              <SelectItem value="personalizado">Personalizado</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {periodoTipo === "personalizado" && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("justify-start text-left font-normal gap-2", !customRange.from && "text-muted-foreground")}>
+                  <CalendarIcon className="h-4 w-4" />
+                  {customRange.from && customRange.to
+                    ? `${format(customRange.from, "dd/MM/yy")} – ${format(customRange.to, "dd/MM/yy")}`
+                    : "Escolher datas"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="range"
+                  selected={customRange as any}
+                  onSelect={(r: any) => setCustomRange(r || {})}
+                  numberOfMonths={2}
+                  locale={ptBR}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          )}
+
+          <Button onClick={gerarPDF} disabled={gerandoPDF} className="gradient-primary text-primary-foreground gap-2">
+            {gerandoPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            Baixar PDF
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
