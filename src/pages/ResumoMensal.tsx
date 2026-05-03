@@ -25,13 +25,13 @@ interface ResumoData {
   topInteresses: { interesse: string; total: number }[];
 }
 
-function inicioMesPassado() {
+function inicioMesAtual() {
   const hoje = new Date();
-  return new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1, 0, 0, 0);
+  return new Date(hoje.getFullYear(), hoje.getMonth(), 1, 0, 0, 0);
 }
-function fimMesPassado() {
+function fimMesAtual() {
   const hoje = new Date();
-  return new Date(hoje.getFullYear(), hoje.getMonth(), 0, 23, 59, 59);
+  return new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 23, 59, 59);
 }
 
 const NOMES_MES = [
