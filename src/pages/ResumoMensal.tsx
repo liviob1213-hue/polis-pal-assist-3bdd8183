@@ -428,7 +428,7 @@ const ResumoMensal = () => {
         <div>
           <div className="flex items-center gap-2">
             <FileBarChart className="h-6 w-6 text-accent" />
-            <h1 className="text-2xl font-bold tracking-tight">Resumo Mensal</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Resumo do Período</h1>
           </div>
           <p className="text-muted-foreground text-sm mt-1">
             Tudo que aconteceu em <strong>{data.rotuloMes}</strong>. Baixe o relatório completo em PDF.
