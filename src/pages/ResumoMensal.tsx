@@ -31,34 +31,54 @@ interface ResumoData {
   topInteresses: { interesse: string; total: number }[];
 }
 
-function inicioMesAtual() {
-  const hoje = new Date();
-  return new Date(hoje.getFullYear(), hoje.getMonth(), 1, 0, 0, 0);
-}
-function fimMesAtual() {
-  const hoje = new Date();
-  return new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 23, 59, 59);
-}
+type PeriodoTipo = "semana" | "mes" | "mes_passado" | "personalizado";
 
 const NOMES_MES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
+function calcPeriodo(tipo: PeriodoTipo, custom?: { from?: Date; to?: Date }): { inicio: Date; fim: Date; rotulo: string } {
+  const hoje = new Date();
+  if (tipo === "semana") {
+    const ini = new Date(hoje);
+    ini.setDate(hoje.getDate() - 6);
+    ini.setHours(0, 0, 0, 0);
+    const fim = new Date(hoje); fim.setHours(23, 59, 59, 999);
+    return { inicio: ini, fim, rotulo: `${format(ini, "dd/MM")} – ${format(fim, "dd/MM/yyyy")}` };
+  }
+  if (tipo === "mes_passado") {
+    const ini = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1, 0, 0, 0);
+    const fim = new Date(hoje.getFullYear(), hoje.getMonth(), 0, 23, 59, 59);
+    return { inicio: ini, fim, rotulo: `${NOMES_MES[ini.getMonth()]} de ${ini.getFullYear()}` };
+  }
+  if (tipo === "personalizado" && custom?.from && custom?.to) {
+    const ini = new Date(custom.from); ini.setHours(0, 0, 0, 0);
+    const fim = new Date(custom.to); fim.setHours(23, 59, 59, 999);
+    return { inicio: ini, fim, rotulo: `${format(ini, "dd/MM/yyyy")} – ${format(fim, "dd/MM/yyyy")}` };
+  }
+  // mes atual (default)
+  const ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1, 0, 0, 0);
+  const fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 23, 59, 59);
+  return { inicio: ini, fim, rotulo: `${NOMES_MES[ini.getMonth()]} de ${ini.getFullYear()}` };
+}
+
 const ResumoMensal = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [gerandoPDF, setGerandoPDF] = useState(false);
   const [data, setData] = useState<ResumoData | null>(null);
+  const [periodoTipo, setPeriodoTipo] = useState<PeriodoTipo>("mes");
+  const [customRange, setCustomRange] = useState<{ from?: Date; to?: Date }>({});
 
   useEffect(() => {
+    if (periodoTipo === "personalizado" && (!customRange.from || !customRange.to)) return;
     carregar();
-  }, []);
+  }, [periodoTipo, customRange.from, customRange.to]);
 
   const carregar = async () => {
     setLoading(true);
-    const inicio = inicioMesAtual();
-    const fim = fimMesAtual();
+    const { inicio, fim, rotulo } = calcPeriodo(periodoTipo, customRange);
     const inicioIso = inicio.toISOString();
     const fimIso = fim.toISOString();
 
