@@ -434,10 +434,48 @@ const ResumoMensal = () => {
             Tudo que aconteceu em <strong>{data.rotuloMes}</strong>. Baixe o relatório completo em PDF.
           </p>
         </div>
-        <Button onClick={gerarPDF} disabled={gerandoPDF} className="gradient-primary text-primary-foreground gap-2">
-          {gerandoPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          Baixar PDF Completo
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={periodoTipo} onValueChange={(v) => setPeriodoTipo(v as PeriodoTipo)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="semana">Últimos 7 dias</SelectItem>
+              <SelectItem value="mes">Mês atual</SelectItem>
+              <SelectItem value="mes_passado">Mês passado</SelectItem>
+              <SelectItem value="personalizado">Personalizado</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {periodoTipo === "personalizado" && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("justify-start text-left font-normal gap-2", !customRange.from && "text-muted-foreground")}>
+                  <CalendarIcon className="h-4 w-4" />
+                  {customRange.from && customRange.to
+                    ? `${format(customRange.from, "dd/MM/yy")} – ${format(customRange.to, "dd/MM/yy")}`
+                    : "Escolher datas"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="range"
+                  selected={customRange as any}
+                  onSelect={(r: any) => setCustomRange(r || {})}
+                  numberOfMonths={2}
+                  locale={ptBR}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          )}
+
+          <Button onClick={gerarPDF} disabled={gerandoPDF} className="gradient-primary text-primary-foreground gap-2">
+            {gerandoPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            Baixar PDF
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
