@@ -51,8 +51,8 @@ const ResumoMensal = () => {
 
   const carregar = async () => {
     setLoading(true);
-    const inicio = inicioMesPassado();
-    const fim = fimMesPassado();
+    const inicio = inicioMesAtual();
+    const fim = fimMesAtual();
     const inicioIso = inicio.toISOString();
     const fimIso = fim.toISOString();
 
