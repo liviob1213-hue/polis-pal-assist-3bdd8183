@@ -1,15 +1,13 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Phone, Mail, User, Lock, ArrowRight, CheckCircle } from "lucide-react";
+import { Eye, EyeOff, Phone, Mail, User, Lock, ArrowRight, MailCheck } from "lucide-react";
 import logoDemocrat from "@/assets/logo-democrat.png";
-
-const SUPABASE_FUNCTIONS_URL = "https://aecwbjydyoxkonqbkfft.supabase.co/functions/v1";
 
 function formatPhoneDisplay(value: string): string {
   const digits = value.replace(/\D/g, "");
@@ -29,23 +27,20 @@ function formatPhoneForUazapi(phone: string): string {
 }
 
 export default function Cadastro() {
-  const [step, setStep] = useState<"form" | "verify">("form");
+  const [step, setStep] = useState<"form" | "sent">("form");
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
   const [telefone, setTelefone] = useState("");
-  const role = "politico" as const;
-  const [code, setCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const navigate = useNavigate();
 
   const formattedPhone = formatPhoneForUazapi(telefone);
 
-  const handleSendCode = async () => {
+  const handleSignUp = async () => {
     if (!nome.trim() || !email.trim() || !senha || !confirmarSenha || !telefone.trim()) {
       toast({ title: "Preencha todos os campos", variant: "destructive" });
       return;
@@ -61,62 +56,47 @@ export default function Cadastro() {
 
     setLoading(true);
     try {
-      const res = await fetch(
-        `${SUPABASE_FUNCTIONS_URL}/send-otp`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ telefone: formattedPhone }),
-        }
-      );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erro ao enviar código");
-
-      toast({ title: "Código enviado!", description: "Verifique seu WhatsApp." });
-      setStep("verify");
-    } catch (err: any) {
-      toast({ title: "Erro", description: err.message, variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerify = async () => {
-    if (!code.trim() || code.length !== 6) {
-      toast({ title: "Digite o código de 6 dígitos", variant: "destructive" });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const res = await fetch(
-        `${SUPABASE_FUNCTIONS_URL}/verify-otp`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            telefone: formattedPhone,
-            code,
-            nome,
-            email,
-            password: senha,
-            role,
-          }),
-        }
-      );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erro na verificação");
-
-      const { error: signInErr } = await supabase.auth.signInWithPassword({
+      const redirectUrl = `${window.location.origin}/`;
+      const { data, error } = await supabase.auth.signUp({
         email,
         password: senha,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            nome,
+            telefone: formattedPhone,
+            role: "politico",
+          },
+        },
       });
-      if (signInErr) throw new Error(signInErr.message);
+      if (error) throw error;
 
-      toast({ title: "Cadastro realizado!", description: `Bem-vindo ao DEMOCRAT.AI!` });
-      navigate("/");
+      // Cria/atualiza profile (caso o trigger no DB não exista)
+      if (data.user) {
+        await supabase.from("profiles").upsert(
+          {
+            user_id: data.user.id,
+            nome,
+            email,
+            telefone: formattedPhone,
+            role: "politico",
+            is_authorized: true,
+          },
+          { onConflict: "user_id" }
+        );
+        await supabase.from("user_roles").upsert(
+          { user_id: data.user.id, role: "politico" },
+          { onConflict: "user_id,role" }
+        );
+      }
+
+      setStep("sent");
+      toast({
+        title: "Cadastro iniciado!",
+        description: "Enviamos um link de confirmação para o seu email.",
+      });
     } catch (err: any) {
-      toast({ title: "Erro", description: err.message, variant: "destructive" });
+      toast({ title: "Erro no cadastro", description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -130,12 +110,12 @@ export default function Cadastro() {
             <img src={logoDemocrat} alt="Democrat.AI" className="h-20 object-contain" />
           </div>
           <CardTitle className="text-2xl font-bold">
-            {step === "form" ? "Criar Conta" : "Verificar WhatsApp"}
+            {step === "form" ? "Criar Conta" : "Confirme seu Email"}
           </CardTitle>
           <CardDescription>
             {step === "form"
               ? "Preencha seus dados para acessar o sistema"
-              : `Digite o código enviado para ${formatPhoneDisplay(telefone.replace(/\D/g, ""))}`}
+              : `Enviamos um link de confirmação para ${email}`}
           </CardDescription>
         </CardHeader>
 
@@ -164,11 +144,6 @@ export default function Cadastro() {
                   <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input id="telefone" placeholder="(31) 99999-9999" value={formatPhoneDisplay(telefone.replace(/\D/g, ""))} onChange={(e) => setTelefone(e.target.value)} className="pl-10" maxLength={15} />
                 </div>
-                {telefone.replace(/\D/g, "").length >= 10 && (
-                  <p className="text-xs text-muted-foreground">
-                    Formato Uazapi: <span className="font-mono text-primary">{formattedPhone}</span>
-                  </p>
-                )}
               </div>
 
               <div className="space-y-2">
@@ -196,8 +171,8 @@ export default function Cadastro() {
                 )}
               </div>
 
-              <Button onClick={handleSendCode} disabled={loading} className="w-full" size="lg">
-                {loading ? "Enviando..." : "Enviar código de verificação"}
+              <Button onClick={handleSignUp} disabled={loading} className="w-full" size="lg">
+                {loading ? "Enviando..." : "Criar conta e enviar email"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
 
@@ -211,20 +186,23 @@ export default function Cadastro() {
               </p>
             </>
           ) : (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="code">Código de verificação</Label>
-                <Input id="code" placeholder="000000" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} className="text-center text-2xl tracking-[0.5em] font-mono" maxLength={6} />
+            <div className="text-center space-y-4 py-4">
+              <div className="flex justify-center">
+                <div className="rounded-full bg-primary/10 p-4">
+                  <MailCheck className="h-12 w-12 text-primary" />
+                </div>
               </div>
-              <Button onClick={handleVerify} disabled={loading || code.length !== 6} className="w-full" size="lg">
-                {loading ? "Verificando..." : "Verificar e criar conta"}
-                <CheckCircle className="ml-2 h-4 w-4" />
+              <p className="text-sm text-muted-foreground">
+                Clique no link enviado para <strong>{email}</strong> para ativar sua conta.
+                Verifique também a caixa de spam.
+              </p>
+              <Button asChild className="w-full" size="lg">
+                <Link to="/login">Ir para o login</Link>
               </Button>
-              <div className="flex justify-between">
-                <button onClick={() => setStep("form")} className="text-sm text-muted-foreground hover:text-foreground">← Voltar</button>
-                <button onClick={handleSendCode} disabled={loading} className="text-sm text-primary hover:underline">Reenviar código</button>
-              </div>
-            </>
+              <button onClick={() => setStep("form")} className="text-sm text-muted-foreground hover:text-foreground">
+                ← Voltar e editar dados
+              </button>
+            </div>
           )}
         </CardContent>
       </Card>
