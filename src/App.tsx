@@ -22,6 +22,7 @@ import BaseConhecimento from "./pages/BaseConhecimento";
 import PainelAssessor from "./pages/PainelAssessor";
 import Login from "./pages/Login";
 import Cadastro from "./pages/Cadastro";
+import Admin from "./pages/Admin";
 import LoginAssessor from "./pages/LoginAssessor";
 import CadastroAssessor from "./pages/CadastroAssessor";
 import AprovarAssessores from "./pages/AprovarAssessores";
@@ -69,6 +70,7 @@ const AnimatedRoutes = () => {
         <Route path="/login-assessor" element={<PublicRoute><LoginAssessor /></PublicRoute>} />
         <Route path="/cadastro-assessor" element={<PublicRoute><CadastroAssessor /></PublicRoute>} />
         <Route path="/aprovar-assessores" element={<PoliticoRoute><AppLayout><AprovarAssessores /></AppLayout></PoliticoRoute>} />
+        <Route path="/admin" element={<PoliticoRoute><AppLayout><Admin /></AppLayout></PoliticoRoute>} />
         <Route path="/" element={<ProtectedRoute><AppLayout><HomeRoute /></AppLayout></ProtectedRoute>} />
         <Route path="/eleitores" element={<PoliticoRoute><AppLayout><Eleitores /></AppLayout></PoliticoRoute>} />
         <Route path="/mapa-eleitores" element={<PoliticoRoute><AppLayout><MapaEleitores /></AppLayout></PoliticoRoute>} />
