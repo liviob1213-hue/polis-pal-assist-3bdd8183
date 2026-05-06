@@ -17,7 +17,9 @@ export default function Login() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-  const redirectTo = (location.state as { from?: string } | null)?.from || "/";
+  const redirectParam = new URLSearchParams(location.search).get("redirect");
+  const stateFrom = (location.state as { from?: string } | null)?.from;
+  const redirectTo = redirectParam?.startsWith("/") ? redirectParam : stateFrom || "/";
 
   const handleLogin = async () => {
     if (!email.trim() || !senha) {
