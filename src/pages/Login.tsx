@@ -105,11 +105,8 @@ export default function Login() {
               <Link to="/login-assessor" className="text-primary hover:underline font-medium">
                 Entrar
               </Link>
-              {" · "}
-              <Link to="/cadastro-assessor" className="text-primary hover:underline font-medium">
-                Criar conta de assessor
-              </Link>
             </p>
+            <p className="text-[10px] text-muted-foreground">Contas de assessor são criadas pelo administrador.</p>
           </div>
         </CardContent>
       </Card>
