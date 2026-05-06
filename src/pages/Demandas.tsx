@@ -181,15 +181,16 @@ const Demandas = () => {
       payload.assessor_id = form.assessor_id || null;
     }
 
+    const safePayload = normalizePayload(payload);
     if (editingDemanda) {
-      const { error } = await supabase.from("demandas").update(payload).eq("id", editingDemanda.id);
+      const { error } = await supabase.from("demandas").update(safePayload).eq("id", editingDemanda.id);
       if (error) { toast({ title: "Erro ao atualizar", variant: "destructive" }); return; }
       toast({ title: "Demanda atualizada!" });
     } else {
       if (role === "assessor" && user) {
-        payload.assessor_id = user.id;
+        safePayload.assessor_id = user.id;
       }
-      const { error } = await supabase.from("demandas").insert(payload);
+      const { error } = await supabase.from("demandas").insert(safePayload);
       if (error) { toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Demanda criada!" });
     }
