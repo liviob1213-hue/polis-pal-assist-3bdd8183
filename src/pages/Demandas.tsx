@@ -224,7 +224,7 @@ const Demandas = () => {
   };
 
   const moveTask = async (id: string, newStatus: StatusKey) => {
-    const { error } = await supabase.from("demandas").update({ status: newStatus }).eq("id", id);
+    const { error } = await supabase.from("demandas").update({ status: normalizeText(newStatus) }).eq("id", id);
     if (error) { toast({ title: "Erro ao mover demanda", variant: "destructive" }); return; }
     fetchDemandas();
   };
