@@ -438,18 +438,25 @@ const Tarefas = () => {
                 </div>
 
                 <div><Label>📅 Prazo</Label><Input type="date" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} /></div>
-                {role === "politico" && assessores.length > 0 && (
+                {role === "politico" && (
                   <div>
-                    <Label>👤 Responsável pela execução</Label>
+                    <Label>👤 Atribuir a um assessor</Label>
                     <Select value={form.assessor_id || "none"} onValueChange={(v) => setForm({ ...form, assessor_id: v === "none" ? "" : v })}>
-                      <SelectTrigger><SelectValue placeholder="Selecione um assessor (opcional)" /></SelectTrigger>
+                      <SelectTrigger>
+                        <SelectValue placeholder={assessores.length === 0 ? "Nenhum assessor vinculado" : "Selecione um assessor (opcional)"} />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">Nenhum</SelectItem>
+                        <SelectItem value="none">Nenhum (eu mesmo)</SelectItem>
                         {assessores.map((a) => (
                           <SelectItem key={a.user_id} value={a.user_id}>{a.nome}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    {assessores.length === 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Cadastre assessores em <a href="/admin" className="text-primary underline">/admin</a> ou aprove em <a href="/aprovar-assessores" className="text-primary underline">Aprovar Assessores</a>.
+                      </p>
+                    )}
                   </div>
                 )}
                 <Button onClick={handleSave} className="w-full gradient-primary text-primary-foreground">
