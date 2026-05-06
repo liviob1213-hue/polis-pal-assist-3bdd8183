@@ -19,7 +19,7 @@ export default function Login() {
   const location = useLocation();
   const redirectParam = new URLSearchParams(location.search).get("redirect");
   const stateFrom = (location.state as { from?: string } | null)?.from;
-  const redirectTo = redirectParam?.startsWith("/") ? redirectParam : stateFrom || "/";
+  const redirectTo = redirectParam?.startsWith("/") && !redirectParam.startsWith("//") ? redirectParam : stateFrom || "/";
 
   const handleLogin = async () => {
     if (!email.trim() || !senha) {
