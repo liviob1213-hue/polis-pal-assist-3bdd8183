@@ -59,12 +59,17 @@ export default function Admin() {
   };
 
   const submit = async () => {
-    if (!form.nome || !form.email || !form.senha) {
-      toast({ title: "Preencha nome, email e senha", variant: "destructive" });
+    if (!form.nome || !form.email || !form.telefone || !form.senha) {
+      toast({ title: "Preencha nome, email, WhatsApp e senha", variant: "destructive" });
       return;
     }
     if (form.senha.length < 6) {
       toast({ title: "Senha deve ter no mínimo 6 caracteres", variant: "destructive" });
+      return;
+    }
+    const digits = form.telefone.replace(/\D/g, "");
+    if (digits.length < 10) {
+      toast({ title: "WhatsApp inválido", description: "Informe DDD + número", variant: "destructive" });
       return;
     }
     setLoading(true);
