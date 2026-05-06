@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInDays, isSameDay, isWithinInterval, startOfDay, endOfDay, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { normalizePayload, normalizeText } from "@/lib/textEncoding";
 
 interface Demanda {
   id: string;
@@ -122,7 +123,8 @@ const Demandas = () => {
 
   const fetchDemandas = async () => {
     const { data } = await supabase.from("demandas").select("*").order("created_at", { ascending: false });
-    setDemandas(data || []);
+    // Normaliza encoding (corrige eventuais "Em AnÃ¡lise" -> "Em Análise") e NFC
+    setDemandas(((data || []) as Demanda[]).map((d) => ({ ...d, status: normalizeText(d.status), titulo: normalizeText(d.titulo) })) as Demanda[]);
   };
 
   const fetchEleitores = async () => {
@@ -179,15 +181,16 @@ const Demandas = () => {
       payload.assessor_id = form.assessor_id || null;
     }
 
+    const safePayload = normalizePayload(payload);
     if (editingDemanda) {
-      const { error } = await supabase.from("demandas").update(payload).eq("id", editingDemanda.id);
+      const { error } = await supabase.from("demandas").update(safePayload).eq("id", editingDemanda.id);
       if (error) { toast({ title: "Erro ao atualizar", variant: "destructive" }); return; }
       toast({ title: "Demanda atualizada!" });
     } else {
       if (role === "assessor" && user) {
-        payload.assessor_id = user.id;
+        safePayload.assessor_id = user.id;
       }
-      const { error } = await supabase.from("demandas").insert(payload);
+      const { error } = await supabase.from("demandas").insert(safePayload);
       if (error) { toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Demanda criada!" });
     }
@@ -221,7 +224,7 @@ const Demandas = () => {
   };
 
   const moveTask = async (id: string, newStatus: StatusKey) => {
-    const { error } = await supabase.from("demandas").update({ status: newStatus }).eq("id", id);
+    const { error } = await supabase.from("demandas").update({ status: normalizeText(newStatus) }).eq("id", id);
     if (error) { toast({ title: "Erro ao mover demanda", variant: "destructive" }); return; }
     fetchDemandas();
   };
