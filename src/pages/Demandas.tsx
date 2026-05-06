@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInDays, isSameDay, isWithinInterval, startOfDay, endOfDay, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { normalizePayload, normalizeText } from "@/lib/textEncoding";
 
 interface Demanda {
   id: string;
