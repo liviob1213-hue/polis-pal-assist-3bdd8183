@@ -95,10 +95,7 @@ export default function Login() {
           <div className="rounded-lg border border-border/60 bg-secondary/30 p-3 space-y-1 text-center">
             <p className="text-xs font-semibold text-foreground">Sou Político</p>
             <p className="text-xs text-muted-foreground">
-              Não tem conta?{" "}
-              <Link to="/cadastro" className="text-primary hover:underline font-medium">
-                Criar conta de político
-              </Link>
+              Contas de político são criadas pelo administrador.
             </p>
           </div>
 
