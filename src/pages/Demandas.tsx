@@ -123,7 +123,8 @@ const Demandas = () => {
 
   const fetchDemandas = async () => {
     const { data } = await supabase.from("demandas").select("*").order("created_at", { ascending: false });
-    setDemandas(data || []);
+    // Normaliza encoding (corrige eventuais "Em AnÃ¡lise" -> "Em Análise") e NFC
+    setDemandas(((data || []) as Demanda[]).map((d) => ({ ...d, status: normalizeText(d.status), titulo: normalizeText(d.titulo) })) as Demanda[]);
   };
 
   const fetchEleitores = async () => {
