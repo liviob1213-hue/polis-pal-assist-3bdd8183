@@ -64,7 +64,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const redirectParam = new URLSearchParams(location.search).get("redirect");
   const stateFrom = (location.state as { from?: string } | null)?.from;
-  const redirectTo = redirectParam?.startsWith("/") ? redirectParam : stateFrom || "/";
+  const redirectTo = redirectParam?.startsWith("/") && !redirectParam.startsWith("//") ? redirectParam : stateFrom || "/";
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
   if (user) return <Navigate to={redirectTo} replace />;
   return <>{children}</>;
