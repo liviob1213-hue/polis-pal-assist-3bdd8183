@@ -1,0 +1,89 @@
+// Edge function para o painel /admin criar contas de político ou assessor.
+// Requer JWT do usuário chamador (deve ser role 'politico').
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    const authHeader = req.headers.get("Authorization") || "";
+    const userClient = createClient(SUPABASE_URL, ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userData, error: userErr } = await userClient.auth.getUser();
+    if (userErr || !userData.user) {
+      return new Response(JSON.stringify({ error: "Não autenticado" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+    const { data: roleRow } = await admin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userData.user.id)
+      .eq("role", "politico")
+      .maybeSingle();
+    if (!roleRow) {
+      return new Response(JSON.stringify({ error: "Apenas políticos podem usar esta função" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const { nome, email, telefone, senha, role } = await req.json();
+    if (!nome || !email || !senha || !role) {
+      return new Response(JSON.stringify({ error: "Campos obrigatórios faltando" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    if (role !== "politico" && role !== "assessor") {
+      return new Response(JSON.stringify({ error: "Role inválido" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Cria usuário já confirmado
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+      email,
+      password: senha,
+      email_confirm: true,
+      user_metadata: { nome, telefone: telefone || "", role },
+    });
+    if (createErr || !created.user) {
+      return new Response(JSON.stringify({ error: createErr?.message || "Erro ao criar usuário" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const newId = created.user.id;
+
+    // Profile
+    await admin.from("profiles").upsert({
+      user_id: newId,
+      nome,
+      email,
+      telefone: telefone || "",
+      role,
+      status: "aprovado",
+      is_authorized: true,
+      whatsapp_verified: false,
+    }, { onConflict: "user_id" });
+
+    // user_roles
+    await admin.from("user_roles").upsert({ user_id: newId, role }, { onConflict: "user_id,role" });
+
+    // Se for assessor, vincula ao político criador
+    if (role === "assessor") {
+      await admin.from("politician_assessors").upsert({
+        politician_id: userData.user.id,
+        assessor_id: newId,
+      });
+    }
+
+    return new Response(JSON.stringify({ success: true, user_id: newId }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e: any) {
+    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
+});
