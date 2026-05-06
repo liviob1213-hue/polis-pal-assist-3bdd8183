@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,10 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectParam = new URLSearchParams(location.search).get("redirect");
+  const stateFrom = (location.state as { from?: string } | null)?.from;
+  const redirectTo = redirectParam?.startsWith("/") && !redirectParam.startsWith("//") ? redirectParam : stateFrom || "/";
 
   const handleLogin = async () => {
     if (!email.trim() || !senha) {
@@ -28,7 +32,7 @@ export default function Login() {
       const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
       if (error) throw error;
       toast({ title: "Login realizado!" });
-      navigate("/");
+      navigate(redirectTo, { replace: true });
     } catch (err: any) {
       toast({ title: "Erro no login", description: err.message, variant: "destructive" });
     } finally {
