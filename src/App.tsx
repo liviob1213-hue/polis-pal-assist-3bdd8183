@@ -33,16 +33,18 @@ const queryClient = new QueryClient();
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const location = useLocation();
+  const loginPath = `/login?redirect=${encodeURIComponent(location.pathname + location.search)}`;
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
-  if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  if (!user) return <Navigate to={loginPath} replace state={{ from: location.pathname + location.search }} />;
   return <>{children}</>;
 }
 
 function PoliticoRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, role } = useAuth();
   const location = useLocation();
+  const loginPath = `/login?redirect=${encodeURIComponent(location.pathname + location.search)}`;
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
-  if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  if (!user) return <Navigate to={loginPath} replace state={{ from: location.pathname + location.search }} />;
   // Aguarda o role carregar antes de decidir redirecionar (evita kick para "/" no primeiro render)
   if (!role) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
   if (role !== "politico") return <Navigate to="/" replace />;
@@ -59,8 +61,12 @@ function HomeRoute() {
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
+  const redirectParam = new URLSearchParams(location.search).get("redirect");
+  const stateFrom = (location.state as { from?: string } | null)?.from;
+  const redirectTo = redirectParam?.startsWith("/") ? redirectParam : stateFrom || "/";
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to={redirectTo} replace />;
   return <>{children}</>;
 }
 
