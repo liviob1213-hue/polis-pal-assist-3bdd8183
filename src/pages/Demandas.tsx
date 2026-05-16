@@ -63,7 +63,16 @@ interface AssessorOption {
 interface EleitorOption {
   id: string;
   nome: string;
+  telefone: string | null;
 }
+
+const waLink = (telefone: string | null | undefined) => {
+  if (!telefone) return null;
+  let d = telefone.replace(/\D/g, "");
+  if (d.length === 0) return null;
+  if (!d.startsWith("55")) d = "55" + d;
+  return `https://wa.me/${d}`;
+};
 
 type StatusKey = "Aberto" | "Em Análise" | "Em Andamento" | "Resolvido";
 
