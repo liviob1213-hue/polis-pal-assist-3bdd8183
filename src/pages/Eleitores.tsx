@@ -51,6 +51,25 @@ interface DemandaEleitor {
 
 const interesses = ["Saúde", "Obras", "Educação", "Segurança", "Transporte", "Meio Ambiente"];
 
+const ORIGENS = [
+  { value: "Rua", label: "🏠 Rua" },
+  { value: "Gabinete", label: "🏢 Gabinete" },
+  { value: "Instagram/TikTok", label: "📱 Instagram / TikTok" },
+  { value: "WhatsApp", label: "💬 WhatsApp" },
+  { value: "Pessoal", label: "🤝 Pessoal (contato direto)" },
+];
+const TIPOS_DEMANDA = [
+  { value: "Reclamação", label: "Reclamação" },
+  { value: "Sugestão", label: "Sugestão" },
+  { value: "Solicitação", label: "Solicitação" },
+  { value: "Elogio", label: "Elogio" },
+];
+const SETORES_DEMANDA = [
+  { value: "Jurídico", label: "⚖️ Jurídico" },
+  { value: "Comunicação", label: "📢 Comunicação" },
+  { value: "Administrativo", label: "📊 Administrativo" },
+];
+
 const interestColors: Record<string, string> = {
   Saúde: "bg-success/10 text-success border-success/20",
   Obras: "bg-warning/10 text-warning border-warning/20",
