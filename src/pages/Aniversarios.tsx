@@ -66,7 +66,7 @@ export default function Aniversarios() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("eleitores")
-        .select("id, nome, telefone, data_nascimento")
+        .select("id, nome, telefone, data_nascimento, interesse, status_eleitor")
         .not("data_nascimento", "is", null);
       if (error) throw error;
       return data as Eleitor[];
