@@ -143,18 +143,30 @@ const Demandas = () => {
   const fetchEleitores = async () => {
     const { data } = await supabase
       .from("eleitores")
-      .select("id, nome")
+      .select("id, nome, telefone")
       .order("nome", { ascending: true });
     setEleitores((data as EleitorOption[]) || []);
+  };
+
+  const fetchVinculos = async () => {
+    const { data } = await supabase.from("demanda_eleitores" as any).select("demanda_id, eleitor_id");
+    const map: Record<string, string[]> = {};
+    ((data as any[]) || []).forEach((v) => {
+      if (!map[v.demanda_id]) map[v.demanda_id] = [];
+      map[v.demanda_id].push(v.eleitor_id);
+    });
+    setEleitoresPorDemanda(map);
   };
 
   useEffect(() => {
     fetchDemandas();
     fetchAssessores();
     fetchEleitores();
+    fetchVinculos();
     const channel = supabase.channel("demandas-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "demandas" }, () => fetchDemandas())
       .on("postgres_changes", { event: "*", schema: "public", table: "eleitores" }, () => fetchEleitores())
+      .on("postgres_changes", { event: "*", schema: "public", table: "demanda_eleitores" }, () => fetchVinculos())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user, role]);
