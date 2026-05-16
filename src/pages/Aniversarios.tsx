@@ -178,6 +178,19 @@ export default function Aniversarios() {
                     <Badge className="gradient-primary text-primary-foreground border-0">
                       {e.idade} anos
                     </Badge>
+                    {e.status_eleitor && (() => {
+                      const s = getStatusEleitor(e.status_eleitor);
+                      return (
+                        <Badge variant="outline" className={s.badgeClass}>
+                          <span className="mr-1">{s.emoji}</span>{s.label}
+                        </Badge>
+                      );
+                    })()}
+                    {e.interesse && (
+                      <Badge variant="outline" className={interestColors[e.interesse] || "bg-muted text-muted-foreground"}>
+                        {e.interesse}
+                      </Badge>
+                    )}
                   </div>
                   {e.telefone && (
                     <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
