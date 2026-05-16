@@ -96,6 +96,9 @@ const Demandas = () => {
   const [assessores, setAssessores] = useState<AssessorOption[]>([]);
   const [assessorMap, setAssessorMap] = useState<Record<string, string>>({});
   const [eleitores, setEleitores] = useState<EleitorOption[]>([]);
+  const [eleitoresPorDemanda, setEleitoresPorDemanda] = useState<Record<string, string[]>>({});
+  const [selectedEleitores, setSelectedEleitores] = useState<string[]>([]);
+  const [eleitorSearch, setEleitorSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingDemanda, setEditingDemanda] = useState<Demanda | null>(null);
   const [form, setForm] = useState({ titulo: "", descricao: "", localizacao: "", assessor_id: "", eleitor_id: "", prazo: "", origem: "", tipo: "", setor: "" });
