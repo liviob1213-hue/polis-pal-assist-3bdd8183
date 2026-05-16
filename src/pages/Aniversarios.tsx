@@ -10,13 +10,25 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Cake, Search, MessageCircle, Sparkles, PartyPopper, Phone } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { getStatusEleitor } from "@/lib/statusEleitor";
 
 interface Eleitor {
   id: string;
   nome: string;
   telefone: string | null;
   data_nascimento: string | null;
+  interesse: string | null;
+  status_eleitor: string | null;
 }
+
+const interestColors: Record<string, string> = {
+  "Saúde": "bg-success/10 text-success border-success/20",
+  "Obras": "bg-warning/10 text-warning border-warning/20",
+  "Educação": "bg-info/10 text-info border-info/20",
+  "Segurança": "bg-destructive/10 text-destructive border-destructive/20",
+  "Transporte": "bg-accent/10 text-accent border-accent/20",
+  "Meio Ambiente": "bg-success/10 text-success border-success/20",
+};
 
 const MESES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -54,7 +66,7 @@ export default function Aniversarios() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("eleitores")
-        .select("id, nome, telefone, data_nascimento")
+        .select("id, nome, telefone, data_nascimento, interesse, status_eleitor")
         .not("data_nascimento", "is", null);
       if (error) throw error;
       return data as Eleitor[];
@@ -166,6 +178,19 @@ export default function Aniversarios() {
                     <Badge className="gradient-primary text-primary-foreground border-0">
                       {e.idade} anos
                     </Badge>
+                    {e.status_eleitor && (() => {
+                      const s = getStatusEleitor(e.status_eleitor);
+                      return (
+                        <Badge variant="outline" className={s.badgeClass}>
+                          <span className="mr-1">{s.emoji}</span>{s.label}
+                        </Badge>
+                      );
+                    })()}
+                    {e.interesse && (
+                      <Badge variant="outline" className={interestColors[e.interesse] || "bg-muted text-muted-foreground"}>
+                        {e.interesse}
+                      </Badge>
+                    )}
                   </div>
                   {e.telefone && (
                     <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
@@ -241,6 +266,19 @@ export default function Aniversarios() {
                         {isHoje && (
                           <Badge className="gradient-primary text-primary-foreground border-0 text-[10px]">
                             HOJE 🎂
+                          </Badge>
+                        )}
+                        {e.status_eleitor && (() => {
+                          const s = getStatusEleitor(e.status_eleitor);
+                          return (
+                            <Badge variant="outline" className={`${s.badgeClass} text-[10px]`}>
+                              <span className="mr-1">{s.emoji}</span>{s.label}
+                            </Badge>
+                          );
+                        })()}
+                        {e.interesse && (
+                          <Badge variant="outline" className={`text-[10px] ${interestColors[e.interesse] || "bg-muted text-muted-foreground"}`}>
+                            {e.interesse}
                           </Badge>
                         )}
                       </div>
