@@ -189,9 +189,19 @@ const Demandas = () => {
     return true;
   });
 
+  const syncVinculos = async (demandaId: string) => {
+    await supabase.from("demanda_eleitores" as any).delete().eq("demanda_id", demandaId);
+    if (selectedEleitores.length > 0) {
+      const rows = selectedEleitores.map((eid) => ({ demanda_id: demandaId, eleitor_id: eid }));
+      await supabase.from("demanda_eleitores" as any).insert(rows);
+    }
+    fetchVinculos();
+  };
+
   const handleSave = async () => {
     if (!form.titulo) { toast({ title: "Preencha o título", variant: "destructive" }); return; }
 
+    const primaryEleitor = selectedEleitores[0] || form.eleitor_id || null;
     const payload: any = {
       titulo: form.titulo,
       descricao: form.descricao || null,
@@ -200,27 +210,34 @@ const Demandas = () => {
       origem: form.origem || null,
       tipo: form.tipo || null,
       setor: form.setor || null,
-      eleitor_id: form.eleitor_id || null,
+      eleitor_id: primaryEleitor,
     };
     if (role === "politico") {
       payload.assessor_id = form.assessor_id || null;
     }
 
     const safePayload = normalizePayload(payload);
+    let demandaId: string | null = null;
     if (editingDemanda) {
       const { error } = await supabase.from("demandas").update(safePayload).eq("id", editingDemanda.id);
       if (error) { toast({ title: "Erro ao atualizar", variant: "destructive" }); return; }
+      demandaId = editingDemanda.id;
       toast({ title: "Demanda atualizada!" });
     } else {
       if (role === "assessor" && user) {
         safePayload.assessor_id = user.id;
       }
-      const { error } = await supabase.from("demandas").insert(safePayload);
+      const { data, error } = await supabase.from("demandas").insert(safePayload).select("id").single();
       if (error) { toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" }); return; }
+      demandaId = data?.id || null;
       toast({ title: "Demanda criada!" });
     }
 
+    if (demandaId) await syncVinculos(demandaId);
+
     setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", eleitor_id: "", prazo: "", origem: "", tipo: "", setor: "" });
+    setSelectedEleitores([]);
+    setEleitorSearch("");
     setEditingDemanda(null);
     setDialogOpen(false);
   };
@@ -238,6 +255,12 @@ const Demandas = () => {
       tipo: demanda.tipo || "",
       setor: (demanda as any).setor || "",
     });
+    const vinculados = eleitoresPorDemanda[demanda.id] || [];
+    const merged = vinculados.length > 0
+      ? vinculados
+      : (demanda.eleitor_id ? [demanda.eleitor_id] : []);
+    setSelectedEleitores(merged);
+    setEleitorSearch("");
     setDialogOpen(true);
   };
 
