@@ -594,6 +594,36 @@ const Demandas = () => {
                               <h3 className="font-semibold text-xs sm:text-sm">{demanda.titulo}</h3>
                               {demanda.descricao && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{demanda.descricao}</p>}
                             </div>
+                            {vincEleitores.length > 0 && (
+                              <div className="space-y-1 rounded-md bg-secondary/40 border border-border/50 p-2">
+                                <p className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
+                                  <Users className="h-3 w-3" /> Eleitores vinculados ({vincEleitores.length})
+                                </p>
+                                <div className="flex flex-col gap-1">
+                                  {vincEleitores.map((el) => {
+                                    const link = waLink(el.telefone);
+                                    return (
+                                      <div key={el.id} className="flex items-center justify-between gap-2 text-xs">
+                                        <span className="truncate">{el.nome}</span>
+                                        {link ? (
+                                          <a
+                                            href={link}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-success/10 text-success hover:bg-success/20 transition-colors text-[10px] font-medium shrink-0"
+                                          >
+                                            <MessageCircle className="h-3 w-3" /> WhatsApp
+                                          </a>
+                                        ) : (
+                                          <span className="text-[10px] text-muted-foreground shrink-0">sem telefone</span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
                             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                               {demanda.localizacao && (
                                 <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{demanda.localizacao}</span>
