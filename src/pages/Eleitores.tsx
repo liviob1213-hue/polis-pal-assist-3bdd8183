@@ -180,6 +180,11 @@ const Eleitores = () => {
           descricao: payload.demanda_descricao.trim() || null,
           eleitor_id: eleitorId,
           status: "Em Análise",
+          origem: payload.demanda_origem || null,
+          tipo: payload.demanda_tipo || null,
+          setor: payload.demanda_setor || null,
+          localizacao: payload.demanda_localizacao.trim() || endereco || null,
+          prazo: payload.demanda_prazo ? new Date(payload.demanda_prazo).toISOString() : null,
         });
         if (dErr) console.warn("Erro ao criar demanda do eleitor:", dErr);
       }
