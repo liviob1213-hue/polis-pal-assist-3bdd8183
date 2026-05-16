@@ -115,6 +115,42 @@ export type Database = {
         }
         Relationships: []
       }
+      demanda_eleitores: {
+        Row: {
+          created_at: string
+          demanda_id: string
+          eleitor_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          demanda_id: string
+          eleitor_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          demanda_id?: string
+          eleitor_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demanda_eleitores_demanda_id_fkey"
+            columns: ["demanda_id"]
+            isOneToOne: false
+            referencedRelation: "demandas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demanda_eleitores_eleitor_id_fkey"
+            columns: ["eleitor_id"]
+            isOneToOne: false
+            referencedRelation: "eleitores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       demandas: {
         Row: {
           assessor_id: string | null

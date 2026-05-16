@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Plus, MapPin, Calendar, Clock, Sparkles, GripVertical, Pencil, UserCheck, AlertTriangle, Filter, X, Trash2 } from "lucide-react";
+import { Plus, MapPin, Calendar, Clock, Sparkles, GripVertical, Pencil, UserCheck, AlertTriangle, Filter, X, Trash2, MessageCircle, Search, Users } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -62,7 +63,16 @@ interface AssessorOption {
 interface EleitorOption {
   id: string;
   nome: string;
+  telefone: string | null;
 }
+
+const waLink = (telefone: string | null | undefined) => {
+  if (!telefone) return null;
+  let d = telefone.replace(/\D/g, "");
+  if (d.length === 0) return null;
+  if (!d.startsWith("55")) d = "55" + d;
+  return `https://wa.me/${d}`;
+};
 
 type StatusKey = "Aberto" | "Em Análise" | "Em Andamento" | "Resolvido";
 
@@ -86,6 +96,9 @@ const Demandas = () => {
   const [assessores, setAssessores] = useState<AssessorOption[]>([]);
   const [assessorMap, setAssessorMap] = useState<Record<string, string>>({});
   const [eleitores, setEleitores] = useState<EleitorOption[]>([]);
+  const [eleitoresPorDemanda, setEleitoresPorDemanda] = useState<Record<string, string[]>>({});
+  const [selectedEleitores, setSelectedEleitores] = useState<string[]>([]);
+  const [eleitorSearch, setEleitorSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingDemanda, setEditingDemanda] = useState<Demanda | null>(null);
   const [form, setForm] = useState({ titulo: "", descricao: "", localizacao: "", assessor_id: "", eleitor_id: "", prazo: "", origem: "", tipo: "", setor: "" });
@@ -130,18 +143,30 @@ const Demandas = () => {
   const fetchEleitores = async () => {
     const { data } = await supabase
       .from("eleitores")
-      .select("id, nome")
+      .select("id, nome, telefone")
       .order("nome", { ascending: true });
     setEleitores((data as EleitorOption[]) || []);
+  };
+
+  const fetchVinculos = async () => {
+    const { data } = await supabase.from("demanda_eleitores" as any).select("demanda_id, eleitor_id");
+    const map: Record<string, string[]> = {};
+    ((data as any[]) || []).forEach((v) => {
+      if (!map[v.demanda_id]) map[v.demanda_id] = [];
+      map[v.demanda_id].push(v.eleitor_id);
+    });
+    setEleitoresPorDemanda(map);
   };
 
   useEffect(() => {
     fetchDemandas();
     fetchAssessores();
     fetchEleitores();
+    fetchVinculos();
     const channel = supabase.channel("demandas-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "demandas" }, () => fetchDemandas())
       .on("postgres_changes", { event: "*", schema: "public", table: "eleitores" }, () => fetchEleitores())
+      .on("postgres_changes", { event: "*", schema: "public", table: "demanda_eleitores" }, () => fetchVinculos())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user, role]);
@@ -164,9 +189,19 @@ const Demandas = () => {
     return true;
   });
 
+  const syncVinculos = async (demandaId: string) => {
+    await supabase.from("demanda_eleitores" as any).delete().eq("demanda_id", demandaId);
+    if (selectedEleitores.length > 0) {
+      const rows = selectedEleitores.map((eid) => ({ demanda_id: demandaId, eleitor_id: eid }));
+      await supabase.from("demanda_eleitores" as any).insert(rows);
+    }
+    fetchVinculos();
+  };
+
   const handleSave = async () => {
     if (!form.titulo) { toast({ title: "Preencha o título", variant: "destructive" }); return; }
 
+    const primaryEleitor = selectedEleitores[0] || form.eleitor_id || null;
     const payload: any = {
       titulo: form.titulo,
       descricao: form.descricao || null,
@@ -175,27 +210,34 @@ const Demandas = () => {
       origem: form.origem || null,
       tipo: form.tipo || null,
       setor: form.setor || null,
-      eleitor_id: form.eleitor_id || null,
+      eleitor_id: primaryEleitor,
     };
     if (role === "politico") {
       payload.assessor_id = form.assessor_id || null;
     }
 
     const safePayload = normalizePayload(payload);
+    let demandaId: string | null = null;
     if (editingDemanda) {
       const { error } = await supabase.from("demandas").update(safePayload).eq("id", editingDemanda.id);
       if (error) { toast({ title: "Erro ao atualizar", variant: "destructive" }); return; }
+      demandaId = editingDemanda.id;
       toast({ title: "Demanda atualizada!" });
     } else {
       if (role === "assessor" && user) {
         safePayload.assessor_id = user.id;
       }
-      const { error } = await supabase.from("demandas").insert(safePayload);
+      const { data, error } = await supabase.from("demandas").insert(safePayload).select("id").single();
       if (error) { toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" }); return; }
+      demandaId = data?.id || null;
       toast({ title: "Demanda criada!" });
     }
 
+    if (demandaId) await syncVinculos(demandaId);
+
     setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", eleitor_id: "", prazo: "", origem: "", tipo: "", setor: "" });
+    setSelectedEleitores([]);
+    setEleitorSearch("");
     setEditingDemanda(null);
     setDialogOpen(false);
   };
@@ -213,6 +255,12 @@ const Demandas = () => {
       tipo: demanda.tipo || "",
       setor: (demanda as any).setor || "",
     });
+    const vinculados = eleitoresPorDemanda[demanda.id] || [];
+    const merged = vinculados.length > 0
+      ? vinculados
+      : (demanda.eleitor_id ? [demanda.eleitor_id] : []);
+    setSelectedEleitores(merged);
+    setEleitorSearch("");
     setDialogOpen(true);
   };
 
@@ -302,7 +350,7 @@ const Demandas = () => {
             </PopoverContent>
           </Popover>
           <Badge variant="secondary" className="text-sm">{total} Total</Badge>
-          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingDemanda(null); setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", eleitor_id: "", prazo: "", origem: "", tipo: "", setor: "" }); } }}>
+          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingDemanda(null); setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", eleitor_id: "", prazo: "", origem: "", tipo: "", setor: "" }); setSelectedEleitores([]); setEleitorSearch(""); } }}>
             <DialogTrigger asChild>
               <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
                 <Plus className="h-4 w-4" /> Nova Demanda
@@ -348,16 +396,61 @@ const Demandas = () => {
                 <div><Label>Localização</Label><Input value={form.localizacao} onChange={(e) => setForm({ ...form, localizacao: e.target.value })} placeholder="Local da demanda" /></div>
                 <div><Label>Prazo</Label><Input type="date" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} /></div>
                 <div>
-                  <Label>👤 Vincular a Eleitor (opcional)</Label>
-                  <Select value={form.eleitor_id || "none"} onValueChange={(v) => setForm({ ...form, eleitor_id: v === "none" ? "" : v })}>
-                    <SelectTrigger><SelectValue placeholder="Selecione um eleitor" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sem vínculo</SelectItem>
-                      {eleitores.map((e) => (
-                        <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label className="flex items-center gap-2"><Users className="h-4 w-4" /> Vincular Eleitores (opcional)</Label>
+                  <p className="text-xs text-muted-foreground mb-2">Marque um ou mais eleitores que estão relacionados a esta demanda.</p>
+                  <div className="relative mb-2">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      className="pl-7 h-9"
+                      placeholder="Buscar eleitor..."
+                      value={eleitorSearch}
+                      onChange={(e) => setEleitorSearch(e.target.value)}
+                    />
+                  </div>
+                  {selectedEleitores.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {selectedEleitores.map((id) => {
+                        const el = eleitores.find((x) => x.id === id);
+                        if (!el) return null;
+                        return (
+                          <Badge key={id} variant="secondary" className="gap-1">
+                            {el.nome}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedEleitores(selectedEleitores.filter((x) => x !== id))}
+                              className="hover:text-destructive"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="max-h-48 overflow-y-auto rounded-md border border-border divide-y divide-border">
+                    {eleitores
+                      .filter((e) => !eleitorSearch || e.nome.toLowerCase().includes(eleitorSearch.toLowerCase()))
+                      .slice(0, 100)
+                      .map((e) => {
+                        const checked = selectedEleitores.includes(e.id);
+                        return (
+                          <label key={e.id} className="flex items-center gap-2 px-3 py-2 hover:bg-accent/50 cursor-pointer text-sm">
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(v) => {
+                                if (v) setSelectedEleitores([...selectedEleitores, e.id]);
+                                else setSelectedEleitores(selectedEleitores.filter((x) => x !== e.id));
+                              }}
+                            />
+                            <span className="flex-1 truncate">{e.nome}</span>
+                            {e.telefone && <span className="text-xs text-muted-foreground">{e.telefone}</span>}
+                          </label>
+                        );
+                      })}
+                    {eleitores.length === 0 && (
+                      <p className="text-xs text-muted-foreground p-3 text-center">Nenhum eleitor cadastrado.</p>
+                    )}
+                  </div>
                 </div>
                 {role === "politico" && assessores.length > 0 && (
                   <div>
@@ -458,6 +551,10 @@ const Demandas = () => {
                     const dias = differenceInDays(new Date(), new Date(demanda.created_at));
                     const assessorNome = demanda.assessor_id ? assessorMap[demanda.assessor_id] : null;
                     const prazoExpirado = isPrazoExpired(demanda.prazo, demanda.status);
+                    const vincIds = eleitoresPorDemanda[demanda.id] || (demanda.eleitor_id ? [demanda.eleitor_id] : []);
+                    const vincEleitores = vincIds
+                      .map((id) => eleitores.find((e) => e.id === id))
+                      .filter(Boolean) as EleitorOption[];
                     return (
                       <motion.div
                         key={demanda.id}
@@ -497,6 +594,36 @@ const Demandas = () => {
                               <h3 className="font-semibold text-xs sm:text-sm">{demanda.titulo}</h3>
                               {demanda.descricao && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{demanda.descricao}</p>}
                             </div>
+                            {vincEleitores.length > 0 && (
+                              <div className="space-y-1 rounded-md bg-secondary/40 border border-border/50 p-2">
+                                <p className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
+                                  <Users className="h-3 w-3" /> Eleitores vinculados ({vincEleitores.length})
+                                </p>
+                                <div className="flex flex-col gap-1">
+                                  {vincEleitores.map((el) => {
+                                    const link = waLink(el.telefone);
+                                    return (
+                                      <div key={el.id} className="flex items-center justify-between gap-2 text-xs">
+                                        <span className="truncate">{el.nome}</span>
+                                        {link ? (
+                                          <a
+                                            href={link}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-success/10 text-success hover:bg-success/20 transition-colors text-[10px] font-medium shrink-0"
+                                          >
+                                            <MessageCircle className="h-3 w-3" /> WhatsApp
+                                          </a>
+                                        ) : (
+                                          <span className="text-[10px] text-muted-foreground shrink-0">sem telefone</span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
                             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                               {demanda.localizacao && (
                                 <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{demanda.localizacao}</span>
