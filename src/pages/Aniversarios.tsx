@@ -268,6 +268,19 @@ export default function Aniversarios() {
                             HOJE 🎂
                           </Badge>
                         )}
+                        {e.status_eleitor && (() => {
+                          const s = getStatusEleitor(e.status_eleitor);
+                          return (
+                            <Badge variant="outline" className={`${s.badgeClass} text-[10px]`}>
+                              <span className="mr-1">{s.emoji}</span>{s.label}
+                            </Badge>
+                          );
+                        })()}
+                        {e.interesse && (
+                          <Badge variant="outline" className={`text-[10px] ${interestColors[e.interesse] || "bg-muted text-muted-foreground"}`}>
+                            {e.interesse}
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {formatDataBR(e.data_nascimento!)} · {MESES[mes - 1]} · vai fazer {e.idade + (isHoje ? 0 : 1)} anos
