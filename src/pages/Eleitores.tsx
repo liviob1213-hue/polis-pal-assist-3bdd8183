@@ -51,6 +51,25 @@ interface DemandaEleitor {
 
 const interesses = ["Saúde", "Obras", "Educação", "Segurança", "Transporte", "Meio Ambiente"];
 
+const ORIGENS = [
+  { value: "Rua", label: "🏠 Rua" },
+  { value: "Gabinete", label: "🏢 Gabinete" },
+  { value: "Instagram/TikTok", label: "📱 Instagram / TikTok" },
+  { value: "WhatsApp", label: "💬 WhatsApp" },
+  { value: "Pessoal", label: "🤝 Pessoal (contato direto)" },
+];
+const TIPOS_DEMANDA = [
+  { value: "Reclamação", label: "Reclamação" },
+  { value: "Sugestão", label: "Sugestão" },
+  { value: "Solicitação", label: "Solicitação" },
+  { value: "Elogio", label: "Elogio" },
+];
+const SETORES_DEMANDA = [
+  { value: "Jurídico", label: "⚖️ Jurídico" },
+  { value: "Comunicação", label: "📢 Comunicação" },
+  { value: "Administrativo", label: "📊 Administrativo" },
+];
+
 const interestColors: Record<string, string> = {
   Saúde: "bg-success/10 text-success border-success/20",
   Obras: "bg-warning/10 text-warning border-warning/20",
@@ -64,7 +83,7 @@ const Eleitores = () => {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "" });
+  const [form, setForm] = useState({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "", demanda_origem: "", demanda_tipo: "", demanda_setor: "", demanda_localizacao: "", demanda_prazo: "" });
   const [whatsappDialog, setWhatsappDialog] = useState<Eleitor | null>(null);
   const [whatsappMsg, setWhatsappMsg] = useState("");
   const [demandaDialog, setDemandaDialog] = useState<{ eleitor: Eleitor; demandas: DemandaEleitor[] } | null>(null);
@@ -161,6 +180,11 @@ const Eleitores = () => {
           descricao: payload.demanda_descricao.trim() || null,
           eleitor_id: eleitorId,
           status: "Em Análise",
+          origem: payload.demanda_origem || null,
+          tipo: payload.demanda_tipo || null,
+          setor: payload.demanda_setor || null,
+          localizacao: payload.demanda_localizacao.trim() || endereco || null,
+          prazo: payload.demanda_prazo ? new Date(payload.demanda_prazo).toISOString() : null,
         });
         if (dErr) console.warn("Erro ao criar demanda do eleitor:", dErr);
       }
@@ -181,7 +205,7 @@ const Eleitores = () => {
       queryClient.invalidateQueries({ queryKey: ["demandas-por-eleitor"] });
       queryClient.invalidateQueries({ queryKey: ["demandas"] });
       toast({ title: editingId ? "Eleitor atualizado!" : "Eleitor adicionado!" });
-      setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "" });
+      setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "", demanda_origem: "", demanda_tipo: "", demanda_setor: "", demanda_localizacao: "", demanda_prazo: "" });
       setEditingId(null);
       setDialogOpen(false);
     },
@@ -302,6 +326,11 @@ const Eleitores = () => {
       data_nascimento: eleitor.data_nascimento || "",
       demanda_titulo: "",
       demanda_descricao: "",
+      demanda_origem: "",
+      demanda_tipo: "",
+      demanda_setor: "",
+      demanda_localizacao: "",
+      demanda_prazo: "",
     });
     setEditingId(eleitor.id);
     setDialogOpen(true);
@@ -336,7 +365,7 @@ const Eleitores = () => {
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Base de Eleitores</h1>
           <p className="text-muted-foreground text-xs sm:text-sm mt-1">Gerencie os contatos e interesses da sua base.</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingId(null); setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "" }); } }}>
+        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingId(null); setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "", demanda_origem: "", demanda_tipo: "", demanda_setor: "", demanda_localizacao: "", demanda_prazo: "" }); } }}>
           <DialogTrigger asChild>
             <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
               <Plus className="h-4 w-4" /> Novo Eleitor
@@ -426,6 +455,57 @@ const Eleitores = () => {
                       placeholder="Detalhes da reclamação ou solicitação..."
                       rows={2}
                     />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>📍 Origem</Label>
+                      <Select value={form.demanda_origem || "none"} onValueChange={(v) => setForm({ ...form, demanda_origem: v === "none" ? "" : v })}>
+                        <SelectTrigger><SelectValue placeholder="Não informado" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Não informado</SelectItem>
+                          {ORIGENS.map((o) => (<SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>🏷️ Tipo</Label>
+                      <Select value={form.demanda_tipo || "none"} onValueChange={(v) => setForm({ ...form, demanda_tipo: v === "none" ? "" : v })}>
+                        <SelectTrigger><SelectValue placeholder="Não informado" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Não informado</SelectItem>
+                          {TIPOS_DEMANDA.map((t) => (<SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div>
+                    <Label>🏛️ Setor responsável</Label>
+                    <Select value={form.demanda_setor || "none"} onValueChange={(v) => setForm({ ...form, demanda_setor: v === "none" ? "" : v })}>
+                      <SelectTrigger><SelectValue placeholder="Não informado" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Não informado</SelectItem>
+                        {SETORES_DEMANDA.map((s) => (<SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Localização</Label>
+                    <Input
+                      value={form.demanda_localizacao}
+                      onChange={(e) => setForm({ ...form, demanda_localizacao: e.target.value })}
+                      placeholder="Local da demanda (padrão: endereço do eleitor)"
+                    />
+                  </div>
+                  <div>
+                    <Label>Prazo</Label>
+                    <Input
+                      type="date"
+                      value={form.demanda_prazo}
+                      onChange={(e) => setForm({ ...form, demanda_prazo: e.target.value })}
+                    />
+                  </div>
+                  <div className="rounded-md bg-primary/10 border border-primary/20 px-3 py-2 text-xs text-primary">
+                    👤 A demanda será vinculada automaticamente a <strong>este eleitor</strong> ({form.nome || "novo cadastro"}).
                   </div>
                 </div>
               )}
