@@ -551,6 +551,10 @@ const Demandas = () => {
                     const dias = differenceInDays(new Date(), new Date(demanda.created_at));
                     const assessorNome = demanda.assessor_id ? assessorMap[demanda.assessor_id] : null;
                     const prazoExpirado = isPrazoExpired(demanda.prazo, demanda.status);
+                    const vincIds = eleitoresPorDemanda[demanda.id] || (demanda.eleitor_id ? [demanda.eleitor_id] : []);
+                    const vincEleitores = vincIds
+                      .map((id) => eleitores.find((e) => e.id === id))
+                      .filter(Boolean) as EleitorOption[];
                     return (
                       <motion.div
                         key={demanda.id}
