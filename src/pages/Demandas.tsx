@@ -396,16 +396,61 @@ const Demandas = () => {
                 <div><Label>Localização</Label><Input value={form.localizacao} onChange={(e) => setForm({ ...form, localizacao: e.target.value })} placeholder="Local da demanda" /></div>
                 <div><Label>Prazo</Label><Input type="date" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} /></div>
                 <div>
-                  <Label>👤 Vincular a Eleitor (opcional)</Label>
-                  <Select value={form.eleitor_id || "none"} onValueChange={(v) => setForm({ ...form, eleitor_id: v === "none" ? "" : v })}>
-                    <SelectTrigger><SelectValue placeholder="Selecione um eleitor" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sem vínculo</SelectItem>
-                      {eleitores.map((e) => (
-                        <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label className="flex items-center gap-2"><Users className="h-4 w-4" /> Vincular Eleitores (opcional)</Label>
+                  <p className="text-xs text-muted-foreground mb-2">Marque um ou mais eleitores que estão relacionados a esta demanda.</p>
+                  <div className="relative mb-2">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      className="pl-7 h-9"
+                      placeholder="Buscar eleitor..."
+                      value={eleitorSearch}
+                      onChange={(e) => setEleitorSearch(e.target.value)}
+                    />
+                  </div>
+                  {selectedEleitores.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {selectedEleitores.map((id) => {
+                        const el = eleitores.find((x) => x.id === id);
+                        if (!el) return null;
+                        return (
+                          <Badge key={id} variant="secondary" className="gap-1">
+                            {el.nome}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedEleitores(selectedEleitores.filter((x) => x !== id))}
+                              className="hover:text-destructive"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="max-h-48 overflow-y-auto rounded-md border border-border divide-y divide-border">
+                    {eleitores
+                      .filter((e) => !eleitorSearch || e.nome.toLowerCase().includes(eleitorSearch.toLowerCase()))
+                      .slice(0, 100)
+                      .map((e) => {
+                        const checked = selectedEleitores.includes(e.id);
+                        return (
+                          <label key={e.id} className="flex items-center gap-2 px-3 py-2 hover:bg-accent/50 cursor-pointer text-sm">
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(v) => {
+                                if (v) setSelectedEleitores([...selectedEleitores, e.id]);
+                                else setSelectedEleitores(selectedEleitores.filter((x) => x !== e.id));
+                              }}
+                            />
+                            <span className="flex-1 truncate">{e.nome}</span>
+                            {e.telefone && <span className="text-xs text-muted-foreground">{e.telefone}</span>}
+                          </label>
+                        );
+                      })}
+                    {eleitores.length === 0 && (
+                      <p className="text-xs text-muted-foreground p-3 text-center">Nenhum eleitor cadastrado.</p>
+                    )}
+                  </div>
                 </div>
                 {role === "politico" && assessores.length > 0 && (
                   <div>
