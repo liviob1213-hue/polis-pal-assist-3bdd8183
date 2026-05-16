@@ -456,6 +456,57 @@ const Eleitores = () => {
                       rows={2}
                     />
                   </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>📍 Origem</Label>
+                      <Select value={form.demanda_origem || "none"} onValueChange={(v) => setForm({ ...form, demanda_origem: v === "none" ? "" : v })}>
+                        <SelectTrigger><SelectValue placeholder="Não informado" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Não informado</SelectItem>
+                          {ORIGENS.map((o) => (<SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>🏷️ Tipo</Label>
+                      <Select value={form.demanda_tipo || "none"} onValueChange={(v) => setForm({ ...form, demanda_tipo: v === "none" ? "" : v })}>
+                        <SelectTrigger><SelectValue placeholder="Não informado" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Não informado</SelectItem>
+                          {TIPOS_DEMANDA.map((t) => (<SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div>
+                    <Label>🏛️ Setor responsável</Label>
+                    <Select value={form.demanda_setor || "none"} onValueChange={(v) => setForm({ ...form, demanda_setor: v === "none" ? "" : v })}>
+                      <SelectTrigger><SelectValue placeholder="Não informado" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Não informado</SelectItem>
+                        {SETORES_DEMANDA.map((s) => (<SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Localização</Label>
+                    <Input
+                      value={form.demanda_localizacao}
+                      onChange={(e) => setForm({ ...form, demanda_localizacao: e.target.value })}
+                      placeholder="Local da demanda (padrão: endereço do eleitor)"
+                    />
+                  </div>
+                  <div>
+                    <Label>Prazo</Label>
+                    <Input
+                      type="date"
+                      value={form.demanda_prazo}
+                      onChange={(e) => setForm({ ...form, demanda_prazo: e.target.value })}
+                    />
+                  </div>
+                  <div className="rounded-md bg-primary/10 border border-primary/20 px-3 py-2 text-xs text-primary">
+                    👤 A demanda será vinculada automaticamente a <strong>este eleitor</strong> ({form.nome || "novo cadastro"}).
+                  </div>
                 </div>
               )}
 
