@@ -10,13 +10,25 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Cake, Search, MessageCircle, Sparkles, PartyPopper, Phone } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { getStatusEleitor } from "@/lib/statusEleitor";
 
 interface Eleitor {
   id: string;
   nome: string;
   telefone: string | null;
   data_nascimento: string | null;
+  interesse: string | null;
+  status_eleitor: string | null;
 }
+
+const interestColors: Record<string, string> = {
+  "Saúde": "bg-success/10 text-success border-success/20",
+  "Obras": "bg-warning/10 text-warning border-warning/20",
+  "Educação": "bg-info/10 text-info border-info/20",
+  "Segurança": "bg-destructive/10 text-destructive border-destructive/20",
+  "Transporte": "bg-accent/10 text-accent border-accent/20",
+  "Meio Ambiente": "bg-success/10 text-success border-success/20",
+};
 
 const MESES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
