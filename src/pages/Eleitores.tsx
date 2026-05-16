@@ -321,6 +321,11 @@ const Eleitores = () => {
       data_nascimento: eleitor.data_nascimento || "",
       demanda_titulo: "",
       demanda_descricao: "",
+      demanda_origem: "",
+      demanda_tipo: "",
+      demanda_setor: "",
+      demanda_localizacao: "",
+      demanda_prazo: "",
     });
     setEditingId(eleitor.id);
     setDialogOpen(true);
