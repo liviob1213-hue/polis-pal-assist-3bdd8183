@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Search, Pencil, MessageCircle, Trash2, Send, Save, Star, Loader2, Cake, AlertCircle, Bot, Megaphone, ArrowRight, History, CheckCircle2, Clock } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -403,13 +404,27 @@ const Eleitores = () => {
                 <Input type="date" value={form.data_nascimento} onChange={(e) => setForm({ ...form, data_nascimento: e.target.value })} />
               </div>
               <div>
-                <Label>Interesse</Label>
-                <Select value={form.interesse} onValueChange={(v) => setForm({ ...form, interesse: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {interesses.map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label>Interesses</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-border bg-card/50">
+                  {interesses.map((i) => {
+                    const selected = form.interesse.split(",").map(s => s.trim()).filter(Boolean);
+                    const checked = selected.includes(i);
+                    return (
+                      <label key={i} className="flex items-center gap-2 cursor-pointer text-sm">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => {
+                            const next = v
+                              ? [...selected, i]
+                              : selected.filter(x => x !== i);
+                            setForm({ ...form, interesse: next.join(", ") });
+                          }}
+                        />
+                        <span>{i}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
               <div>
                 <Label>Status do Eleitor</Label>
@@ -555,11 +570,11 @@ const Eleitores = () => {
                               </Badge>
                             );
                           })()}
-                          {eleitor.interesse && (
-                            <Badge variant="outline" className={interestColors[eleitor.interesse] || ""}>
-                              {eleitor.interesse}
+                          {eleitor.interesse && eleitor.interesse.split(",").map(s => s.trim()).filter(Boolean).map((int) => (
+                            <Badge key={int} variant="outline" className={interestColors[int] || ""}>
+                              {int}
                             </Badge>
-                          )}
+                          ))}
                           {eleitor.agente_ativo && (
                             <Badge className="bg-primary/15 text-primary border-primary/30 gap-1">
                               <Bot className="h-3 w-3" /> Agente ativo
