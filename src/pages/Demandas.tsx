@@ -111,8 +111,25 @@ const Demandas = () => {
   const [filterResponsavel, setFilterResponsavel] = useState<string>("all");
   const [filterTipo, setFilterTipo] = useState<string>("all");
   const [filterSetor, setFilterSetor] = useState<string>("all");
+  const [historicoOpen, setHistoricoOpen] = useState(false);
+  const [historicoDemanda, setHistoricoDemanda] = useState<Demanda | null>(null);
+  const [historicoItems, setHistoricoItems] = useState<any[]>([]);
+  const [historicoLoading, setHistoricoLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const openHistorico = async (demanda: Demanda) => {
+    setHistoricoDemanda(demanda);
+    setHistoricoOpen(true);
+    setHistoricoLoading(true);
+    const { data } = await supabase
+      .from("demanda_historico" as any)
+      .select("*")
+      .eq("demanda_id", demanda.id)
+      .order("created_at", { ascending: false });
+    setHistoricoItems((data as any[]) || []);
+    setHistoricoLoading(false);
+  };
 
   const fetchAssessores = async () => {
     if (!user || role !== "politico") return;
