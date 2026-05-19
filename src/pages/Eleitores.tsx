@@ -570,11 +570,11 @@ const Eleitores = () => {
                               </Badge>
                             );
                           })()}
-                          {eleitor.interesse && (
-                            <Badge variant="outline" className={interestColors[eleitor.interesse] || ""}>
-                              {eleitor.interesse}
+                          {eleitor.interesse && eleitor.interesse.split(",").map(s => s.trim()).filter(Boolean).map((int) => (
+                            <Badge key={int} variant="outline" className={interestColors[int] || ""}>
+                              {int}
                             </Badge>
-                          )}
+                          ))}
                           {eleitor.agente_ativo && (
                             <Badge className="bg-primary/15 text-primary border-primary/30 gap-1">
                               <Bot className="h-3 w-3" /> Agente ativo
