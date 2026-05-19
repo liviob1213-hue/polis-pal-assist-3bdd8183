@@ -750,5 +750,3 @@ const Demandas = () => {
 };
 
 export default Demandas;
-
-export default Demandas;
