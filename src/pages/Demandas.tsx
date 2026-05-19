@@ -603,7 +603,7 @@ const Demandas = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">📍 Origem</Label>
           <Select value={filterOrigem} onValueChange={setFilterOrigem}>
