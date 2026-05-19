@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Plus, MapPin, Calendar, Clock, Sparkles, GripVertical, Pencil, UserCheck, AlertTriangle, Filter, X, Trash2, MessageCircle, Search, Users, History } from "lucide-react";
+import { Plus, MapPin, Calendar, Clock, Sparkles, GripVertical, Pencil, UserCheck, AlertTriangle, Filter, X, Trash2, MessageCircle, Search, Users, History, Paperclip, Send, Flag, Download, Trash } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -34,7 +35,15 @@ interface Demanda {
   origem: string | null;
   tipo: string | null;
   setor: string | null;
+  prioridade?: string | null;
 }
+
+const PRIORIDADES = [
+  { value: "baixa", label: "🟢 Baixa", style: "border-success bg-success/10 text-success" },
+  { value: "media", label: "🟡 Média", style: "border-warning bg-warning/10 text-warning" },
+  { value: "alta", label: "🟠 Alta", style: "border-accent bg-accent/10 text-accent" },
+  { value: "urgente", label: "🔴 Urgente", style: "border-destructive bg-destructive/10 text-destructive" },
+];
 
 const ORIGENS = [
   { value: "Rua", label: "🏠 Rua" },
@@ -101,7 +110,7 @@ const Demandas = () => {
   const [eleitorSearch, setEleitorSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingDemanda, setEditingDemanda] = useState<Demanda | null>(null);
-  const [form, setForm] = useState({ titulo: "", descricao: "", localizacao: "", assessor_id: "", eleitor_id: "", prazo: "", origem: "", tipo: "", setor: "" });
+  const [form, setForm] = useState({ titulo: "", descricao: "", localizacao: "", assessor_id: "", eleitor_id: "", prazo: "", origem: "", tipo: "", setor: "", prioridade: "media" });
   const [dragId, setDragId] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [filterDateEnd, setFilterDateEnd] = useState<Date | undefined>(undefined);
@@ -111,12 +120,35 @@ const Demandas = () => {
   const [filterResponsavel, setFilterResponsavel] = useState<string>("all");
   const [filterTipo, setFilterTipo] = useState<string>("all");
   const [filterSetor, setFilterSetor] = useState<string>("all");
+  const [filterPrioridade, setFilterPrioridade] = useState<string>("all");
   const [historicoOpen, setHistoricoOpen] = useState(false);
   const [historicoDemanda, setHistoricoDemanda] = useState<Demanda | null>(null);
   const [historicoItems, setHistoricoItems] = useState<any[]>([]);
   const [historicoLoading, setHistoricoLoading] = useState(false);
+  const [comentarios, setComentarios] = useState<any[]>([]);
+  const [novoComentario, setNovoComentario] = useState("");
+  const [anexos, setAnexos] = useState<any[]>([]);
+  const [uploadingAnexo, setUploadingAnexo] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const loadComentarios = async (demandaId: string) => {
+    const { data } = await supabase
+      .from("demanda_comentarios" as any)
+      .select("*")
+      .eq("demanda_id", demandaId)
+      .order("created_at", { ascending: false });
+    setComentarios((data as any[]) || []);
+  };
+
+  const loadAnexos = async (demandaId: string) => {
+    const { data } = await supabase
+      .from("demanda_anexos" as any)
+      .select("*")
+      .eq("demanda_id", demandaId)
+      .order("created_at", { ascending: false });
+    setAnexos((data as any[]) || []);
+  };
 
   const openHistorico = async (demanda: Demanda) => {
     setHistoricoDemanda(demanda);
@@ -128,7 +160,74 @@ const Demandas = () => {
       .eq("demanda_id", demanda.id)
       .order("created_at", { ascending: false });
     setHistoricoItems((data as any[]) || []);
+    await loadComentarios(demanda.id);
+    await loadAnexos(demanda.id);
     setHistoricoLoading(false);
+  };
+
+  const addComentario = async () => {
+    if (!novoComentario.trim() || !historicoDemanda || !user) return;
+    const { data: profile } = await supabase.from("profiles").select("nome, role").eq("user_id", user.id).maybeSingle();
+    const { error } = await supabase.from("demanda_comentarios" as any).insert({
+      demanda_id: historicoDemanda.id,
+      comentario: novoComentario.trim(),
+      usuario_id: user.id,
+      usuario_nome: profile?.nome || null,
+      usuario_role: profile?.role || null,
+    });
+    if (error) { toast({ title: "Erro ao comentar", description: error.message, variant: "destructive" }); return; }
+    setNovoComentario("");
+    await loadComentarios(historicoDemanda.id);
+    openHistorico(historicoDemanda);
+  };
+
+  const deleteComentario = async (id: string) => {
+    await supabase.from("demanda_comentarios" as any).delete().eq("id", id);
+    if (historicoDemanda) { await loadComentarios(historicoDemanda.id); openHistorico(historicoDemanda); }
+  };
+
+  const handleUploadAnexo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !historicoDemanda || !user) return;
+    setUploadingAnexo(true);
+    try {
+      const safeName = file.name.replace(/[^\w.\-]/g, "_");
+      const path = `${historicoDemanda.id}/${Date.now()}_${safeName}`;
+      const { error: upErr } = await supabase.storage.from("demanda-anexos").upload(path, file);
+      if (upErr) throw upErr;
+      const { data: profile } = await supabase.from("profiles").select("nome, role").eq("user_id", user.id).maybeSingle();
+      const { error } = await supabase.from("demanda_anexos" as any).insert({
+        demanda_id: historicoDemanda.id,
+        nome_arquivo: file.name,
+        storage_path: path,
+        mime_type: file.type || null,
+        tamanho_bytes: file.size,
+        usuario_id: user.id,
+        usuario_nome: profile?.nome || null,
+        usuario_role: profile?.role || null,
+      });
+      if (error) throw error;
+      await loadAnexos(historicoDemanda.id);
+      openHistorico(historicoDemanda);
+      toast({ title: "Anexo enviado!" });
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar anexo", description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingAnexo(false);
+      e.target.value = "";
+    }
+  };
+
+  const deleteAnexo = async (anexo: any) => {
+    if (!confirm("Excluir este anexo?")) return;
+    await supabase.storage.from("demanda-anexos").remove([anexo.storage_path]);
+    await supabase.from("demanda_anexos" as any).delete().eq("id", anexo.id);
+    if (historicoDemanda) { await loadAnexos(historicoDemanda.id); openHistorico(historicoDemanda); }
+  };
+
+  const getAnexoUrl = (path: string) => {
+    const { data } = supabase.storage.from("demanda-anexos").getPublicUrl(path);
+    return data.publicUrl;
   };
 
   const fetchAssessores = async () => {
@@ -199,6 +298,7 @@ const Demandas = () => {
     if (filterStatus !== "all" && d.status !== filterStatus) return false;
     if (filterTipo !== "all" && (d.tipo || "") !== filterTipo) return false;
     if (filterSetor !== "all" && (d.setor || "") !== filterSetor) return false;
+    if (filterPrioridade !== "all" && ((d as any).prioridade || "media") !== filterPrioridade) return false;
     if (filterResponsavel !== "all") {
       if (filterResponsavel === "none" && d.assessor_id) return false;
       if (filterResponsavel !== "none" && d.assessor_id !== filterResponsavel) return false;
@@ -227,6 +327,7 @@ const Demandas = () => {
       origem: form.origem || null,
       tipo: form.tipo || null,
       setor: form.setor || null,
+      prioridade: form.prioridade || "media",
       eleitor_id: primaryEleitor,
     };
     if (role === "politico") {
@@ -252,7 +353,7 @@ const Demandas = () => {
 
     if (demandaId) await syncVinculos(demandaId);
 
-    setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", eleitor_id: "", prazo: "", origem: "", tipo: "", setor: "" });
+    setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", eleitor_id: "", prazo: "", origem: "", tipo: "", setor: "", prioridade: "media" });
     setSelectedEleitores([]);
     setEleitorSearch("");
     setEditingDemanda(null);
@@ -271,6 +372,7 @@ const Demandas = () => {
       origem: demanda.origem || "",
       tipo: demanda.tipo || "",
       setor: (demanda as any).setor || "",
+      prioridade: (demanda as any).prioridade || "media",
     });
     const vinculados = eleitoresPorDemanda[demanda.id] || [];
     const merged = vinculados.length > 0
@@ -367,7 +469,7 @@ const Demandas = () => {
             </PopoverContent>
           </Popover>
           <Badge variant="secondary" className="text-sm">{total} Total</Badge>
-          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingDemanda(null); setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", eleitor_id: "", prazo: "", origem: "", tipo: "", setor: "" }); setSelectedEleitores([]); setEleitorSearch(""); } }}>
+          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingDemanda(null); setForm({ titulo: "", descricao: "", localizacao: "", assessor_id: "", eleitor_id: "", prazo: "", origem: "", tipo: "", setor: "", prioridade: "media" }); setSelectedEleitores([]); setEleitorSearch(""); } }}>
             <DialogTrigger asChild>
               <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
                 <Plus className="h-4 w-4" /> Nova Demanda
@@ -407,6 +509,15 @@ const Demandas = () => {
                     <SelectContent>
                       <SelectItem value="none">Não informado</SelectItem>
                       {SETORES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="flex items-center gap-2"><Flag className="h-3.5 w-3.5" /> Prioridade</Label>
+                  <Select value={form.prioridade} onValueChange={(v) => setForm({ ...form, prioridade: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {PRIORIDADES.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -492,7 +603,7 @@ const Demandas = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">📍 Origem</Label>
           <Select value={filterOrigem} onValueChange={setFilterOrigem}>
@@ -544,9 +655,19 @@ const Demandas = () => {
             </SelectContent>
           </Select>
         </div>
-        {(filterOrigem !== "all" || filterStatus !== "all" || filterResponsavel !== "all" || filterTipo !== "all" || filterSetor !== "all" || filterDate) && (
-          <Button variant="ghost" size="sm" className="col-span-2 md:col-span-3 lg:col-span-5 h-8 text-xs gap-1 justify-start text-muted-foreground hover:text-foreground"
-            onClick={() => { setFilterOrigem("all"); setFilterStatus("all"); setFilterResponsavel("all"); setFilterTipo("all"); setFilterSetor("all"); setFilterDate(undefined); setFilterDateEnd(undefined); }}>
+        <div>
+          <Label className="text-xs text-muted-foreground mb-1 block">🚩 Prioridade</Label>
+          <Select value={filterPrioridade} onValueChange={setFilterPrioridade}>
+            <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as prioridades</SelectItem>
+              {PRIORIDADES.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        {(filterOrigem !== "all" || filterStatus !== "all" || filterResponsavel !== "all" || filterTipo !== "all" || filterSetor !== "all" || filterPrioridade !== "all" || filterDate) && (
+          <Button variant="ghost" size="sm" className="col-span-2 md:col-span-3 lg:col-span-6 h-8 text-xs gap-1 justify-start text-muted-foreground hover:text-foreground"
+            onClick={() => { setFilterOrigem("all"); setFilterStatus("all"); setFilterResponsavel("all"); setFilterTipo("all"); setFilterSetor("all"); setFilterPrioridade("all"); setFilterDate(undefined); setFilterDateEnd(undefined); }}>
             <X className="h-3 w-3" /> Limpar todos os filtros
           </Button>
         )}
@@ -593,6 +714,7 @@ const Demandas = () => {
                               <div className="flex flex-wrap items-center gap-1.5">
                                 <Badge variant="outline" className={`text-[10px] ${statusStyles[demanda.status] || ""}`}>{demanda.status}</Badge>
                                 {demanda.tipo && <Badge variant="secondary" className="text-[10px]">🏷️ {demanda.tipo}</Badge>}
+                                {(() => { const p = PRIORIDADES.find(x => x.value === ((demanda as any).prioridade || "media")); return p ? <Badge variant="outline" className={`text-[10px] ${p.style}`}>{p.label}</Badge> : null; })()}
                                 {demanda.origem && <Badge variant="outline" className="text-[10px]">{ORIGENS.find(o => o.value === demanda.origem)?.label || `📍 ${demanda.origem}`}</Badge>}
                                 {(demanda as any).setor && <Badge variant="outline" className="text-[10px]">{SETORES.find(s => s.value === (demanda as any).setor)?.label || `🏛️ ${(demanda as any).setor}`}</Badge>}
                                 {prazoExpirado && <AlertTriangle className="h-3.5 w-3.5 text-destructive" />}
@@ -714,42 +836,129 @@ const Demandas = () => {
               <History className="h-4 w-4" /> Histórico — {historicoDemanda?.titulo}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-2 pt-2">
-            {historicoLoading && <p className="text-sm text-muted-foreground text-center py-4">Carregando…</p>}
-            {!historicoLoading && historicoItems.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-6">Nenhuma movimentação registrada ainda.</p>
-            )}
-            {historicoItems.map((h) => (
-              <div key={h.id} className="rounded-md border border-border p-3 bg-secondary/30">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{h.descricao}</p>
-                    {(h.valor_anterior || h.valor_novo) && h.acao !== "status_alterado" && (
-                      <p className="text-xs text-muted-foreground mt-1 break-all">
-                        {h.valor_anterior && <span className="line-through opacity-70">{h.valor_anterior}</span>}
-                        {h.valor_anterior && h.valor_novo && " → "}
-                        {h.valor_novo && <span className="text-foreground">{h.valor_novo}</span>}
+          <Tabs defaultValue="timeline" className="pt-2">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="timeline" className="text-xs gap-1"><History className="h-3.5 w-3.5" /> Linha do tempo</TabsTrigger>
+              <TabsTrigger value="comentarios" className="text-xs gap-1"><MessageCircle className="h-3.5 w-3.5" /> Comentários ({comentarios.length})</TabsTrigger>
+              <TabsTrigger value="anexos" className="text-xs gap-1"><Paperclip className="h-3.5 w-3.5" /> Anexos ({anexos.length})</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="timeline" className="space-y-2 mt-3">
+              {historicoLoading && <p className="text-sm text-muted-foreground text-center py-4">Carregando…</p>}
+              {!historicoLoading && historicoItems.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-6">Nenhuma movimentação registrada ainda.</p>
+              )}
+              {historicoItems.map((h) => (
+                <div key={h.id} className="rounded-md border border-border p-3 bg-secondary/30">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{h.descricao}</p>
+                      {(h.valor_anterior || h.valor_novo) && h.acao !== "status_alterado" && h.acao !== "comentario_adicionado" && (
+                        <p className="text-xs text-muted-foreground mt-1 break-all">
+                          {h.valor_anterior && <span className="line-through opacity-70">{h.valor_anterior}</span>}
+                          {h.valor_anterior && h.valor_novo && " → "}
+                          {h.valor_novo && <span className="text-foreground">{h.valor_novo}</span>}
+                        </p>
+                      )}
+                      {h.etapas_puladas && h.etapas_puladas.length > 0 && (
+                        <p className="text-xs text-warning mt-1">⚠️ Pulou: {h.etapas_puladas.join(", ")}</p>
+                      )}
+                    </div>
+                    <Badge variant="outline" className="text-[10px] shrink-0">{h.acao}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-2">
+                    <p className="text-[10px] text-muted-foreground">
+                      {format(new Date(h.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </p>
+                    {h.usuario_nome && (
+                      <p className="text-[10px] font-medium text-primary">
+                        👤 {h.usuario_nome}{h.usuario_role ? ` (${h.usuario_role})` : ""}
                       </p>
                     )}
-                    {h.etapas_puladas && h.etapas_puladas.length > 0 && (
-                      <p className="text-xs text-warning mt-1">⚠️ Pulou: {h.etapas_puladas.join(", ")}</p>
+                  </div>
+                </div>
+              ))}
+            </TabsContent>
+
+            <TabsContent value="comentarios" className="space-y-2 mt-3">
+              <div className="flex gap-2">
+                <Textarea
+                  value={novoComentario}
+                  onChange={(e) => setNovoComentario(e.target.value)}
+                  placeholder="Escreva um comentário..."
+                  className="min-h-[60px] text-sm"
+                />
+                <Button onClick={addComentario} disabled={!novoComentario.trim()} className="gradient-primary text-primary-foreground self-end gap-1">
+                  <Send className="h-3.5 w-3.5" /> Enviar
+                </Button>
+              </div>
+              {comentarios.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-6">Nenhum comentário ainda.</p>
+              )}
+              {comentarios.map((c) => (
+                <div key={c.id} className="rounded-md border border-border p-3 bg-secondary/30">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm flex-1 whitespace-pre-wrap break-words">{c.comentario}</p>
+                    {(c.usuario_id === user?.id || role === "politico") && (
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive shrink-0" onClick={() => deleteComentario(c.id)}>
+                        <Trash className="h-3 w-3" />
+                      </Button>
                     )}
                   </div>
-                  <Badge variant="outline" className="text-[10px] shrink-0">{h.acao}</Badge>
-                </div>
-                <div className="flex items-center justify-between gap-2 mt-2">
-                  <p className="text-[10px] text-muted-foreground">
-                    {format(new Date(h.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                  </p>
-                  {h.usuario_nome && (
-                    <p className="text-[10px] font-medium text-primary">
-                      👤 {h.usuario_nome}{h.usuario_role ? ` (${h.usuario_role})` : ""}
+                  <div className="flex items-center justify-between gap-2 mt-2">
+                    <p className="text-[10px] text-muted-foreground">
+                      {format(new Date(c.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     </p>
+                    {c.usuario_nome && (
+                      <p className="text-[10px] font-medium text-primary">
+                        👤 {c.usuario_nome}{c.usuario_role ? ` (${c.usuario_role})` : ""}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </TabsContent>
+
+            <TabsContent value="anexos" className="space-y-2 mt-3">
+              <div>
+                <label className="flex items-center justify-center gap-2 border-2 border-dashed border-border rounded-md p-4 cursor-pointer hover:bg-secondary/30 transition-colors">
+                  <Paperclip className="h-4 w-4" />
+                  <span className="text-sm">{uploadingAnexo ? "Enviando..." : "Clique para enviar arquivo"}</span>
+                  <input type="file" className="hidden" onChange={handleUploadAnexo} disabled={uploadingAnexo} />
+                </label>
+              </div>
+              {anexos.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-6">Nenhum anexo enviado.</p>
+              )}
+              {anexos.map((a) => (
+                <div key={a.id} className="rounded-md border border-border p-3 bg-secondary/30 flex items-center gap-2">
+                  <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{a.nome_arquivo}</p>
+                    <div className="flex items-center justify-between gap-2 mt-1">
+                      <p className="text-[10px] text-muted-foreground">
+                        {format(new Date(a.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        {a.tamanho_bytes ? ` · ${(a.tamanho_bytes / 1024).toFixed(1)} KB` : ""}
+                      </p>
+                      {a.usuario_nome && (
+                        <p className="text-[10px] font-medium text-primary truncate">
+                          👤 {a.usuario_nome}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <a href={getAnexoUrl(a.storage_path)} target="_blank" rel="noopener noreferrer">
+                    <Button variant="ghost" size="icon" className="h-7 w-7"><Download className="h-3.5 w-3.5" /></Button>
+                  </a>
+                  {(a.usuario_id === user?.id || role === "politico") && (
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteAnexo(a)}>
+                      <Trash className="h-3.5 w-3.5" />
+                    </Button>
                   )}
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
     </motion.div>
