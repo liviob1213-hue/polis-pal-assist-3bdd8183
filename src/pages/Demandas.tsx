@@ -511,6 +511,15 @@ const Demandas = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                <div>
+                  <Label className="flex items-center gap-2"><Flag className="h-3.5 w-3.5" /> Prioridade</Label>
+                  <Select value={form.prioridade} onValueChange={(v) => setForm({ ...form, prioridade: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {PRIORIDADES.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div><Label>Localização</Label><Input value={form.localizacao} onChange={(e) => setForm({ ...form, localizacao: e.target.value })} placeholder="Local da demanda" /></div>
                 <div><Label>Prazo</Label><Input type="date" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} /></div>
                 <div>
