@@ -737,9 +737,16 @@ const Demandas = () => {
                   </div>
                   <Badge variant="outline" className="text-[10px] shrink-0">{h.acao}</Badge>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-2">
-                  {format(new Date(h.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                </p>
+                <div className="flex items-center justify-between gap-2 mt-2">
+                  <p className="text-[10px] text-muted-foreground">
+                    {format(new Date(h.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                  </p>
+                  {h.usuario_nome && (
+                    <p className="text-[10px] font-medium text-primary">
+                      👤 {h.usuario_nome}{h.usuario_role ? ` (${h.usuario_role})` : ""}
+                    </p>
+                  )}
+                </div>
               </div>
             ))}
           </div>
