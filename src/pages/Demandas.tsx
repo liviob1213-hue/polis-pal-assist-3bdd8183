@@ -110,7 +110,7 @@ const Demandas = () => {
   const [eleitorSearch, setEleitorSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingDemanda, setEditingDemanda] = useState<Demanda | null>(null);
-  const [form, setForm] = useState({ titulo: "", descricao: "", localizacao: "", assessor_id: "", eleitor_id: "", prazo: "", origem: "", tipo: "", setor: "" });
+  const [form, setForm] = useState({ titulo: "", descricao: "", localizacao: "", assessor_id: "", eleitor_id: "", prazo: "", origem: "", tipo: "", setor: "", prioridade: "media" });
   const [dragId, setDragId] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [filterDateEnd, setFilterDateEnd] = useState<Date | undefined>(undefined);
@@ -120,12 +120,35 @@ const Demandas = () => {
   const [filterResponsavel, setFilterResponsavel] = useState<string>("all");
   const [filterTipo, setFilterTipo] = useState<string>("all");
   const [filterSetor, setFilterSetor] = useState<string>("all");
+  const [filterPrioridade, setFilterPrioridade] = useState<string>("all");
   const [historicoOpen, setHistoricoOpen] = useState(false);
   const [historicoDemanda, setHistoricoDemanda] = useState<Demanda | null>(null);
   const [historicoItems, setHistoricoItems] = useState<any[]>([]);
   const [historicoLoading, setHistoricoLoading] = useState(false);
+  const [comentarios, setComentarios] = useState<any[]>([]);
+  const [novoComentario, setNovoComentario] = useState("");
+  const [anexos, setAnexos] = useState<any[]>([]);
+  const [uploadingAnexo, setUploadingAnexo] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const loadComentarios = async (demandaId: string) => {
+    const { data } = await supabase
+      .from("demanda_comentarios" as any)
+      .select("*")
+      .eq("demanda_id", demandaId)
+      .order("created_at", { ascending: false });
+    setComentarios((data as any[]) || []);
+  };
+
+  const loadAnexos = async (demandaId: string) => {
+    const { data } = await supabase
+      .from("demanda_anexos" as any)
+      .select("*")
+      .eq("demanda_id", demandaId)
+      .order("created_at", { ascending: false });
+    setAnexos((data as any[]) || []);
+  };
 
   const openHistorico = async (demanda: Demanda) => {
     setHistoricoDemanda(demanda);
@@ -137,7 +160,74 @@ const Demandas = () => {
       .eq("demanda_id", demanda.id)
       .order("created_at", { ascending: false });
     setHistoricoItems((data as any[]) || []);
+    await loadComentarios(demanda.id);
+    await loadAnexos(demanda.id);
     setHistoricoLoading(false);
+  };
+
+  const addComentario = async () => {
+    if (!novoComentario.trim() || !historicoDemanda || !user) return;
+    const { data: profile } = await supabase.from("profiles").select("nome, role").eq("user_id", user.id).maybeSingle();
+    const { error } = await supabase.from("demanda_comentarios" as any).insert({
+      demanda_id: historicoDemanda.id,
+      comentario: novoComentario.trim(),
+      usuario_id: user.id,
+      usuario_nome: profile?.nome || null,
+      usuario_role: profile?.role || null,
+    });
+    if (error) { toast({ title: "Erro ao comentar", description: error.message, variant: "destructive" }); return; }
+    setNovoComentario("");
+    await loadComentarios(historicoDemanda.id);
+    openHistorico(historicoDemanda);
+  };
+
+  const deleteComentario = async (id: string) => {
+    await supabase.from("demanda_comentarios" as any).delete().eq("id", id);
+    if (historicoDemanda) { await loadComentarios(historicoDemanda.id); openHistorico(historicoDemanda); }
+  };
+
+  const handleUploadAnexo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !historicoDemanda || !user) return;
+    setUploadingAnexo(true);
+    try {
+      const safeName = file.name.replace(/[^\w.\-]/g, "_");
+      const path = `${historicoDemanda.id}/${Date.now()}_${safeName}`;
+      const { error: upErr } = await supabase.storage.from("demanda-anexos").upload(path, file);
+      if (upErr) throw upErr;
+      const { data: profile } = await supabase.from("profiles").select("nome, role").eq("user_id", user.id).maybeSingle();
+      const { error } = await supabase.from("demanda_anexos" as any).insert({
+        demanda_id: historicoDemanda.id,
+        nome_arquivo: file.name,
+        storage_path: path,
+        mime_type: file.type || null,
+        tamanho_bytes: file.size,
+        usuario_id: user.id,
+        usuario_nome: profile?.nome || null,
+        usuario_role: profile?.role || null,
+      });
+      if (error) throw error;
+      await loadAnexos(historicoDemanda.id);
+      openHistorico(historicoDemanda);
+      toast({ title: "Anexo enviado!" });
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar anexo", description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingAnexo(false);
+      e.target.value = "";
+    }
+  };
+
+  const deleteAnexo = async (anexo: any) => {
+    if (!confirm("Excluir este anexo?")) return;
+    await supabase.storage.from("demanda-anexos").remove([anexo.storage_path]);
+    await supabase.from("demanda_anexos" as any).delete().eq("id", anexo.id);
+    if (historicoDemanda) { await loadAnexos(historicoDemanda.id); openHistorico(historicoDemanda); }
+  };
+
+  const getAnexoUrl = (path: string) => {
+    const { data } = supabase.storage.from("demanda-anexos").getPublicUrl(path);
+    return data.publicUrl;
   };
 
   const fetchAssessores = async () => {
