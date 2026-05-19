@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Plus, MapPin, Calendar, Clock, Sparkles, GripVertical, Pencil, UserCheck, AlertTriangle, Filter, X, Trash2, MessageCircle, Search, Users } from "lucide-react";
+import { Plus, MapPin, Calendar, Clock, Sparkles, GripVertical, Pencil, UserCheck, AlertTriangle, Filter, X, Trash2, MessageCircle, Search, Users, History } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -111,8 +111,25 @@ const Demandas = () => {
   const [filterResponsavel, setFilterResponsavel] = useState<string>("all");
   const [filterTipo, setFilterTipo] = useState<string>("all");
   const [filterSetor, setFilterSetor] = useState<string>("all");
+  const [historicoOpen, setHistoricoOpen] = useState(false);
+  const [historicoDemanda, setHistoricoDemanda] = useState<Demanda | null>(null);
+  const [historicoItems, setHistoricoItems] = useState<any[]>([]);
+  const [historicoLoading, setHistoricoLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const openHistorico = async (demanda: Demanda) => {
+    setHistoricoDemanda(demanda);
+    setHistoricoOpen(true);
+    setHistoricoLoading(true);
+    const { data } = await supabase
+      .from("demanda_historico" as any)
+      .select("*")
+      .eq("demanda_id", demanda.id)
+      .order("created_at", { ascending: false });
+    setHistoricoItems((data as any[]) || []);
+    setHistoricoLoading(false);
+  };
 
   const fetchAssessores = async () => {
     if (!user || role !== "politico") return;
@@ -581,6 +598,9 @@ const Demandas = () => {
                                 {prazoExpirado && <AlertTriangle className="h-3.5 w-3.5 text-destructive" />}
                               </div>
                               <div className="flex items-center gap-1 shrink-0">
+                                <Button variant="ghost" size="icon" className="h-7 w-7 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground" onClick={() => openHistorico(demanda)} title="Histórico">
+                                  <History className="h-3.5 w-3.5" />
+                                </Button>
                                 <Button variant="ghost" size="icon" className="h-7 w-7 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground" onClick={() => openEdit(demanda)}>
                                   <Pencil className="h-3.5 w-3.5" />
                                 </Button>
@@ -686,6 +706,45 @@ const Demandas = () => {
           );
         })}
       </div>
+
+      <Dialog open={historicoOpen} onOpenChange={setHistoricoOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-4 w-4" /> Histórico — {historicoDemanda?.titulo}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 pt-2">
+            {historicoLoading && <p className="text-sm text-muted-foreground text-center py-4">Carregando…</p>}
+            {!historicoLoading && historicoItems.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-6">Nenhuma movimentação registrada ainda.</p>
+            )}
+            {historicoItems.map((h) => (
+              <div key={h.id} className="rounded-md border border-border p-3 bg-secondary/30">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{h.descricao}</p>
+                    {(h.valor_anterior || h.valor_novo) && h.acao !== "status_alterado" && (
+                      <p className="text-xs text-muted-foreground mt-1 break-all">
+                        {h.valor_anterior && <span className="line-through opacity-70">{h.valor_anterior}</span>}
+                        {h.valor_anterior && h.valor_novo && " → "}
+                        {h.valor_novo && <span className="text-foreground">{h.valor_novo}</span>}
+                      </p>
+                    )}
+                    {h.etapas_puladas && h.etapas_puladas.length > 0 && (
+                      <p className="text-xs text-warning mt-1">⚠️ Pulou: {h.etapas_puladas.join(", ")}</p>
+                    )}
+                  </div>
+                  <Badge variant="outline" className="text-[10px] shrink-0">{h.acao}</Badge>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-2">
+                  {format(new Date(h.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                </p>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 };
