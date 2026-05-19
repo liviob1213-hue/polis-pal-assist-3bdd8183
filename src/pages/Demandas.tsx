@@ -35,7 +35,15 @@ interface Demanda {
   origem: string | null;
   tipo: string | null;
   setor: string | null;
+  prioridade?: string | null;
 }
+
+const PRIORIDADES = [
+  { value: "baixa", label: "🟢 Baixa", style: "border-success bg-success/10 text-success" },
+  { value: "media", label: "🟡 Média", style: "border-warning bg-warning/10 text-warning" },
+  { value: "alta", label: "🟠 Alta", style: "border-accent bg-accent/10 text-accent" },
+  { value: "urgente", label: "🔴 Urgente", style: "border-destructive bg-destructive/10 text-destructive" },
+];
 
 const ORIGENS = [
   { value: "Rua", label: "🏠 Rua" },
