@@ -298,6 +298,7 @@ const Demandas = () => {
     if (filterStatus !== "all" && d.status !== filterStatus) return false;
     if (filterTipo !== "all" && (d.tipo || "") !== filterTipo) return false;
     if (filterSetor !== "all" && (d.setor || "") !== filterSetor) return false;
+    if (filterPrioridade !== "all" && ((d as any).prioridade || "media") !== filterPrioridade) return false;
     if (filterResponsavel !== "all") {
       if (filterResponsavel === "none" && d.assessor_id) return false;
       if (filterResponsavel !== "none" && d.assessor_id !== filterResponsavel) return false;
