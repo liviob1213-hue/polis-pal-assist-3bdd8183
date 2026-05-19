@@ -74,7 +74,7 @@ const tarefaColumns: { key: TarefaStatusKey; title: string; dotColor: string }[]
   { key: "Concluído", title: "Concluído", dotColor: "bg-success" },
 ];
 
-const interesses = ["Saúde", "Obras", "Educação", "Segurança", "Transporte", "Meio Ambiente"];
+const interesses = ["Saúde", "Obras", "Educação", "Segurança", "Transporte", "Meio Ambiente", "Manutenção", "Cultura", "Social", "Esporte"];
 
 const ORIGENS = [
   { value: "Rua", label: "🏠 Rua" },
