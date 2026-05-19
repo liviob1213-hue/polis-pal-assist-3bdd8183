@@ -836,42 +836,129 @@ const Demandas = () => {
               <History className="h-4 w-4" /> Histórico — {historicoDemanda?.titulo}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-2 pt-2">
-            {historicoLoading && <p className="text-sm text-muted-foreground text-center py-4">Carregando…</p>}
-            {!historicoLoading && historicoItems.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-6">Nenhuma movimentação registrada ainda.</p>
-            )}
-            {historicoItems.map((h) => (
-              <div key={h.id} className="rounded-md border border-border p-3 bg-secondary/30">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{h.descricao}</p>
-                    {(h.valor_anterior || h.valor_novo) && h.acao !== "status_alterado" && (
-                      <p className="text-xs text-muted-foreground mt-1 break-all">
-                        {h.valor_anterior && <span className="line-through opacity-70">{h.valor_anterior}</span>}
-                        {h.valor_anterior && h.valor_novo && " → "}
-                        {h.valor_novo && <span className="text-foreground">{h.valor_novo}</span>}
+          <Tabs defaultValue="timeline" className="pt-2">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="timeline" className="text-xs gap-1"><History className="h-3.5 w-3.5" /> Linha do tempo</TabsTrigger>
+              <TabsTrigger value="comentarios" className="text-xs gap-1"><MessageCircle className="h-3.5 w-3.5" /> Comentários ({comentarios.length})</TabsTrigger>
+              <TabsTrigger value="anexos" className="text-xs gap-1"><Paperclip className="h-3.5 w-3.5" /> Anexos ({anexos.length})</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="timeline" className="space-y-2 mt-3">
+              {historicoLoading && <p className="text-sm text-muted-foreground text-center py-4">Carregando…</p>}
+              {!historicoLoading && historicoItems.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-6">Nenhuma movimentação registrada ainda.</p>
+              )}
+              {historicoItems.map((h) => (
+                <div key={h.id} className="rounded-md border border-border p-3 bg-secondary/30">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{h.descricao}</p>
+                      {(h.valor_anterior || h.valor_novo) && h.acao !== "status_alterado" && h.acao !== "comentario_adicionado" && (
+                        <p className="text-xs text-muted-foreground mt-1 break-all">
+                          {h.valor_anterior && <span className="line-through opacity-70">{h.valor_anterior}</span>}
+                          {h.valor_anterior && h.valor_novo && " → "}
+                          {h.valor_novo && <span className="text-foreground">{h.valor_novo}</span>}
+                        </p>
+                      )}
+                      {h.etapas_puladas && h.etapas_puladas.length > 0 && (
+                        <p className="text-xs text-warning mt-1">⚠️ Pulou: {h.etapas_puladas.join(", ")}</p>
+                      )}
+                    </div>
+                    <Badge variant="outline" className="text-[10px] shrink-0">{h.acao}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-2">
+                    <p className="text-[10px] text-muted-foreground">
+                      {format(new Date(h.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </p>
+                    {h.usuario_nome && (
+                      <p className="text-[10px] font-medium text-primary">
+                        👤 {h.usuario_nome}{h.usuario_role ? ` (${h.usuario_role})` : ""}
                       </p>
                     )}
-                    {h.etapas_puladas && h.etapas_puladas.length > 0 && (
-                      <p className="text-xs text-warning mt-1">⚠️ Pulou: {h.etapas_puladas.join(", ")}</p>
+                  </div>
+                </div>
+              ))}
+            </TabsContent>
+
+            <TabsContent value="comentarios" className="space-y-2 mt-3">
+              <div className="flex gap-2">
+                <Textarea
+                  value={novoComentario}
+                  onChange={(e) => setNovoComentario(e.target.value)}
+                  placeholder="Escreva um comentário..."
+                  className="min-h-[60px] text-sm"
+                />
+                <Button onClick={addComentario} disabled={!novoComentario.trim()} className="gradient-primary text-primary-foreground self-end gap-1">
+                  <Send className="h-3.5 w-3.5" /> Enviar
+                </Button>
+              </div>
+              {comentarios.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-6">Nenhum comentário ainda.</p>
+              )}
+              {comentarios.map((c) => (
+                <div key={c.id} className="rounded-md border border-border p-3 bg-secondary/30">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm flex-1 whitespace-pre-wrap break-words">{c.comentario}</p>
+                    {(c.usuario_id === user?.id || role === "politico") && (
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive shrink-0" onClick={() => deleteComentario(c.id)}>
+                        <Trash className="h-3 w-3" />
+                      </Button>
                     )}
                   </div>
-                  <Badge variant="outline" className="text-[10px] shrink-0">{h.acao}</Badge>
-                </div>
-                <div className="flex items-center justify-between gap-2 mt-2">
-                  <p className="text-[10px] text-muted-foreground">
-                    {format(new Date(h.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                  </p>
-                  {h.usuario_nome && (
-                    <p className="text-[10px] font-medium text-primary">
-                      👤 {h.usuario_nome}{h.usuario_role ? ` (${h.usuario_role})` : ""}
+                  <div className="flex items-center justify-between gap-2 mt-2">
+                    <p className="text-[10px] text-muted-foreground">
+                      {format(new Date(c.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     </p>
+                    {c.usuario_nome && (
+                      <p className="text-[10px] font-medium text-primary">
+                        👤 {c.usuario_nome}{c.usuario_role ? ` (${c.usuario_role})` : ""}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </TabsContent>
+
+            <TabsContent value="anexos" className="space-y-2 mt-3">
+              <div>
+                <label className="flex items-center justify-center gap-2 border-2 border-dashed border-border rounded-md p-4 cursor-pointer hover:bg-secondary/30 transition-colors">
+                  <Paperclip className="h-4 w-4" />
+                  <span className="text-sm">{uploadingAnexo ? "Enviando..." : "Clique para enviar arquivo"}</span>
+                  <input type="file" className="hidden" onChange={handleUploadAnexo} disabled={uploadingAnexo} />
+                </label>
+              </div>
+              {anexos.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-6">Nenhum anexo enviado.</p>
+              )}
+              {anexos.map((a) => (
+                <div key={a.id} className="rounded-md border border-border p-3 bg-secondary/30 flex items-center gap-2">
+                  <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{a.nome_arquivo}</p>
+                    <div className="flex items-center justify-between gap-2 mt-1">
+                      <p className="text-[10px] text-muted-foreground">
+                        {format(new Date(a.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        {a.tamanho_bytes ? ` · ${(a.tamanho_bytes / 1024).toFixed(1)} KB` : ""}
+                      </p>
+                      {a.usuario_nome && (
+                        <p className="text-[10px] font-medium text-primary truncate">
+                          👤 {a.usuario_nome}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <a href={getAnexoUrl(a.storage_path)} target="_blank" rel="noopener noreferrer">
+                    <Button variant="ghost" size="icon" className="h-7 w-7"><Download className="h-3.5 w-3.5" /></Button>
+                  </a>
+                  {(a.usuario_id === user?.id || role === "politico") && (
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteAnexo(a)}>
+                      <Trash className="h-3.5 w-3.5" />
+                    </Button>
                   )}
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
     </motion.div>
