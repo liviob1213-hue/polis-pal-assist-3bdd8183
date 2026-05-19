@@ -370,6 +370,7 @@ const Demandas = () => {
       origem: demanda.origem || "",
       tipo: demanda.tipo || "",
       setor: (demanda as any).setor || "",
+      prioridade: (demanda as any).prioridade || "media",
     });
     const vinculados = eleitoresPorDemanda[demanda.id] || [];
     const merged = vinculados.length > 0
