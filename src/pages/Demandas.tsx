@@ -326,6 +326,7 @@ const Demandas = () => {
       origem: form.origem || null,
       tipo: form.tipo || null,
       setor: form.setor || null,
+      prioridade: form.prioridade || "media",
       eleitor_id: primaryEleitor,
     };
     if (role === "politico") {
