@@ -83,12 +83,13 @@ const waLink = (telefone: string | null | undefined) => {
   return `https://wa.me/${d}`;
 };
 
-type StatusKey = "Aberto" | "Em Análise" | "Em Andamento" | "Resolvido";
+type StatusKey = "Aberto" | "Em Análise" | "Em Andamento" | "Recontato" | "Resolvido";
 
 const columns: { key: StatusKey; title: string; dotColor: string }[] = [
   { key: "Aberto", title: "Aberto", dotColor: "bg-warning" },
   { key: "Em Análise", title: "Em Análise", dotColor: "bg-info" },
   { key: "Em Andamento", title: "Em Andamento", dotColor: "bg-accent" },
+  { key: "Recontato", title: "Recontato", dotColor: "bg-destructive" },
   { key: "Resolvido", title: "Resolvido", dotColor: "bg-success" },
 ];
 
@@ -96,7 +97,31 @@ const statusStyles: Record<string, string> = {
   "Aberto": "border-warning bg-warning/10 text-warning",
   "Em Análise": "border-info bg-info/10 text-info",
   "Em Andamento": "border-accent bg-accent/10 text-accent",
+  "Recontato": "border-destructive bg-destructive/10 text-destructive",
   "Resolvido": "border-success bg-success/10 text-success",
+};
+
+const PRAZO_PRESETS = [
+  { value: "15", label: "15 dias", days: 15 },
+  { value: "30", label: "1 mês", days: 30 },
+  { value: "60", label: "2 meses", days: 60 },
+  { value: "90", label: "3 meses", days: 90 },
+];
+
+const addDays = (n: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d.toISOString().split("T")[0];
+};
+
+const getPrazoBadge = (prazo: string | null, status: string) => {
+  if (!prazo || status === "Resolvido") return null;
+  const d = new Date(prazo);
+  const dias = Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  if (dias < 0) return { label: `⏰ Vencido há ${Math.abs(dias)}d`, style: "border-destructive bg-destructive/10 text-destructive" };
+  if (dias <= 3) return { label: `⚠️ Vence em ${dias}d`, style: "border-warning bg-warning/10 text-warning" };
+  if (dias <= 7) return { label: `🟡 ${dias}d restantes`, style: "border-accent bg-accent/10 text-accent" };
+  return { label: `🟢 ${dias}d restantes`, style: "border-success bg-success/10 text-success" };
 };
 
 const Demandas = () => {
