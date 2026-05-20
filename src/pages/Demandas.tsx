@@ -554,7 +554,30 @@ const Demandas = () => {
                   </Select>
                 </div>
                 <div><Label>Localização</Label><Input value={form.localizacao} onChange={(e) => setForm({ ...form, localizacao: e.target.value })} placeholder="Local da demanda" /></div>
-                <div><Label>Prazo</Label><Input type="date" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} /></div>
+                <div>
+                  <Label className="flex items-center gap-2"><Clock className="h-3.5 w-3.5" /> Prazo de cobrança</Label>
+                  <div className="flex flex-wrap gap-2 mt-1 mb-2">
+                    {PRAZO_PRESETS.map((p) => (
+                      <Button
+                        key={p.value}
+                        type="button"
+                        variant={form.prazo === addDays(p.days) ? "default" : "outline"}
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => setForm({ ...form, prazo: addDays(p.days) })}
+                      >
+                        {p.label}
+                      </Button>
+                    ))}
+                    {form.prazo && (
+                      <Button type="button" variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={() => setForm({ ...form, prazo: "" })}>
+                        <X className="h-3 w-3 mr-1" /> Limpar
+                      </Button>
+                    )}
+                  </div>
+                  <Input type="date" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} />
+                  <p className="text-[10px] text-muted-foreground mt-1">Após o vencimento, a demanda é movida automaticamente para a aba <strong>Recontato</strong>.</p>
+                </div>
                 <div>
                   <Label className="flex items-center gap-2"><Users className="h-4 w-4" /> Vincular Eleitores (opcional)</Label>
                   <p className="text-xs text-muted-foreground mb-2">Marque um ou mais eleitores que estão relacionados a esta demanda.</p>
