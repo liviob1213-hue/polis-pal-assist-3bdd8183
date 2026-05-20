@@ -277,8 +277,15 @@ const Demandas = () => {
 
   const fetchDemandas = async () => {
     const { data } = await supabase.from("demandas").select("*").order("created_at", { ascending: false });
-    // Normaliza encoding (corrige eventuais "Em AnÃ¡lise" -> "Em Análise") e NFC
-    setDemandas(((data || []) as Demanda[]).map((d) => ({ ...d, status: normalizeText(d.status), titulo: normalizeText(d.titulo) })) as Demanda[]);
+    const list = ((data || []) as Demanda[]).map((d) => ({ ...d, status: normalizeText(d.status), titulo: normalizeText(d.titulo) })) as Demanda[];
+
+    // Auto-mover vencidas para "Recontato"
+    const vencidas = list.filter((d) => d.prazo && d.status !== "Resolvido" && d.status !== "Recontato" && new Date(d.prazo) < new Date());
+    if (vencidas.length > 0) {
+      await Promise.all(vencidas.map((d) => supabase.from("demandas").update({ status: "Recontato" }).eq("id", d.id)));
+      vencidas.forEach((d) => { const item = list.find((x) => x.id === d.id); if (item) item.status = "Recontato"; });
+    }
+    setDemandas(list);
   };
 
   const fetchEleitores = async () => {
