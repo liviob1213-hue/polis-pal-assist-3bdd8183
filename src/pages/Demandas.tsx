@@ -225,7 +225,9 @@ const Demandas = () => {
         demanda_id: historicoDemanda.id,
         nome_arquivo: file.name,
         storage_path: path,
+        caminho_storage: path,
         mime_type: file.type || null,
+        file_type: file.type || null,
         tamanho_bytes: file.size,
         usuario_id: user.id,
         usuario_nome: profile?.nome || null,
@@ -245,7 +247,7 @@ const Demandas = () => {
 
   const deleteAnexo = async (anexo: any) => {
     if (!confirm("Excluir este anexo?")) return;
-    await supabase.storage.from("demanda-anexos").remove([anexo.storage_path]);
+    await supabase.storage.from("demanda-anexos").remove([anexo.storage_path || anexo.caminho_storage]);
     await supabase.from("demanda_anexos" as any).delete().eq("id", anexo.id);
     if (historicoDemanda) { await loadAnexos(historicoDemanda.id); openHistorico(historicoDemanda); }
   };
@@ -1004,7 +1006,7 @@ const Demandas = () => {
                       )}
                     </div>
                   </div>
-                  <a href={getAnexoUrl(a.storage_path)} target="_blank" rel="noopener noreferrer">
+                  <a href={getAnexoUrl(a.storage_path || a.caminho_storage)} target="_blank" rel="noopener noreferrer">
                     <Button variant="ghost" size="icon" className="h-7 w-7"><Download className="h-3.5 w-3.5" /></Button>
                   </a>
                   {(a.usuario_id === user?.id || role === "politico") && (
