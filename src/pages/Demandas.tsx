@@ -83,12 +83,13 @@ const waLink = (telefone: string | null | undefined) => {
   return `https://wa.me/${d}`;
 };
 
-type StatusKey = "Aberto" | "Em Análise" | "Em Andamento" | "Resolvido";
+type StatusKey = "Aberto" | "Em Análise" | "Em Andamento" | "Recontato" | "Resolvido";
 
 const columns: { key: StatusKey; title: string; dotColor: string }[] = [
   { key: "Aberto", title: "Aberto", dotColor: "bg-warning" },
   { key: "Em Análise", title: "Em Análise", dotColor: "bg-info" },
   { key: "Em Andamento", title: "Em Andamento", dotColor: "bg-accent" },
+  { key: "Recontato", title: "Recontato", dotColor: "bg-destructive" },
   { key: "Resolvido", title: "Resolvido", dotColor: "bg-success" },
 ];
 
@@ -96,7 +97,31 @@ const statusStyles: Record<string, string> = {
   "Aberto": "border-warning bg-warning/10 text-warning",
   "Em Análise": "border-info bg-info/10 text-info",
   "Em Andamento": "border-accent bg-accent/10 text-accent",
+  "Recontato": "border-destructive bg-destructive/10 text-destructive",
   "Resolvido": "border-success bg-success/10 text-success",
+};
+
+const PRAZO_PRESETS = [
+  { value: "15", label: "15 dias", days: 15 },
+  { value: "30", label: "1 mês", days: 30 },
+  { value: "60", label: "2 meses", days: 60 },
+  { value: "90", label: "3 meses", days: 90 },
+];
+
+const addDays = (n: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d.toISOString().split("T")[0];
+};
+
+const getPrazoBadge = (prazo: string | null, status: string) => {
+  if (!prazo || status === "Resolvido") return null;
+  const d = new Date(prazo);
+  const dias = Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  if (dias < 0) return { label: `⏰ Vencido há ${Math.abs(dias)}d`, style: "border-destructive bg-destructive/10 text-destructive" };
+  if (dias <= 3) return { label: `⚠️ Vence em ${dias}d`, style: "border-warning bg-warning/10 text-warning" };
+  if (dias <= 7) return { label: `🟡 ${dias}d restantes`, style: "border-accent bg-accent/10 text-accent" };
+  return { label: `🟢 ${dias}d restantes`, style: "border-success bg-success/10 text-success" };
 };
 
 const Demandas = () => {
@@ -252,8 +277,15 @@ const Demandas = () => {
 
   const fetchDemandas = async () => {
     const { data } = await supabase.from("demandas").select("*").order("created_at", { ascending: false });
-    // Normaliza encoding (corrige eventuais "Em AnÃ¡lise" -> "Em Análise") e NFC
-    setDemandas(((data || []) as Demanda[]).map((d) => ({ ...d, status: normalizeText(d.status), titulo: normalizeText(d.titulo) })) as Demanda[]);
+    const list = ((data || []) as Demanda[]).map((d) => ({ ...d, status: normalizeText(d.status), titulo: normalizeText(d.titulo) })) as Demanda[];
+
+    // Auto-mover vencidas para "Recontato"
+    const vencidas = list.filter((d) => d.prazo && d.status !== "Resolvido" && d.status !== "Recontato" && new Date(d.prazo) < new Date());
+    if (vencidas.length > 0) {
+      await Promise.all(vencidas.map((d) => supabase.from("demandas").update({ status: "Recontato" }).eq("id", d.id)));
+      vencidas.forEach((d) => { const item = list.find((x) => x.id === d.id); if (item) item.status = "Recontato"; });
+    }
+    setDemandas(list);
   };
 
   const fetchEleitores = async () => {
@@ -522,7 +554,30 @@ const Demandas = () => {
                   </Select>
                 </div>
                 <div><Label>Localização</Label><Input value={form.localizacao} onChange={(e) => setForm({ ...form, localizacao: e.target.value })} placeholder="Local da demanda" /></div>
-                <div><Label>Prazo</Label><Input type="date" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} /></div>
+                <div>
+                  <Label className="flex items-center gap-2"><Clock className="h-3.5 w-3.5" /> Prazo de cobrança</Label>
+                  <div className="flex flex-wrap gap-2 mt-1 mb-2">
+                    {PRAZO_PRESETS.map((p) => (
+                      <Button
+                        key={p.value}
+                        type="button"
+                        variant={form.prazo === addDays(p.days) ? "default" : "outline"}
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => setForm({ ...form, prazo: addDays(p.days) })}
+                      >
+                        {p.label}
+                      </Button>
+                    ))}
+                    {form.prazo && (
+                      <Button type="button" variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={() => setForm({ ...form, prazo: "" })}>
+                        <X className="h-3 w-3 mr-1" /> Limpar
+                      </Button>
+                    )}
+                  </div>
+                  <Input type="date" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} />
+                  <p className="text-[10px] text-muted-foreground mt-1">Após o vencimento, a demanda é movida automaticamente para a aba <strong>Recontato</strong>.</p>
+                </div>
                 <div>
                   <Label className="flex items-center gap-2"><Users className="h-4 w-4" /> Vincular Eleitores (opcional)</Label>
                   <p className="text-xs text-muted-foreground mb-2">Marque um ou mais eleitores que estão relacionados a esta demanda.</p>
@@ -673,7 +728,7 @@ const Demandas = () => {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 md:gap-4">
         {columns.map((col) => {
           const colDemandas = filteredDemandas.filter((d) => d.status === col.key);
           return (
@@ -717,6 +772,7 @@ const Demandas = () => {
                                 {(() => { const p = PRIORIDADES.find(x => x.value === ((demanda as any).prioridade || "media")); return p ? <Badge variant="outline" className={`text-[10px] ${p.style}`}>{p.label}</Badge> : null; })()}
                                 {demanda.origem && <Badge variant="outline" className="text-[10px]">{ORIGENS.find(o => o.value === demanda.origem)?.label || `📍 ${demanda.origem}`}</Badge>}
                                 {(demanda as any).setor && <Badge variant="outline" className="text-[10px]">{SETORES.find(s => s.value === (demanda as any).setor)?.label || `🏛️ ${(demanda as any).setor}`}</Badge>}
+                                {(() => { const pb = getPrazoBadge(demanda.prazo, demanda.status); return pb ? <Badge variant="outline" className={`text-[10px] ${pb.style}`}>{pb.label}</Badge> : null; })()}
                                 {prazoExpirado && <AlertTriangle className="h-3.5 w-3.5 text-destructive" />}
                               </div>
                               <div className="flex items-center gap-1 shrink-0">
@@ -799,6 +855,7 @@ const Demandas = () => {
                                         "Aberto": "Em Análise",
                                         "Em Análise": "Em Andamento",
                                         "Em Andamento": "Resolvido",
+                                        "Recontato": "Em Andamento",
                                       };
                                       moveTask(demanda.id, nextStatus[demanda.status]);
                                     }}
