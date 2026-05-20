@@ -772,6 +772,7 @@ const Demandas = () => {
                                 {(() => { const p = PRIORIDADES.find(x => x.value === ((demanda as any).prioridade || "media")); return p ? <Badge variant="outline" className={`text-[10px] ${p.style}`}>{p.label}</Badge> : null; })()}
                                 {demanda.origem && <Badge variant="outline" className="text-[10px]">{ORIGENS.find(o => o.value === demanda.origem)?.label || `📍 ${demanda.origem}`}</Badge>}
                                 {(demanda as any).setor && <Badge variant="outline" className="text-[10px]">{SETORES.find(s => s.value === (demanda as any).setor)?.label || `🏛️ ${(demanda as any).setor}`}</Badge>}
+                                {(() => { const pb = getPrazoBadge(demanda.prazo, demanda.status); return pb ? <Badge variant="outline" className={`text-[10px] ${pb.style}`}>{pb.label}</Badge> : null; })()}
                                 {prazoExpirado && <AlertTriangle className="h-3.5 w-3.5 text-destructive" />}
                               </div>
                               <div className="flex items-center gap-1 shrink-0">
