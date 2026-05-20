@@ -855,6 +855,7 @@ const Demandas = () => {
                                         "Aberto": "Em Análise",
                                         "Em Análise": "Em Andamento",
                                         "Em Andamento": "Resolvido",
+                                        "Recontato": "Em Andamento",
                                       };
                                       moveTask(demanda.id, nextStatus[demanda.status]);
                                     }}
