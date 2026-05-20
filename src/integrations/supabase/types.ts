@@ -585,6 +585,10 @@ export type Database = {
           similaridade: number
         }[]
       }
+      delete_demanda_politico: {
+        Args: { _demanda_id: string }
+        Returns: undefined
+      }
       get_politician_id: {
         Args: { _assessor_user_id: string }
         Returns: string
