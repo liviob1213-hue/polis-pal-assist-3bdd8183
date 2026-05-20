@@ -418,10 +418,23 @@ const Demandas = () => {
   };
 
   const deleteDemanda = async (id: string) => {
-    const { error } = await supabase.from("demandas").delete().eq("id", id);
-    if (error) { toast({ title: "Erro ao excluir", variant: "destructive" }); return; }
+    if (role !== "politico") {
+      toast({ title: "Apenas políticos podem excluir demandas", variant: "destructive" });
+      return;
+    }
+
+    const { error } = await (supabase as any).rpc("delete_demanda_politico", { _demanda_id: id });
+    if (error) {
+      toast({
+        title: "Erro ao excluir",
+        description: error.message || "Execute o script SQL enviado para habilitar a exclusão segura.",
+        variant: "destructive",
+      });
+      return;
+    }
     toast({ title: "Demanda excluída!" });
     fetchDemandas();
+    fetchVinculos();
   };
 
   const moveTask = async (id: string, newStatus: StatusKey) => {
