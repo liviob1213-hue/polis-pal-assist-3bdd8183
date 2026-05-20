@@ -1006,7 +1006,7 @@ const Demandas = () => {
                       )}
                     </div>
                   </div>
-                  <a href={getAnexoUrl(a.storage_path)} target="_blank" rel="noopener noreferrer">
+                  <a href={getAnexoUrl(a.storage_path || a.caminho_storage)} target="_blank" rel="noopener noreferrer">
                     <Button variant="ghost" size="icon" className="h-7 w-7"><Download className="h-3.5 w-3.5" /></Button>
                   </a>
                   {(a.usuario_id === user?.id || role === "politico") && (
