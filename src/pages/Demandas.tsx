@@ -522,8 +522,11 @@ const Demandas = () => {
                 <Plus className="h-4 w-4" /> Nova Demanda
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-h-[90vh] overflow-y-auto">
-              <DialogHeader><DialogTitle>{editingDemanda ? "Editar Demanda" : "Nova Demanda"}</DialogTitle></DialogHeader>
+            <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-lg max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{editingDemanda ? "Editar Demanda" : "Nova Demanda"}</DialogTitle>
+                <DialogDescription>Preencha os campos abaixo para {editingDemanda ? "atualizar" : "cadastrar"} a demanda.</DialogDescription>
+              </DialogHeader>
               <div className="space-y-4 pt-2">
                 <div><Label>Título</Label><Input value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} placeholder="Título da demanda" /></div>
                 <div><Label>Descrição</Label><Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} placeholder="Descreva a demanda" /></div>
