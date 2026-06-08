@@ -48,7 +48,6 @@ const politicoMenuItems = [
 
 const politicoOnlyItems = [
   { title: "Assessores", url: "/assessores", icon: UserCheck },
-  { title: "Aprovar Assessores", url: "/aprovar-assessores", icon: UserCog },
 ];
 
 const commonFooterItems = [
