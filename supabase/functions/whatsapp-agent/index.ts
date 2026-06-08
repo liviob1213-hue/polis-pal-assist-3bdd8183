@@ -787,13 +787,21 @@ function normalizeTarefaStatus(raw: string): string {
   return TAREFA_STATUS_MAP[raw.toLowerCase().trim()] || raw;
 }
 
-async function handleMoverDemanda(params: any): Promise<string> {
+async function handleMoverDemanda(params: any, senderProfile: any): Promise<string> {
   const sb = supabaseAdmin();
   const busca = params.busca_texto || params.titulo || "";
   const novoStatus = normalizeDemandaStatus(params.novo_status || "Em Andamento");
   
-  // Fuzzy search: get all non-resolved and match in code
-  const { data: allDemandas } = await sb.from("demandas").select("id, titulo, status").neq("status", "Resolvido").limit(50);
+  // Fuzzy search: get all non-resolved (within scope) and match in code
+  let q = sb.from("demandas").select("id, titulo, status, assessor_id, criado_por").neq("status", "Resolvido").limit(50);
+  if (senderProfile?.role === "assessor") {
+    q = q.eq("assessor_id", senderProfile.user_id);
+  } else if (senderProfile?.role === "politico") {
+    const scope = await getPoliticianScopeUserIds(senderProfile.user_id);
+    const csv = scope.map((id) => `"${id}"`).join(",");
+    q = q.or(`assessor_id.in.(${csv}),criado_por.in.(${csv})`);
+  }
+  const { data: allDemandas } = await q;
   if (!allDemandas || allDemandas.length === 0) return `❌ Nenhuma demanda ativa encontrada.`;
   
   const needle = normalizeText(busca);
@@ -805,6 +813,7 @@ async function handleMoverDemanda(params: any): Promise<string> {
   if (uErr) throw new Error(`DB error: ${uErr.message}`);
   return `✅ Demanda *${match.titulo}* movida para *${novoStatus}*!`;
 }
+
 
 async function handleCriarProjetoLei(params: any, senderPhone?: string): Promise<string> {
   const sb = supabaseAdmin();
