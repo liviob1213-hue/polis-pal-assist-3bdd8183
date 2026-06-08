@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -14,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Users, Phone, Mail, FileText, CheckSquare, Settings2 } from "lucide-react";
+import { Users, Phone, Mail, FileText, CheckSquare, Settings2, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, PERMISSION_KEYS, PermissionKey, Permissions } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -55,11 +57,24 @@ const Assessores = () => {
   const [editing, setEditing] = useState<AssessorProfile | null>(null);
   const [editPerms, setEditPerms] = useState<Permissions>({});
   const [saving, setSaving] = useState(false);
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [novaSenha, setNovaSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [alterandoSenha, setAlterandoSenha] = useState(false);
+  const [avisoSenha, setAvisoSenha] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     fetchAssessores();
   }, [user]);
+
+  useEffect(() => {
+    setMostrarSenha(false);
+    setNovaSenha("");
+    setConfirmarSenha("");
+    setAlterandoSenha(false);
+    setAvisoSenha(false);
+  }, [editing]);
 
   const fetchAssessores = async () => {
     const { data: links } = await supabase
@@ -232,6 +247,92 @@ const Assessores = () => {
               </div>
             ))}
           </div>
+
+          <div className="border-t pt-4 mt-4 space-y-4">
+            <h3 className="text-sm font-semibold">Redefinir senha do assessor</h3>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="nova-senha">Nova senha</Label>
+                <div className="relative">
+                  <Input
+                    id="nova-senha"
+                    type={mostrarSenha ? "text" : "password"}
+                    value={novaSenha}
+                    onChange={(e) => setNovaSenha(e.target.value)}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarSenha((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    tabIndex={-1}
+                  >
+                    {mostrarSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="confirmar-senha">Confirmar nova senha</Label>
+                <div className="relative">
+                  <Input
+                    id="confirmar-senha"
+                    type={mostrarSenha ? "text" : "password"}
+                    value={confirmarSenha}
+                    onChange={(e) => setConfirmarSenha(e.target.value)}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarSenha((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    tabIndex={-1}
+                  >
+                    {mostrarSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <Button
+                onClick={async () => {
+                  if (novaSenha !== confirmarSenha) {
+                    toast.error("As senhas não coincidem");
+                    return;
+                  }
+                  if (novaSenha.length < 6) {
+                    toast.error("A senha deve ter no mínimo 6 caracteres");
+                    return;
+                  }
+                  setAlterandoSenha(true);
+                  try {
+                    const { error } = await supabase.functions.invoke("admin-reset-assessor-password", {
+                      body: { assessor_id: editing!.user_id, nova_senha: novaSenha },
+                    });
+                    if (error) throw error;
+                    toast.success("Senha alterada com sucesso");
+                    setNovaSenha("");
+                    setConfirmarSenha("");
+                    setAvisoSenha(true);
+                  } catch (err: any) {
+                    toast.error("Erro ao alterar senha: " + (err?.message ?? "tente novamente"));
+                  } finally {
+                    setAlterandoSenha(false);
+                  }
+                }}
+                disabled={alterandoSenha}
+                className="w-full"
+              >
+                {alterandoSenha ? "Alterando..." : "Alterar senha"}
+              </Button>
+              {avisoSenha && (
+                <div className="flex items-start gap-2 rounded-md bg-amber-50 p-3 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <p className="text-xs">
+                    Informe a nova senha ao assessor por um canal seguro. Por segurança, nós não enviamos a senha por e-mail.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
           <DialogFooter>
             <Button variant="ghost" onClick={() => setEditing(null)} disabled={saving}>
               Cancelar
