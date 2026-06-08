@@ -22,7 +22,7 @@ export type PermissionKey = typeof PERMISSION_KEYS[number];
 export type Permissions = Record<string, boolean>;
 
 export const ROUTE_TO_PERMISSION: Record<string, PermissionKey> = {
-  "/": "painel",
+  "/painel": "painel",
   "/eleitores": "eleitores",
   "/mapa-eleitores": "mapa-eleitores",
   "/aniversarios": "aniversarios",

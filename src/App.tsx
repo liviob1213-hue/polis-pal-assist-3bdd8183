@@ -27,6 +27,10 @@ import Cadastro from "./pages/Cadastro";
 import Admin from "./pages/Admin";
 import LoginAssessor from "./pages/LoginAssessor";
 import CadastroAssessor from "./pages/CadastroAssessor";
+import Landing from "./pages/Landing";
+import Blog from "./pages/Blog";
+import BlogPost from "./pages/BlogPost";
+import PoliticaPrivacidade from "./pages/PoliticaPrivacidade";
 
 import NotFound from "./pages/NotFound";
 
@@ -100,7 +104,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const redirectParam = new URLSearchParams(location.search).get("redirect");
   const stateFrom = (location.state as { from?: string } | null)?.from;
-  const redirectTo = redirectParam?.startsWith("/") && !redirectParam.startsWith("//") ? redirectParam : stateFrom || "/";
+  const redirectTo = redirectParam?.startsWith("/") && !redirectParam.startsWith("//") ? redirectParam : stateFrom || "/painel";
   if (loading) return <Spinner />;
   if (user) return <Navigate to={redirectTo} replace />;
   return <>{children}</>;
@@ -111,14 +115,19 @@ const AnimatedRoutes = () => {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
+        <Route path="/" element={<Landing />} />
+        <Route path="/blog" element={<Blog />} />
+        <Route path="/blog/:slug" element={<BlogPost />} />
+        <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
+
         <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
         <Route path="/cadastro" element={<PublicRoute><Cadastro /></PublicRoute>} />
         <Route path="/login-assessor" element={<PublicRoute><LoginAssessor /></PublicRoute>} />
         <Route path="/cadastro-assessor" element={<PublicRoute><CadastroAssessor /></PublicRoute>} />
-        
+
         <Route path="/admin" element={<PoliticoRoute><AppLayout><Admin /></AppLayout></PoliticoRoute>} />
         <Route path="/assessores" element={<PoliticoRoute><AppLayout><Assessores /></AppLayout></PoliticoRoute>} />
-        <Route path="/" element={<ProtectedRoute><AppLayout><HomeRoute /></AppLayout></ProtectedRoute>} />
+        <Route path="/painel" element={<ProtectedRoute><AppLayout><HomeRoute /></AppLayout></ProtectedRoute>} />
         <Route path="/eleitores" element={<PermissionRoute permission="eleitores"><AppLayout><Eleitores /></AppLayout></PermissionRoute>} />
         <Route path="/mapa-eleitores" element={<PermissionRoute permission="mapa-eleitores"><AppLayout><MapaEleitores /></AppLayout></PermissionRoute>} />
         <Route path="/demandas" element={<PermissionRoute permission="demandas"><AppLayout><Demandas /></AppLayout></PermissionRoute>} />
