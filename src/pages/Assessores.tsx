@@ -3,9 +3,21 @@ import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Users, Phone, Mail, FileText, CheckSquare } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Users, Phone, Mail, FileText, CheckSquare, Settings2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, PERMISSION_KEYS, PermissionKey, Permissions } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 interface AssessorProfile {
   user_id: string;
@@ -22,10 +34,27 @@ interface AssessorStats {
   tarefasFinalizadas: number;
 }
 
+const PERMISSION_LABELS: Record<PermissionKey, string> = {
+  painel: "Painel de Controle",
+  eleitores: "Base de Eleitores",
+  "mapa-eleitores": "Mapa de Eleitores",
+  aniversarios: "Aniversários",
+  demandas: "Gestão de Demandas",
+  tarefas: "Gestão de Tarefas",
+  agenda: "Agenda Oficial",
+  assistente: "Assistente Legislativo",
+  "base-conhecimento": "Base de Conhecimento",
+  "historico-conversas": "Histórico de Conversas",
+  "resumo-mensal": "Resumo Mensal",
+};
+
 const Assessores = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const [assessores, setAssessores] = useState<AssessorProfile[]>([]);
   const [stats, setStats] = useState<Record<string, AssessorStats>>({});
+  const [editing, setEditing] = useState<AssessorProfile | null>(null);
+  const [editPerms, setEditPerms] = useState<Permissions>({});
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -33,7 +62,6 @@ const Assessores = () => {
   }, [user]);
 
   const fetchAssessores = async () => {
-    // Get linked assessor IDs
     const { data: links } = await supabase
       .from("politician_assessors")
       .select("assessor_id")
@@ -46,7 +74,6 @@ const Assessores = () => {
 
     const assessorIds = links.map((l: any) => l.assessor_id);
 
-    // Get profiles
     const { data: profiles } = await supabase
       .from("profiles")
       .select("user_id, nome, email, telefone")
@@ -54,7 +81,6 @@ const Assessores = () => {
 
     setAssessores(profiles || []);
 
-    // Get stats for each assessor
     const statsMap: Record<string, AssessorStats> = {};
     for (const aid of assessorIds) {
       const [demRes, tarRes] = await Promise.all([
@@ -71,6 +97,39 @@ const Assessores = () => {
     }
     setStats(statsMap);
   };
+
+  const openEdit = async (a: AssessorProfile) => {
+    setEditing(a);
+    const { data } = await supabase
+      .from("politician_assessors")
+      .select("permissions")
+      .eq("politician_id", user!.id)
+      .eq("assessor_id", a.user_id)
+      .maybeSingle();
+    const raw = (data as any)?.permissions || {};
+    const initial: Permissions = {};
+    for (const k of PERMISSION_KEYS) initial[k] = raw[k] === true;
+    setEditPerms(initial);
+  };
+
+  const savePerms = async () => {
+    if (!editing) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("politician_assessors")
+      .update({ permissions: editPerms } as any)
+      .eq("politician_id", user!.id)
+      .eq("assessor_id", editing.user_id);
+    setSaving(false);
+    if (error) {
+      toast.error("Erro ao salvar permissões: " + error.message);
+      return;
+    }
+    toast.success("Permissões atualizadas com sucesso!");
+    setEditing(null);
+  };
+
+  const isPolitico = role === "politico";
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 sm:space-y-6">
@@ -99,7 +158,7 @@ const Assessores = () => {
                     <Avatar className="h-12 w-12">
                       <AvatarFallback className="gradient-accent text-accent-foreground font-bold">{initials}</AvatarFallback>
                     </Avatar>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="font-semibold text-sm truncate">{a.nome}</p>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Mail className="h-3 w-3" />
@@ -132,12 +191,57 @@ const Assessores = () => {
                       </div>
                     </div>
                   )}
+
+                  {isPolitico && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-2"
+                      onClick={() => openEdit(a)}
+                    >
+                      <Settings2 className="h-4 w-4" />
+                      Editar perfil de acessor
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             );
           })}
         </div>
       )}
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Permissões do assessor</DialogTitle>
+            <DialogDescription>
+              {editing?.nome} — escolha quais áreas do sistema esse assessor pode acessar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {PERMISSION_KEYS.map((k) => (
+              <div key={k} className="flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-secondary/40">
+                <Label htmlFor={`perm-${k}`} className="cursor-pointer flex-1">
+                  {PERMISSION_LABELS[k]}
+                </Label>
+                <Switch
+                  id={`perm-${k}`}
+                  checked={editPerms[k] === true}
+                  onCheckedChange={(v) => setEditPerms((p) => ({ ...p, [k]: v }))}
+                />
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditing(null)} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button onClick={savePerms} disabled={saving}>
+              {saving ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 };
