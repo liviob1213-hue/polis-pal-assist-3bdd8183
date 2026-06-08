@@ -699,10 +699,30 @@ async function handleConsultarDemanda(params: any, senderProfile: any): Promise<
   const sb = supabaseAdmin();
   let query = sb.from("demandas").select("*").order("created_at", { ascending: false });
   
-  // If assessor, only show their demandas
+  // SCOPE: assessor sees only own; politico sees only his scope (himself + his assessors)
   if (senderProfile?.role === "assessor") {
     query = query.eq("assessor_id", senderProfile.user_id);
+  } else if (senderProfile?.role === "politico") {
+    const scope = await getPoliticianScopeUserIds(senderProfile.user_id);
+    const scopeCsv = scope.map((id) => `"${id}"`).join(",");
+    query = query.or(`assessor_id.in.(${scopeCsv}),criado_por.in.(${scopeCsv})`);
   }
+  
+  if (params.status_filtro) {
+    const resolved = resolveStatusFilter(params.status_filtro);
+    query = query.in("status", resolved);
+  }
+  if (params.busca_texto) query = query.or(`titulo.ilike.%${params.busca_texto}%,descricao.ilike.%${params.busca_texto}%`);
+  const { data, error } = await query.limit(10);
+  if (error) throw new Error(`DB error: ${error.message}`);
+  if (!data || data.length === 0) return "📋 Nenhuma demanda encontrada com esse filtro.";
+  const lines = data.map((d: any, i: number) => {
+    const prazoInfo = d.prazo ? `\n   📅 Prazo: ${new Date(d.prazo).toLocaleDateString("pt-BR")}` : "";
+    return `${i + 1}. *${d.titulo}*\n   📍 ${d.localizacao || "Sem local"}\n   📌 Status: ${d.status}${prazoInfo}`;
+  });
+  return `📋 *${data.length} demanda(s) encontrada(s):*\n\n${lines.join("\n\n")}`;
+}
+
   
   if (params.status_filtro) {
     const resolved = resolveStatusFilter(params.status_filtro);
