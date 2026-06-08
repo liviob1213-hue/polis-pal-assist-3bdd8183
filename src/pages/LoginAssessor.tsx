@@ -50,7 +50,7 @@ export default function LoginAssessor() {
       }
 
       toast({ title: "Login realizado!" });
-      navigate("/");
+      navigate("/painel");
     } catch (err: any) {
       toast({ title: "Erro no login", description: err.message, variant: "destructive" });
     } finally {
