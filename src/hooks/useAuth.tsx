@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from "react";
+import { useState, useEffect, createContext, useContext, useMemo, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 
@@ -47,6 +47,7 @@ interface AuthContextType {
   loading: boolean;
   role: UserRole;
   permissions: Permissions;
+  permsLoaded: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -56,6 +57,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   role: null,
   permissions: allFalse(),
+  permsLoaded: false,
   signOut: async () => {},
 });
 
@@ -65,8 +67,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<UserRole>(null);
   const [permissions, setPermissions] = useState<Permissions>(allFalse());
+  const [permsLoaded, setPermsLoaded] = useState(false);
 
   const fetchRoleAndPerms = async (userId: string) => {
+    setPermsLoaded(false);
     try {
       const { data: profile } = await supabase
         .from("profiles")
@@ -97,6 +101,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("[useAuth] fetchRoleAndPerms error:", err);
       setRole("politico");
       setPermissions(allTrue());
+    } finally {
+      setPermsLoaded(true);
     }
   };
 
@@ -112,30 +118,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
       if (!mounted) return;
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
-      if (newSession?.user) {
-        setTimeout(() => {
-          if (mounted) fetchRoleAndPerms(newSession.user.id);
-        }, 0);
-      } else {
-        setRole(null);
-        setPermissions(allFalse());
-      }
-      setLoading(false);
+      void (async () => {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        if (newSession?.user) {
+          setLoading(true);
+          await fetchRoleAndPerms(newSession.user.id);
+          if (mounted) setLoading(false);
+        } else {
+          setRole(null);
+          setPermissions(allFalse());
+          setPermsLoaded(true);
+          setLoading(false);
+        }
+      })();
     });
 
     supabase.auth.getSession()
-      .then(({ data: { session: existing } }) => {
+      .then(async ({ data: { session: existing } }) => {
         if (!mounted) return;
         setSession(existing);
         setUser(existing?.user ?? null);
         if (existing?.user) {
-          setTimeout(() => {
-            if (mounted) fetchRoleAndPerms(existing.user.id);
-          }, 0);
+          setLoading(true);
+          await fetchRoleAndPerms(existing.user.id);
+        } else {
+          setRole(null);
+          setPermissions(allFalse());
+          setPermsLoaded(true);
         }
-        setLoading(false);
+        if (mounted) setLoading(false);
         clearTimeout(safety);
       })
       .catch((err) => {
@@ -155,8 +167,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
+  const memoizedPermissions = useMemo(() => permissions, [permissions]);
+  const value = useMemo(
+    () => ({ user, session, loading, role, permissions: memoizedPermissions, permsLoaded, signOut }),
+    [user, session, loading, role, memoizedPermissions, permsLoaded]
+  );
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, role, permissions, signOut }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
