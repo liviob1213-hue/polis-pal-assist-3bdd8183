@@ -95,8 +95,8 @@ const extraFeatures = [
 const plans = [
   {
     name: "Bronze",
-    tag: "Para começar com profissionalismo",
-    price: "R$ 197",
+    tag: "Para começar with profissionalismo",
+    price: "R$ 97",
     period: "/mês",
     link: LINK_BRONZE,
     cta: "Começar com Bronze",
@@ -120,7 +120,7 @@ const plans = [
   {
     name: "Prata",
     tag: "A experiência completa DEMOCRAT.AI",
-    price: "R$ 397",
+    price: "R$ 147",
     period: "/mês",
     link: LINK_PRATA,
     cta: "Quero o plano Prata",
