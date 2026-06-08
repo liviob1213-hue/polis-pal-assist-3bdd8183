@@ -57,6 +57,11 @@ const Assessores = () => {
   const [editing, setEditing] = useState<AssessorProfile | null>(null);
   const [editPerms, setEditPerms] = useState<Permissions>({});
   const [saving, setSaving] = useState(false);
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [novaSenha, setNovaSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [alterandoSenha, setAlterandoSenha] = useState(false);
+  const [avisoSenha, setAvisoSenha] = useState(false);
 
   useEffect(() => {
     if (!user) return;
