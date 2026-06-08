@@ -739,15 +739,24 @@ async function handleConsultarDemanda(params: any, senderProfile: any): Promise<
   return `📋 *${data.length} demanda(s) encontrada(s):*\n\n${lines.join("\n\n")}`;
 }
 
-async function handleConcluirDemanda(params: any): Promise<string> {
+async function handleConcluirDemanda(params: any, senderProfile: any): Promise<string> {
   const sb = supabaseAdmin();
   const busca = params.busca_texto || params.titulo || "";
-  const { data, error: fErr } = await sb.from("demandas").select("id, titulo, status").ilike("titulo", `%${busca}%`).neq("status", "Resolvido").limit(1).single();
+  let q = sb.from("demandas").select("id, titulo, status, assessor_id, criado_por").ilike("titulo", `%${busca}%`).neq("status", "Resolvido");
+  if (senderProfile?.role === "assessor") {
+    q = q.eq("assessor_id", senderProfile.user_id);
+  } else if (senderProfile?.role === "politico") {
+    const scope = await getPoliticianScopeUserIds(senderProfile.user_id);
+    const csv = scope.map((id) => `"${id}"`).join(",");
+    q = q.or(`assessor_id.in.(${csv}),criado_por.in.(${csv})`);
+  }
+  const { data, error: fErr } = await q.limit(1).maybeSingle();
   if (fErr || !data) return `❌ Demanda "${busca}" não encontrada ou já resolvida.`;
   const { error: uErr } = await sb.from("demandas").update({ status: "Resolvido" }).eq("id", data.id);
   if (uErr) throw new Error(`DB error: ${uErr.message}`);
   return `✅ Demanda *${data.titulo}* marcada como Resolvida!`;
 }
+
 
 // ─── Status normalization ────────────────────────────────────
 
