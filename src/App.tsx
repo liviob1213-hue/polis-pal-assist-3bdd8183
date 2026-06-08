@@ -59,32 +59,38 @@ function PoliticoRoute({ children }: { children: React.ReactNode }) {
 }
 
 function PermissionRoute({ children, permission }: { children: React.ReactNode; permission: PermissionKey }) {
-  const { user, loading, role, permissions } = useAuth();
+  const { user, loading, role, permissions, permsLoaded } = useAuth();
   const location = useLocation();
   const loginPath = `/login?redirect=${encodeURIComponent(location.pathname + location.search)}`;
 
-  const allowed = role === "politico" || (role === "assessor" && permissions[permission] === true);
-
   useEffect(() => {
-    if (!loading && user && role === "assessor" && !permissions[permission]) {
+    if (permsLoaded && !loading && user && role === "assessor" && !permissions[permission]) {
       toast.error("Você não tem permissão para acessar essa página.");
     }
-  }, [loading, user, role, permissions, permission]);
+  }, [permsLoaded, loading, user, role, permissions, permission]);
 
-  if (loading) return <Spinner />;
+  if (loading || !permsLoaded) return <Spinner />;
   if (!user) return <Navigate to={loginPath} replace state={{ from: location.pathname + location.search }} />;
   if (!role) return <Spinner />;
+
+  const allowed = role === "politico" || (role === "assessor" && permissions[permission] === true);
+
   if (!allowed) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
 function HomeRoute() {
-  const { role, loading, permissions } = useAuth();
-  if (loading || !role) return <Spinner />;
+  const { role, loading, permissions, permsLoaded } = useAuth();
+  if (loading || !permsLoaded || !role) return <Spinner />;
   if (role === "assessor" && !permissions["painel"]) {
     // Sem permissão para painel: tenta primeira rota liberada
     const first = Object.entries(ROUTE_TO_PERMISSION).find(([, k]) => k !== "painel" && permissions[k]);
     if (first) return <Navigate to={first[0]} replace />;
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center px-4 text-center text-muted-foreground">
+        Nenhuma função foi liberada para você. Fale com o político responsável.
+      </div>
+    );
   }
   return role === "assessor" ? <PainelAssessor /> : <Dashboard />;
 }
