@@ -296,6 +296,20 @@ async function getSenderProfile(phone: string) {
   return { user_id: profile.user_id, nome: profile.nome, role: profile.role };
 }
 
+// ─── Get allowed user IDs for a politician scope ────────────
+// Returns the politician's user_id + all his assessors' user_ids.
+// Used to filter demandas/tarefas so each politician sees only his own scope.
+async function getPoliticianScopeUserIds(politicianUserId: string): Promise<string[]> {
+  const sb = supabaseAdmin();
+  const { data } = await sb
+    .from("politician_assessors")
+    .select("assessor_id")
+    .eq("politician_id", politicianUserId);
+  const ids = new Set<string>([politicianUserId]);
+  (data || []).forEach((r: any) => r.assessor_id && ids.add(r.assessor_id));
+  return [...ids];
+}
+
 // ─── Find assessor by name ──────────────────────────────────
 
 async function findAssessorByName(name: string, politicianId: string) {
@@ -322,6 +336,7 @@ async function findAssessorByName(name: string, politicianId: string) {
   const match = profiles.find((p: any) => normalize(p.nome).includes(needle));
   return match || null;
 }
+
 
 // ─── Uazapi ─────────────────────────────────────────────────
 
