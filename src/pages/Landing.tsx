@@ -34,6 +34,10 @@ import f51 from "@/assets/landing/feature-51.png.asset.json";
 import f52 from "@/assets/landing/feature-52.png.asset.json";
 import f53 from "@/assets/landing/feature-53.png.asset.json";
 
+import a1 from "@/assets/landing/avatar-1.jpg.asset.json";
+import a2 from "@/assets/landing/avatar-2.jpg.asset.json";
+import a3 from "@/assets/landing/avatar-3.jpg.asset.json";
+
 const LINK_BRONZE = "https://pay.kiwify.com.br/Hb7Uc7I";
 const LINK_PRATA = "https://pay.kiwify.com.br/E2UJ6NS";
 
