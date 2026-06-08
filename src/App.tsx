@@ -27,7 +27,7 @@ import Cadastro from "./pages/Cadastro";
 import Admin from "./pages/Admin";
 import LoginAssessor from "./pages/LoginAssessor";
 import CadastroAssessor from "./pages/CadastroAssessor";
-import AprovarAssessores from "./pages/AprovarAssessores";
+
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
