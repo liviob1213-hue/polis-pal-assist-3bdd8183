@@ -34,23 +34,22 @@ import { Badge } from "@/components/ui/badge";
 import logoDemocrat from "@/assets/logo-democrat-icon.png";
 
 const politicoMenuItems = [
-  { title: "Painel de Controle", url: "/", icon: LayoutDashboard },
-  { title: "Base de Eleitores", url: "/eleitores", icon: Users },
-  { title: "Mapa de Eleitores", url: "/mapa-eleitores", icon: MapPin },
-  { title: "Aniversários", url: "/aniversarios", icon: Cake },
-  { title: "Gestão de Demandas", url: "/demandas", icon: FileText },
-  { title: "Gestão de Tarefas", url: "/tarefas", icon: CheckSquare },
-  { title: "Agenda Oficial", url: "/agenda", icon: CalendarDays },
-  { title: "Assistente Legislativo", url: "/assistente", icon: Bot },
-  { title: "Base de Conhecimento", url: "/base-conhecimento", icon: BookOpen },
-  { title: "Histórico de Conversas", url: "/historico-conversas", icon: MessageSquare },
-  { title: "Resumo Mensal", url: "/resumo-mensal", icon: FileBarChart },
-  { title: "Assessores", url: "/assessores", icon: UserCheck },
-  { title: "Aprovar Assessores", url: "/aprovar-assessores", icon: UserCog },
+  { title: "Painel de Controle", url: "/", icon: LayoutDashboard, perm: "painel" },
+  { title: "Base de Eleitores", url: "/eleitores", icon: Users, perm: "eleitores" },
+  { title: "Mapa de Eleitores", url: "/mapa-eleitores", icon: MapPin, perm: "mapa-eleitores" },
+  { title: "Aniversários", url: "/aniversarios", icon: Cake, perm: "aniversarios" },
+  { title: "Gestão de Demandas", url: "/demandas", icon: FileText, perm: "demandas" },
+  { title: "Gestão de Tarefas", url: "/tarefas", icon: CheckSquare, perm: "tarefas" },
+  { title: "Agenda Oficial", url: "/agenda", icon: CalendarDays, perm: "agenda" },
+  { title: "Assistente Legislativo", url: "/assistente", icon: Bot, perm: "assistente" },
+  { title: "Base de Conhecimento", url: "/base-conhecimento", icon: BookOpen, perm: "base-conhecimento" },
+  { title: "Histórico de Conversas", url: "/historico-conversas", icon: MessageSquare, perm: "historico-conversas" },
+  { title: "Resumo Mensal", url: "/resumo-mensal", icon: FileBarChart, perm: "resumo-mensal" },
 ];
 
-const assessorMenuItems = [
-  { title: "Painel do Assessor", url: "/", icon: LayoutDashboard },
+const politicoOnlyItems = [
+  { title: "Assessores", url: "/assessores", icon: UserCheck },
+  { title: "Aprovar Assessores", url: "/aprovar-assessores", icon: UserCog },
 ];
 
 const commonFooterItems = [
@@ -61,14 +60,15 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
-  const { user, signOut, role } = useAuth();
+  const { user, signOut, role, permissions } = useAuth();
   const userName = user?.user_metadata?.nome || "Usuário";
   const initials = userName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
 
-  const menuItems = [
-    ...(role === "assessor" ? assessorMenuItems : politicoMenuItems),
-    ...commonFooterItems,
-  ];
+  const baseItems = role === "assessor"
+    ? politicoMenuItems.filter((i) => permissions[i.perm] === true)
+    : [...politicoMenuItems, ...politicoOnlyItems];
+
+  const menuItems = [...baseItems, ...commonFooterItems];
 
   const roleLabel = role === "assessor" ? "Assessor" : "Político";
 
