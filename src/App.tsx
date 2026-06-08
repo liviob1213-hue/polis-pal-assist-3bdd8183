@@ -115,7 +115,7 @@ const AnimatedRoutes = () => {
         <Route path="/cadastro" element={<PublicRoute><Cadastro /></PublicRoute>} />
         <Route path="/login-assessor" element={<PublicRoute><LoginAssessor /></PublicRoute>} />
         <Route path="/cadastro-assessor" element={<PublicRoute><CadastroAssessor /></PublicRoute>} />
-        <Route path="/aprovar-assessores" element={<PoliticoRoute><AppLayout><AprovarAssessores /></AppLayout></PoliticoRoute>} />
+        
         <Route path="/admin" element={<PoliticoRoute><AppLayout><Admin /></AppLayout></PoliticoRoute>} />
         <Route path="/assessores" element={<PoliticoRoute><AppLayout><Assessores /></AppLayout></PoliticoRoute>} />
         <Route path="/" element={<ProtectedRoute><AppLayout><HomeRoute /></AppLayout></ProtectedRoute>} />
