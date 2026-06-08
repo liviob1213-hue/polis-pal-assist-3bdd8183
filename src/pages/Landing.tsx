@@ -95,14 +95,25 @@ const extraFeatures = [
 const plans = [
   {
     name: "Bronze",
-    tag: "Para começar com profissionalismo",
+    tag: "Para começar with profissionalismo",
     price: "R$ 97",
     period: "/mês",
     link: LINK_BRONZE,
     cta: "Começar com Bronze",
     highlight: false,
     items: [
-...
+      { included: true, label: "Painel de Controle completo" },
+      { included: true, label: "Base de Eleitores (CRM)" },
+      { included: true, label: "Mapa de Eleitores" },
+      { included: true, label: "Gestão de Aniversários" },
+      { included: true, label: "Gestão de Demandas" },
+      { included: true, label: "Gestão de Tarefas" },
+      { included: true, label: "Agenda Oficial" },
+      { included: true, label: "Base de Conhecimento" },
+      { included: true, label: "Histórico de Conversas" },
+      { included: true, label: "Resumo Mensal" },
+      { included: true, label: "Gestão de Assessores" },
+      { included: false, label: "Assistente Legislativo IA" },
       { included: false, label: "Agente IA no WhatsApp 24h" },
     ],
   },
