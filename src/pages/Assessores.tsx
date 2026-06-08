@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -14,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Users, Phone, Mail, FileText, CheckSquare, Settings2 } from "lucide-react";
+import { Users, Phone, Mail, FileText, CheckSquare, Settings2, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, PERMISSION_KEYS, PermissionKey, Permissions } from "@/hooks/useAuth";
 import { toast } from "sonner";
