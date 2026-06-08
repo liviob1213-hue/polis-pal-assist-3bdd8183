@@ -4,11 +4,49 @@ import type { User, Session } from "@supabase/supabase-js";
 
 type UserRole = "politico" | "assessor" | null;
 
+export const PERMISSION_KEYS = [
+  "painel",
+  "eleitores",
+  "mapa-eleitores",
+  "aniversarios",
+  "demandas",
+  "tarefas",
+  "agenda",
+  "assistente",
+  "base-conhecimento",
+  "historico-conversas",
+  "resumo-mensal",
+] as const;
+
+export type PermissionKey = typeof PERMISSION_KEYS[number];
+export type Permissions = Record<string, boolean>;
+
+export const ROUTE_TO_PERMISSION: Record<string, PermissionKey> = {
+  "/": "painel",
+  "/eleitores": "eleitores",
+  "/mapa-eleitores": "mapa-eleitores",
+  "/aniversarios": "aniversarios",
+  "/demandas": "demandas",
+  "/tarefas": "tarefas",
+  "/agenda": "agenda",
+  "/assistente": "assistente",
+  "/base-conhecimento": "base-conhecimento",
+  "/historico-conversas": "historico-conversas",
+  "/resumo-mensal": "resumo-mensal",
+};
+
+const allTrue = (): Permissions =>
+  PERMISSION_KEYS.reduce((acc, k) => ({ ...acc, [k]: true }), {} as Permissions);
+
+const allFalse = (): Permissions =>
+  PERMISSION_KEYS.reduce((acc, k) => ({ ...acc, [k]: false }), {} as Permissions);
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
   role: UserRole;
+  permissions: Permissions;
   signOut: () => Promise<void>;
 }
 
@@ -17,6 +55,7 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   loading: true,
   role: null,
+  permissions: allFalse(),
   signOut: async () => {},
 });
 
@@ -25,25 +64,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<UserRole>(null);
+  const [permissions, setPermissions] = useState<Permissions>(allFalse());
 
-  const fetchRole = async (userId: string) => {
+  const fetchRoleAndPerms = async (userId: string) => {
     try {
-      const { data } = await supabase
+      const { data: profile } = await supabase
         .from("profiles")
         .select("role")
         .eq("user_id", userId)
         .maybeSingle();
-      setRole((data?.role as UserRole) || "politico");
+      const r = ((profile?.role as UserRole) || "politico") as UserRole;
+      setRole(r);
+
+      if (r === "politico") {
+        setPermissions(allTrue());
+      } else if (r === "assessor") {
+        const { data: link } = await supabase
+          .from("politician_assessors")
+          .select("permissions")
+          .eq("assessor_id", userId)
+          .maybeSingle();
+        const raw = (link as any)?.permissions || {};
+        const merged: Permissions = { ...allFalse() };
+        for (const k of PERMISSION_KEYS) {
+          if (raw[k] === true) merged[k] = true;
+        }
+        setPermissions(merged);
+      } else {
+        setPermissions(allFalse());
+      }
     } catch (err) {
-      console.error("[useAuth] fetchRole error:", err);
+      console.error("[useAuth] fetchRoleAndPerms error:", err);
       setRole("politico");
+      setPermissions(allTrue());
     }
   };
 
   useEffect(() => {
     let mounted = true;
 
-    // Timeout de segurança: nunca deixar a UI travada em loading no Safari
     const safety = setTimeout(() => {
       if (mounted) {
         console.warn("[useAuth] Safety timeout — forçando loading=false");
@@ -51,23 +110,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }, 4000);
 
-    // 1) Listener PRIMEIRO — apenas updates síncronos de state aqui!
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
       if (!mounted) return;
       setSession(newSession);
       setUser(newSession?.user ?? null);
       if (newSession?.user) {
-        // Defer para o próximo tick — evita deadlock do supabase no Safari
         setTimeout(() => {
-          if (mounted) fetchRole(newSession.user.id);
+          if (mounted) fetchRoleAndPerms(newSession.user.id);
         }, 0);
       } else {
         setRole(null);
+        setPermissions(allFalse());
       }
       setLoading(false);
     });
 
-    // 2) Pega sessão existente
     supabase.auth.getSession()
       .then(({ data: { session: existing } }) => {
         if (!mounted) return;
@@ -75,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(existing?.user ?? null);
         if (existing?.user) {
           setTimeout(() => {
-            if (mounted) fetchRole(existing.user.id);
+            if (mounted) fetchRoleAndPerms(existing.user.id);
           }, 0);
         }
         setLoading(false);
@@ -99,7 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, role, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, role, permissions, signOut }}>
       {children}
     </AuthContext.Provider>
   );
