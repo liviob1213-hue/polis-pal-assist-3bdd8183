@@ -34,6 +34,10 @@ import f51 from "@/assets/landing/feature-51.png.asset.json";
 import f52 from "@/assets/landing/feature-52.png.asset.json";
 import f53 from "@/assets/landing/feature-53.png.asset.json";
 
+import a1 from "@/assets/landing/avatar-1.jpg.asset.json";
+import a2 from "@/assets/landing/avatar-2.jpg.asset.json";
+import a3 from "@/assets/landing/avatar-3.jpg.asset.json";
+
 const LINK_BRONZE = "https://pay.kiwify.com.br/Hb7Uc7I";
 const LINK_PRATA = "https://pay.kiwify.com.br/E2UJ6NS";
 
@@ -141,16 +145,19 @@ const testimonials = [
     name: "Vereador R. Souza",
     role: "Câmara Municipal — interior de SP",
     text: "Triplicamos a velocidade de resposta às demandas dos eleitores. O agente de WhatsApp mudou nosso gabinete.",
+    avatar: a1.url,
   },
   {
     name: "Deputada A. Lima",
     role: "Assembleia Legislativa",
     text: "O Assistente Legislativo me economiza horas por semana na redação de projetos e discursos.",
+    avatar: a2.url,
   },
   {
     name: "Chefe de Gabinete M. Costa",
     role: "Câmara Federal",
     text: "Pela primeira vez temos visão real do mandato em tempo real. Organização completa.",
+    avatar: a3.url,
   },
 ];
 
@@ -501,9 +508,19 @@ const Landing = () => {
                   ))}
                 </div>
                 <p className="text-sm leading-relaxed">"{t.text}"</p>
-                <div className="mt-4 pt-4 border-t border-border">
-                  <div className="font-semibold text-sm">{t.name}</div>
-                  <div className="text-xs text-muted-foreground">{t.role}</div>
+                <div className="mt-4 pt-4 border-t border-border flex items-center gap-3">
+                  <img
+                    src={t.avatar}
+                    alt={t.name}
+                    loading="lazy"
+                    width={48}
+                    height={48}
+                    className="h-12 w-12 rounded-full object-cover border border-border"
+                  />
+                  <div>
+                    <div className="font-semibold text-sm">{t.name}</div>
+                    <div className="text-xs text-muted-foreground">{t.role}</div>
+                  </div>
                 </div>
               </motion.div>
             ))}
