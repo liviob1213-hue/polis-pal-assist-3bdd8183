@@ -296,6 +296,20 @@ async function getSenderProfile(phone: string) {
   return { user_id: profile.user_id, nome: profile.nome, role: profile.role };
 }
 
+// ─── Get allowed user IDs for a politician scope ────────────
+// Returns the politician's user_id + all his assessors' user_ids.
+// Used to filter demandas/tarefas so each politician sees only his own scope.
+async function getPoliticianScopeUserIds(politicianUserId: string): Promise<string[]> {
+  const sb = supabaseAdmin();
+  const { data } = await sb
+    .from("politician_assessors")
+    .select("assessor_id")
+    .eq("politician_id", politicianUserId);
+  const ids = new Set<string>([politicianUserId]);
+  (data || []).forEach((r: any) => r.assessor_id && ids.add(r.assessor_id));
+  return [...ids];
+}
+
 // ─── Find assessor by name ──────────────────────────────────
 
 async function findAssessorByName(name: string, politicianId: string) {
@@ -322,6 +336,7 @@ async function findAssessorByName(name: string, politicianId: string) {
   const match = profiles.find((p: any) => normalize(p.nome).includes(needle));
   return match || null;
 }
+
 
 // ─── Uazapi ─────────────────────────────────────────────────
 
@@ -684,9 +699,13 @@ async function handleConsultarDemanda(params: any, senderProfile: any): Promise<
   const sb = supabaseAdmin();
   let query = sb.from("demandas").select("*").order("created_at", { ascending: false });
   
-  // If assessor, only show their demandas
+  // SCOPE: assessor sees only own; politico sees only his scope (himself + his assessors)
   if (senderProfile?.role === "assessor") {
     query = query.eq("assessor_id", senderProfile.user_id);
+  } else if (senderProfile?.role === "politico") {
+    const scope = await getPoliticianScopeUserIds(senderProfile.user_id);
+    const scopeCsv = scope.map((id) => `"${id}"`).join(",");
+    query = query.or(`assessor_id.in.(${scopeCsv}),criado_por.in.(${scopeCsv})`);
   }
   
   if (params.status_filtro) {
@@ -704,15 +723,40 @@ async function handleConsultarDemanda(params: any, senderProfile: any): Promise<
   return `📋 *${data.length} demanda(s) encontrada(s):*\n\n${lines.join("\n\n")}`;
 }
 
-async function handleConcluirDemanda(params: any): Promise<string> {
+  
+  if (params.status_filtro) {
+    const resolved = resolveStatusFilter(params.status_filtro);
+    query = query.in("status", resolved);
+  }
+  if (params.busca_texto) query = query.or(`titulo.ilike.%${params.busca_texto}%,descricao.ilike.%${params.busca_texto}%`);
+  const { data, error } = await query.limit(10);
+  if (error) throw new Error(`DB error: ${error.message}`);
+  if (!data || data.length === 0) return "📋 Nenhuma demanda encontrada com esse filtro.";
+  const lines = data.map((d: any, i: number) => {
+    const prazoInfo = d.prazo ? `\n   📅 Prazo: ${new Date(d.prazo).toLocaleDateString("pt-BR")}` : "";
+    return `${i + 1}. *${d.titulo}*\n   📍 ${d.localizacao || "Sem local"}\n   📌 Status: ${d.status}${prazoInfo}`;
+  });
+  return `📋 *${data.length} demanda(s) encontrada(s):*\n\n${lines.join("\n\n")}`;
+}
+
+async function handleConcluirDemanda(params: any, senderProfile: any): Promise<string> {
   const sb = supabaseAdmin();
   const busca = params.busca_texto || params.titulo || "";
-  const { data, error: fErr } = await sb.from("demandas").select("id, titulo, status").ilike("titulo", `%${busca}%`).neq("status", "Resolvido").limit(1).single();
+  let q = sb.from("demandas").select("id, titulo, status, assessor_id, criado_por").ilike("titulo", `%${busca}%`).neq("status", "Resolvido");
+  if (senderProfile?.role === "assessor") {
+    q = q.eq("assessor_id", senderProfile.user_id);
+  } else if (senderProfile?.role === "politico") {
+    const scope = await getPoliticianScopeUserIds(senderProfile.user_id);
+    const csv = scope.map((id) => `"${id}"`).join(",");
+    q = q.or(`assessor_id.in.(${csv}),criado_por.in.(${csv})`);
+  }
+  const { data, error: fErr } = await q.limit(1).maybeSingle();
   if (fErr || !data) return `❌ Demanda "${busca}" não encontrada ou já resolvida.`;
   const { error: uErr } = await sb.from("demandas").update({ status: "Resolvido" }).eq("id", data.id);
   if (uErr) throw new Error(`DB error: ${uErr.message}`);
   return `✅ Demanda *${data.titulo}* marcada como Resolvida!`;
 }
+
 
 // ─── Status normalization ────────────────────────────────────
 
@@ -743,13 +787,21 @@ function normalizeTarefaStatus(raw: string): string {
   return TAREFA_STATUS_MAP[raw.toLowerCase().trim()] || raw;
 }
 
-async function handleMoverDemanda(params: any): Promise<string> {
+async function handleMoverDemanda(params: any, senderProfile: any): Promise<string> {
   const sb = supabaseAdmin();
   const busca = params.busca_texto || params.titulo || "";
   const novoStatus = normalizeDemandaStatus(params.novo_status || "Em Andamento");
   
-  // Fuzzy search: get all non-resolved and match in code
-  const { data: allDemandas } = await sb.from("demandas").select("id, titulo, status").neq("status", "Resolvido").limit(50);
+  // Fuzzy search: get all non-resolved (within scope) and match in code
+  let q = sb.from("demandas").select("id, titulo, status, assessor_id, criado_por").neq("status", "Resolvido").limit(50);
+  if (senderProfile?.role === "assessor") {
+    q = q.eq("assessor_id", senderProfile.user_id);
+  } else if (senderProfile?.role === "politico") {
+    const scope = await getPoliticianScopeUserIds(senderProfile.user_id);
+    const csv = scope.map((id) => `"${id}"`).join(",");
+    q = q.or(`assessor_id.in.(${csv}),criado_por.in.(${csv})`);
+  }
+  const { data: allDemandas } = await q;
   if (!allDemandas || allDemandas.length === 0) return `❌ Nenhuma demanda ativa encontrada.`;
   
   const needle = normalizeText(busca);
@@ -761,6 +813,7 @@ async function handleMoverDemanda(params: any): Promise<string> {
   if (uErr) throw new Error(`DB error: ${uErr.message}`);
   return `✅ Demanda *${match.titulo}* movida para *${novoStatus}*!`;
 }
+
 
 async function handleCriarProjetoLei(params: any, senderPhone?: string): Promise<string> {
   const sb = supabaseAdmin();
@@ -906,12 +959,17 @@ async function handleMoverTarefa(params: any, senderProfile: any): Promise<strin
   const novoStatus = normalizeTarefaStatus(params.novo_status || "Em Andamento");
   
   // Fuzzy accent-insensitive search: get all tasks and match in code
-  let query = sb.from("tarefas").select("id, titulo, status, assessor_id").limit(50);
+  let query = sb.from("tarefas").select("id, titulo, status, assessor_id, politician_id, criado_por").limit(50);
   
-  // If assessor, only search their tasks
+  // SCOPE
   if (senderProfile?.role === "assessor") {
     query = query.eq("assessor_id", senderProfile.user_id);
+  } else if (senderProfile?.role === "politico") {
+    const scope = await getPoliticianScopeUserIds(senderProfile.user_id);
+    const csv = scope.map((id) => `"${id}"`).join(",");
+    query = query.or(`politician_id.eq.${senderProfile.user_id},assessor_id.in.(${csv}),criado_por.in.(${csv})`);
   }
+
   
   const { data: allTarefas } = await query;
   if (!allTarefas || allTarefas.length === 0) return `❌ Nenhuma tarefa encontrada.`;
@@ -932,10 +990,15 @@ async function handleConcluirTarefa(params: any, senderProfile: any): Promise<st
   const sb = supabaseAdmin();
   const busca = params.tarefa_busca || params.titulo || params.busca_texto || "";
   
-  let query = sb.from("tarefas").select("id, titulo, assessor_id").neq("status", "Finalizadas").limit(50);
+  let query = sb.from("tarefas").select("id, titulo, assessor_id, politician_id, criado_por").neq("status", "Finalizadas").limit(50);
   if (senderProfile?.role === "assessor") {
     query = query.eq("assessor_id", senderProfile.user_id);
+  } else if (senderProfile?.role === "politico") {
+    const scope = await getPoliticianScopeUserIds(senderProfile.user_id);
+    const csv = scope.map((id) => `"${id}"`).join(",");
+    query = query.or(`politician_id.eq.${senderProfile.user_id},assessor_id.in.(${csv}),criado_por.in.(${csv})`);
   }
+
   
   const { data: allTarefas } = await query;
   if (!allTarefas || allTarefas.length === 0) return `❌ Nenhuma tarefa ativa encontrada.`;
@@ -1259,10 +1322,10 @@ IMPORTANTE:
         reply = await handleConsultarDemanda(finalExtracted, senderProfile);
         break;
       case "concluir_demanda":
-        reply = await handleConcluirDemanda(finalExtracted);
+        reply = await handleConcluirDemanda(finalExtracted, senderProfile);
         break;
       case "mover_demanda":
-        reply = await handleMoverDemanda(finalExtracted);
+        reply = await handleMoverDemanda(finalExtracted, senderProfile);
         break;
       case "criar_projeto_lei":
         reply = await handleCriarProjetoLei(finalExtracted, senderPhone);
