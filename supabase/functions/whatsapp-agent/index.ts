@@ -1322,10 +1322,10 @@ IMPORTANTE:
         reply = await handleConsultarDemanda(finalExtracted, senderProfile);
         break;
       case "concluir_demanda":
-        reply = await handleConcluirDemanda(finalExtracted);
+        reply = await handleConcluirDemanda(finalExtracted, senderProfile);
         break;
       case "mover_demanda":
-        reply = await handleMoverDemanda(finalExtracted);
+        reply = await handleMoverDemanda(finalExtracted, senderProfile);
         break;
       case "criar_projeto_lei":
         reply = await handleCriarProjetoLei(finalExtracted, senderPhone);
