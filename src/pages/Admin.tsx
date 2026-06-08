@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ShieldCheck, Lock } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
 function formatPhone(value: string): string {
   const d = value.replace(/\D/g, "");
@@ -24,39 +23,8 @@ function phoneForBackend(value: string): string {
 
 export default function Admin() {
   const { toast } = useToast();
-  const { user } = useAuth();
-  const [unlocked, setUnlocked] = useState(false);
-  const [authForm, setAuthForm] = useState({ email: "", senha: "" });
-  const [authLoading, setAuthLoading] = useState(false);
-
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ nome: "", email: "", telefone: "", senha: "", role: "assessor" as "politico" | "assessor" });
-
-  const reauth = async () => {
-    if (!authForm.email || !authForm.senha) {
-      toast({ title: "Preencha email e senha", variant: "destructive" });
-      return;
-    }
-    if (user?.email && authForm.email.trim().toLowerCase() !== user.email.toLowerCase()) {
-      toast({ title: "Email diferente do usuário logado", variant: "destructive" });
-      return;
-    }
-    setAuthLoading(true);
-    try {
-      // Verifica a senha sem deslogar a sessão atual: tenta autenticar e mantém sessão.
-      const { error } = await supabase.auth.signInWithPassword({
-        email: authForm.email,
-        password: authForm.senha,
-      });
-      if (error) throw error;
-      setUnlocked(true);
-      toast({ title: "Acesso liberado" });
-    } catch (e: any) {
-      toast({ title: "Senha inválida", description: e.message, variant: "destructive" });
-    } finally {
-      setAuthLoading(false);
-    }
-  };
 
   const submit = async () => {
     if (!form.nome || !form.email || !form.telefone || !form.senha) {
@@ -93,54 +61,6 @@ export default function Admin() {
       setLoading(false);
     }
   };
-
-  if (!unlocked) {
-    return (
-      <div className="max-w-md mx-auto py-8 px-4">
-        <Card className="glass-card">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="rounded-full bg-primary/10 p-3"><Lock className="h-6 w-6 text-primary" /></div>
-              <div>
-                <CardTitle>Acesso restrito</CardTitle>
-                <CardDescription>Confirme seu email e senha de político para acessar o painel</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <form
-              className="space-y-4"
-              onSubmit={(e) => { e.preventDefault(); reauth(); }}
-            >
-              <div>
-                <Label>Email</Label>
-                <Input
-                  type="email"
-                  value={authForm.email}
-                  onChange={(e) => setAuthForm({ ...authForm, email: e.target.value })}
-                  placeholder={user?.email || "seu@email.com"}
-                  autoComplete="email"
-                />
-              </div>
-              <div>
-                <Label>Senha</Label>
-                <Input
-                  type="password"
-                  value={authForm.senha}
-                  onChange={(e) => setAuthForm({ ...authForm, senha: e.target.value })}
-                  placeholder="Sua senha"
-                  autoComplete="current-password"
-                />
-              </div>
-              <Button type="submit" disabled={authLoading} className="w-full gradient-primary text-primary-foreground" size="lg">
-                {authLoading ? "Verificando..." : "Acessar painel"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-2xl mx-auto py-8 px-4">
