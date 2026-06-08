@@ -33,7 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import logoDemocrat from "@/assets/logo-democrat-icon.png";
 
 const politicoMenuItems = [
-  { title: "Painel de Controle", url: "/", icon: LayoutDashboard, perm: "painel" },
+  { title: "Painel de Controle", url: "/painel", icon: LayoutDashboard, perm: "painel" },
   { title: "Base de Eleitores", url: "/eleitores", icon: Users, perm: "eleitores" },
   { title: "Mapa de Eleitores", url: "/mapa-eleitores", icon: MapPin, perm: "mapa-eleitores" },
   { title: "Aniversários", url: "/aniversarios", icon: Cake, perm: "aniversarios" },

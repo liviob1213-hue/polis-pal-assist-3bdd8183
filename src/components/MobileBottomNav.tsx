@@ -3,7 +3,7 @@ import { NavLink } from "@/components/NavLink";
 import { cn } from "@/lib/utils";
 
 const leftItems = [
-  { title: "Painel", url: "/", icon: LayoutDashboard },
+  { title: "Painel", url: "/painel", icon: LayoutDashboard },
   { title: "Eleitores", url: "/eleitores", icon: Users },
 ];
 
