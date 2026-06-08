@@ -959,12 +959,17 @@ async function handleMoverTarefa(params: any, senderProfile: any): Promise<strin
   const novoStatus = normalizeTarefaStatus(params.novo_status || "Em Andamento");
   
   // Fuzzy accent-insensitive search: get all tasks and match in code
-  let query = sb.from("tarefas").select("id, titulo, status, assessor_id").limit(50);
+  let query = sb.from("tarefas").select("id, titulo, status, assessor_id, politician_id, criado_por").limit(50);
   
-  // If assessor, only search their tasks
+  // SCOPE
   if (senderProfile?.role === "assessor") {
     query = query.eq("assessor_id", senderProfile.user_id);
+  } else if (senderProfile?.role === "politico") {
+    const scope = await getPoliticianScopeUserIds(senderProfile.user_id);
+    const csv = scope.map((id) => `"${id}"`).join(",");
+    query = query.or(`politician_id.eq.${senderProfile.user_id},assessor_id.in.(${csv}),criado_por.in.(${csv})`);
   }
+
   
   const { data: allTarefas } = await query;
   if (!allTarefas || allTarefas.length === 0) return `❌ Nenhuma tarefa encontrada.`;
