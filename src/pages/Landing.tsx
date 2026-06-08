@@ -145,16 +145,19 @@ const testimonials = [
     name: "Vereador R. Souza",
     role: "Câmara Municipal — interior de SP",
     text: "Triplicamos a velocidade de resposta às demandas dos eleitores. O agente de WhatsApp mudou nosso gabinete.",
+    avatar: a1.url,
   },
   {
     name: "Deputada A. Lima",
     role: "Assembleia Legislativa",
     text: "O Assistente Legislativo me economiza horas por semana na redação de projetos e discursos.",
+    avatar: a2.url,
   },
   {
     name: "Chefe de Gabinete M. Costa",
     role: "Câmara Federal",
     text: "Pela primeira vez temos visão real do mandato em tempo real. Organização completa.",
+    avatar: a3.url,
   },
 ];
 
