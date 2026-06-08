@@ -68,6 +68,14 @@ const Assessores = () => {
     fetchAssessores();
   }, [user]);
 
+  useEffect(() => {
+    setMostrarSenha(false);
+    setNovaSenha("");
+    setConfirmarSenha("");
+    setAlterandoSenha(false);
+    setAvisoSenha(false);
+  }, [editing]);
+
   const fetchAssessores = async () => {
     const { data: links } = await supabase
       .from("politician_assessors")
