@@ -13,7 +13,6 @@ import {
   Cake,
   FileBarChart,
   BookOpen,
-  UserCog,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -49,7 +48,6 @@ const politicoMenuItems = [
 
 const politicoOnlyItems = [
   { title: "Assessores", url: "/assessores", icon: UserCheck },
-  { title: "Aprovar Assessores", url: "/aprovar-assessores", icon: UserCog },
 ];
 
 const commonFooterItems = [
