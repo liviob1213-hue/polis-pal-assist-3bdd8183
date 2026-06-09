@@ -48,6 +48,8 @@ interface AuthContextType {
   role: UserRole;
   permissions: Permissions;
   permsLoaded: boolean;
+  plano: "bronze" | "prata" | "ouro";
+  assinaturaStatus: string;
   signOut: () => Promise<void>;
 }
 
@@ -58,6 +60,8 @@ const AuthContext = createContext<AuthContextType>({
   role: null,
   permissions: allFalse(),
   permsLoaded: false,
+  plano: "ouro",
+  assinaturaStatus: "ativa",
   signOut: async () => {},
 });
 
