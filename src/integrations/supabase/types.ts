@@ -416,18 +416,21 @@ export type Database = {
           assessor_id: string
           created_at: string
           id: string
+          permissions: Json
           politician_id: string
         }
         Insert: {
           assessor_id: string
           created_at?: string
           id?: string
+          permissions?: Json
           politician_id: string
         }
         Update: {
           assessor_id?: string
           created_at?: string
           id?: string
+          permissions?: Json
           politician_id?: string
         }
         Relationships: []
