@@ -72,17 +72,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<UserRole>(null);
   const [permissions, setPermissions] = useState<Permissions>(allFalse());
   const [permsLoaded, setPermsLoaded] = useState(false);
+  const [plano, setPlano] = useState<"bronze" | "prata" | "ouro">("ouro");
+  const [assinaturaStatus, setAssinaturaStatus] = useState<string>("ativa");
 
   const fetchRoleAndPerms = async (userId: string) => {
     setPermsLoaded(false);
     try {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, plano, assinatura_status")
         .eq("user_id", userId)
         .maybeSingle();
       const r = ((profile?.role as UserRole) || "politico") as UserRole;
       setRole(r);
+      const p = ((profile as any)?.plano as "bronze" | "prata" | "ouro") || "ouro";
+      setPlano(p);
+      setAssinaturaStatus(((profile as any)?.assinatura_status as string) || "ativa");
 
       if (r === "politico") {
         setPermissions(allTrue());
