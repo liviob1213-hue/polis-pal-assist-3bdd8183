@@ -38,7 +38,7 @@ import a1 from "@/assets/landing/avatar-1.jpg.asset.json";
 import a2 from "@/assets/landing/avatar-2.jpg.asset.json";
 import a3 from "@/assets/landing/avatar-3.jpg.asset.json";
 
-const LINK_BRONZE = "https://pay.kiwify.com.br/Hb7Uc7I";
+const LINK_BRONZE = "https://pay.kiwify.com.br/9HlfvxA";
 const LINK_PRATA = "https://pay.kiwify.com.br/E2UJ6NS";
 
 const features = [
