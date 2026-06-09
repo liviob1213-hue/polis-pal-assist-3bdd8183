@@ -285,6 +285,51 @@ export type Database = {
         }
         Relationships: []
       }
+      kiwify_webhook_logs: {
+        Row: {
+          created_at: string
+          customer_email: string | null
+          error: string | null
+          event_type: string | null
+          id: string
+          matched_user_id: string | null
+          order_id: string | null
+          payload: Json
+          plan_name: string | null
+          processed: boolean
+          product_name: string | null
+          subscription_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_email?: string | null
+          error?: string | null
+          event_type?: string | null
+          id?: string
+          matched_user_id?: string | null
+          order_id?: string | null
+          payload: Json
+          plan_name?: string | null
+          processed?: boolean
+          product_name?: string | null
+          subscription_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_email?: string | null
+          error?: string | null
+          event_type?: string | null
+          id?: string
+          matched_user_id?: string | null
+          order_id?: string | null
+          payload?: Json
+          plan_name?: string | null
+          processed?: boolean
+          product_name?: string | null
+          subscription_id?: string | null
+        }
+        Relationships: []
+      }
       legislacao_conhecimento: {
         Row: {
           conteudo: string
@@ -389,11 +434,16 @@ export type Database = {
       }
       profiles: {
         Row: {
+          assinatura_expira_em: string | null
+          assinatura_status: string
           created_at: string
           email: string
           id: string
           is_authorized: boolean
+          kiwify_customer_email: string | null
+          kiwify_subscription_id: string | null
           nome: string
+          plano: string
           politico_id_solicitado: string | null
           role: string
           status: string
@@ -403,11 +453,16 @@ export type Database = {
           whatsapp_verified: boolean
         }
         Insert: {
+          assinatura_expira_em?: string | null
+          assinatura_status?: string
           created_at?: string
           email: string
           id?: string
           is_authorized?: boolean
+          kiwify_customer_email?: string | null
+          kiwify_subscription_id?: string | null
           nome: string
+          plano?: string
           politico_id_solicitado?: string | null
           role?: string
           status?: string
@@ -417,11 +472,16 @@ export type Database = {
           whatsapp_verified?: boolean
         }
         Update: {
+          assinatura_expira_em?: string | null
+          assinatura_status?: string
           created_at?: string
           email?: string
           id?: string
           is_authorized?: boolean
+          kiwify_customer_email?: string | null
+          kiwify_subscription_id?: string | null
           nome?: string
+          plano?: string
           politico_id_solicitado?: string | null
           role?: string
           status?: string

@@ -62,8 +62,8 @@ function PoliticoRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function PermissionRoute({ children, permission }: { children: React.ReactNode; permission: PermissionKey }) {
-  const { user, loading, role, permissions, permsLoaded } = useAuth();
+function PermissionRoute({ children, permission, requirePlan }: { children: React.ReactNode; permission: PermissionKey; requirePlan?: ("prata" | "ouro")[] }) {
+  const { user, loading, role, permissions, permsLoaded, plano } = useAuth();
   const location = useLocation();
   const loginPath = `/login?redirect=${encodeURIComponent(location.pathname + location.search)}`;
 
@@ -73,13 +73,20 @@ function PermissionRoute({ children, permission }: { children: React.ReactNode; 
     }
   }, [permsLoaded, loading, user, role, permissions, permission]);
 
+  useEffect(() => {
+    if (!loading && user && requirePlan && !requirePlan.includes(plano as any)) {
+      toast.error("Recurso disponível apenas nos planos Prata e Ouro. Faça upgrade para acessar.");
+    }
+  }, [loading, user, plano, requirePlan]);
+
   if (loading || !permsLoaded) return <Spinner />;
   if (!user) return <Navigate to={loginPath} replace state={{ from: location.pathname + location.search }} />;
   if (!role) return <Spinner />;
 
   const allowed = role === "politico" || (role === "assessor" && permissions[permission] === true);
-
   if (!allowed) return <Navigate to="/" replace />;
+  if (requirePlan && !requirePlan.includes(plano as any)) return <Navigate to="/painel" replace />;
+
   return <>{children}</>;
 }
 
@@ -133,7 +140,7 @@ const AnimatedRoutes = () => {
         <Route path="/demandas" element={<PermissionRoute permission="demandas"><AppLayout><Demandas /></AppLayout></PermissionRoute>} />
         <Route path="/tarefas" element={<PermissionRoute permission="tarefas"><AppLayout><Tarefas /></AppLayout></PermissionRoute>} />
         <Route path="/agenda" element={<PermissionRoute permission="agenda"><AppLayout><Agenda /></AppLayout></PermissionRoute>} />
-        <Route path="/assistente" element={<PermissionRoute permission="assistente"><AppLayout><Assistente /></AppLayout></PermissionRoute>} />
+        <Route path="/assistente" element={<PermissionRoute permission="assistente" requirePlan={["prata","ouro"]}><AppLayout><Assistente /></AppLayout></PermissionRoute>} />
         <Route path="/aniversarios" element={<PermissionRoute permission="aniversarios"><AppLayout><Aniversarios /></AppLayout></PermissionRoute>} />
         <Route path="/historico-conversas" element={<PermissionRoute permission="historico-conversas"><AppLayout><HistoricoConversas /></AppLayout></PermissionRoute>} />
         <Route path="/resumo-mensal" element={<PermissionRoute permission="resumo-mensal"><AppLayout><ResumoMensal /></AppLayout></PermissionRoute>} />

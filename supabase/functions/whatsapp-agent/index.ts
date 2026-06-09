@@ -251,7 +251,7 @@ async function findProfileByPhone(phone: string) {
   // 1) Match exato em qualquer variação (sem filtros restritivos - basta existir o profile com role)
   const { data: exact, error: exactErr } = await sb
     .from("profiles")
-    .select("user_id, nome, role, telefone, is_authorized, whatsapp_verified")
+    .select("user_id, nome, role, telefone, is_authorized, whatsapp_verified, plano, assinatura_status")
     .in("telefone", variants)
     .limit(1);
   if (exactErr) console.error("findProfileByPhone exact error:", exactErr);
@@ -266,7 +266,7 @@ async function findProfileByPhone(phone: string) {
     const tail = digits.slice(-8);
     const { data: fuzzy, error: fuzzyErr } = await sb
       .from("profiles")
-      .select("user_id, nome, role, telefone, is_authorized, whatsapp_verified")
+      .select("user_id, nome, role, telefone, is_authorized, whatsapp_verified, plano, assinatura_status")
       .ilike("telefone", `%${tail}%`)
       .limit(1);
     if (fuzzyErr) console.error("findProfileByPhone fuzzy error:", fuzzyErr);
@@ -278,6 +278,28 @@ async function findProfileByPhone(phone: string) {
 
   console.log(`❌ Nenhum profile encontrado para "${phone}". Variantes testadas: ${JSON.stringify(variants)}`);
   return null;
+}
+
+// Retorna o plano efetivo do remetente. Assessor herda o plano do político vinculado.
+async function getEffectivePlan(profile: any): Promise<"bronze" | "prata" | "ouro"> {
+  if (!profile) return "ouro";
+  if (profile.role === "politico") return (profile.plano as any) || "ouro";
+  if (profile.role === "assessor") {
+    const sb = supabaseAdmin();
+    const { data: link } = await sb
+      .from("politician_assessors")
+      .select("politician_id")
+      .eq("assessor_id", profile.user_id)
+      .maybeSingle();
+    if (!link?.politician_id) return "ouro";
+    const { data: pol } = await sb
+      .from("profiles")
+      .select("plano")
+      .eq("user_id", link.politician_id)
+      .maybeSingle();
+    return ((pol as any)?.plano as any) || "ouro";
+  }
+  return "ouro";
 }
 
 async function isAuthorized(phone: string): Promise<boolean> {
@@ -1225,6 +1247,18 @@ Deno.serve(async (req) => {
 
     // Save user message to history
     await saveChatMessage(senderPhone, "user", message);
+
+    // Bloqueio por plano: usuário no plano Bronze não acessa o agente do WhatsApp
+    const senderProfileRaw = await findProfileByPhone(senderPhone);
+    const effectivePlan = await getEffectivePlan(senderProfileRaw);
+    if (effectivePlan === "bronze") {
+      console.log(`🚫 Plano Bronze — agente do WhatsApp bloqueado para ${senderPhone}`);
+      await sendMessage(
+        senderPhone,
+        "🔒 O Agente do WhatsApp está disponível apenas nos planos *Prata* e *Ouro*.\n\nFaça upgrade do seu plano para liberar este recurso.",
+      );
+      return jsonResponse({ status: "plan_blocked", plan: "bronze" });
+    }
 
     // Get chat history and pending context
     const history = await getChatHistory(senderPhone, 10);

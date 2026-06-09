@@ -48,6 +48,8 @@ interface AuthContextType {
   role: UserRole;
   permissions: Permissions;
   permsLoaded: boolean;
+  plano: "bronze" | "prata" | "ouro";
+  assinaturaStatus: string;
   signOut: () => Promise<void>;
 }
 
@@ -58,6 +60,8 @@ const AuthContext = createContext<AuthContextType>({
   role: null,
   permissions: allFalse(),
   permsLoaded: false,
+  plano: "ouro",
+  assinaturaStatus: "ativa",
   signOut: async () => {},
 });
 
@@ -68,17 +72,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<UserRole>(null);
   const [permissions, setPermissions] = useState<Permissions>(allFalse());
   const [permsLoaded, setPermsLoaded] = useState(false);
+  const [plano, setPlano] = useState<"bronze" | "prata" | "ouro">("ouro");
+  const [assinaturaStatus, setAssinaturaStatus] = useState<string>("ativa");
 
   const fetchRoleAndPerms = async (userId: string) => {
     setPermsLoaded(false);
     try {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, plano, assinatura_status")
         .eq("user_id", userId)
         .maybeSingle();
       const r = ((profile?.role as UserRole) || "politico") as UserRole;
       setRole(r);
+      const p = ((profile as any)?.plano as "bronze" | "prata" | "ouro") || "ouro";
+      setPlano(p);
+      setAssinaturaStatus(((profile as any)?.assinatura_status as string) || "ativa");
 
       if (r === "politico") {
         setPermissions(allTrue());
@@ -169,8 +178,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const memoizedPermissions = useMemo(() => permissions, [permissions]);
   const value = useMemo(
-    () => ({ user, session, loading, role, permissions: memoizedPermissions, permsLoaded, signOut }),
-    [user, session, loading, role, memoizedPermissions, permsLoaded]
+    () => ({ user, session, loading, role, permissions: memoizedPermissions, permsLoaded, plano, assinaturaStatus, signOut }),
+    [user, session, loading, role, memoizedPermissions, permsLoaded, plano, assinaturaStatus]
   );
 
   return (

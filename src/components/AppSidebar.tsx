@@ -58,13 +58,18 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
-  const { user, signOut, role, permissions } = useAuth();
+  const { user, signOut, role, permissions, plano } = useAuth();
   const userName = user?.user_metadata?.nome || "Usuário";
   const initials = userName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
 
-  const baseItems = role === "assessor"
+  const itemsForRole = role === "assessor"
     ? politicoMenuItems.filter((i) => permissions[i.perm] === true)
     : [...politicoMenuItems, ...politicoOnlyItems];
+
+  // Plano bronze não acessa o Assistente Legislativo
+  const baseItems = plano === "bronze"
+    ? itemsForRole.filter((i: any) => i.perm !== "assistente")
+    : itemsForRole;
 
   const menuItems = [...baseItems, ...commonFooterItems];
 
