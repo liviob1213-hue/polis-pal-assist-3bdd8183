@@ -78,25 +78,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchRoleAndPerms = async (userId: string) => {
     setPermsLoaded(false);
     try {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role, plano, assinatura_status")
-        .eq("user_id", userId)
-        .maybeSingle();
-      const r = ((profile?.role as UserRole) || "politico") as UserRole;
-      setRole(r);
+      const [{ data: profile }, { data: link }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("role, plano, assinatura_status")
+          .eq("user_id", userId)
+          .maybeSingle(),
+        supabase
+          .from("politician_assessors")
+          .select("permissions")
+          .eq("assessor_id", userId)
+          .maybeSingle(),
+      ]);
+
       const p = ((profile as any)?.plano as "bronze" | "prata" | "ouro") || "ouro";
       setPlano(p);
       setAssinaturaStatus(((profile as any)?.assinatura_status as string) || "ativa");
 
+      // If user is linked as an assessor, they are an assessor — regardless of profile.role
+      const isAssessor = !!link;
+      const r: UserRole = isAssessor
+        ? "assessor"
+        : (((profile?.role as UserRole) || "politico") as UserRole);
+      setRole(r);
+
       if (r === "politico") {
         setPermissions(allTrue());
       } else if (r === "assessor") {
-        const { data: link } = await supabase
-          .from("politician_assessors")
-          .select("permissions")
-          .eq("assessor_id", userId)
-          .maybeSingle();
         const raw = (link as any)?.permissions || {};
         const merged: Permissions = { ...allFalse() };
         for (const k of PERMISSION_KEYS) {
@@ -114,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPermsLoaded(true);
     }
   };
+
 
   useEffect(() => {
     let mounted = true;
