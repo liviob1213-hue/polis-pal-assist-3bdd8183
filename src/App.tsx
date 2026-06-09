@@ -140,7 +140,7 @@ const AnimatedRoutes = () => {
         <Route path="/demandas" element={<PermissionRoute permission="demandas"><AppLayout><Demandas /></AppLayout></PermissionRoute>} />
         <Route path="/tarefas" element={<PermissionRoute permission="tarefas"><AppLayout><Tarefas /></AppLayout></PermissionRoute>} />
         <Route path="/agenda" element={<PermissionRoute permission="agenda"><AppLayout><Agenda /></AppLayout></PermissionRoute>} />
-        <Route path="/assistente" element={<PermissionRoute permission="assistente"><AppLayout><Assistente /></AppLayout></PermissionRoute>} />
+        <Route path="/assistente" element={<PermissionRoute permission="assistente" requirePlan={["prata","ouro"]}><AppLayout><Assistente /></AppLayout></PermissionRoute>} />
         <Route path="/aniversarios" element={<PermissionRoute permission="aniversarios"><AppLayout><Aniversarios /></AppLayout></PermissionRoute>} />
         <Route path="/historico-conversas" element={<PermissionRoute permission="historico-conversas"><AppLayout><HistoricoConversas /></AppLayout></PermissionRoute>} />
         <Route path="/resumo-mensal" element={<PermissionRoute permission="resumo-mensal"><AppLayout><ResumoMensal /></AppLayout></PermissionRoute>} />
