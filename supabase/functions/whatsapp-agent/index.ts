@@ -1248,6 +1248,18 @@ Deno.serve(async (req) => {
     // Save user message to history
     await saveChatMessage(senderPhone, "user", message);
 
+    // Bloqueio por plano: usuário no plano Bronze não acessa o agente do WhatsApp
+    const senderProfileRaw = await findProfileByPhone(senderPhone);
+    const effectivePlan = await getEffectivePlan(senderProfileRaw);
+    if (effectivePlan === "bronze") {
+      console.log(`🚫 Plano Bronze — agente do WhatsApp bloqueado para ${senderPhone}`);
+      await sendMessage(
+        senderPhone,
+        "🔒 O Agente do WhatsApp está disponível apenas nos planos *Prata* e *Ouro*.\n\nFaça upgrade do seu plano para liberar este recurso.",
+      );
+      return jsonResponse({ status: "plan_blocked", plan: "bronze" });
+    }
+
     // Get chat history and pending context
     const history = await getChatHistory(senderPhone, 10);
     const pendingCtx = await getPendingContext(senderPhone);
