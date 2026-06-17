@@ -858,7 +858,7 @@ const Demandas = () => {
                               {demanda.prazo && (
                                 <span className={cn("flex items-center gap-1", prazoExpirado ? "text-destructive font-semibold" : "text-warning")}>
                                   <Clock className="h-3 w-3" />
-                                  Prazo: {format(new Date(demanda.prazo), "dd/MM/yyyy")}
+                                  Prazo: {format(parsePrazo(demanda.prazo), "dd/MM/yyyy")}
                                 </span>
                               )}
                               {assessorNome && (
