@@ -114,9 +114,16 @@ const addDays = (n: number) => {
   return d.toISOString().split("T")[0];
 };
 
+// Parse a prazo (ISO ou YYYY-MM-DD) como data local ao meio-dia, evitando shift de fuso horário
+const parsePrazo = (prazo: string): Date => {
+  const datePart = prazo.split("T")[0];
+  const [y, m, d] = datePart.split("-").map(Number);
+  return new Date(y, (m || 1) - 1, d || 1, 12, 0, 0);
+};
+
 const getPrazoBadge = (prazo: string | null, status: string) => {
   if (!prazo || status === "Resolvido") return null;
-  const d = new Date(prazo);
+  const d = parsePrazo(prazo);
   const dias = Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
   if (dias < 0) return { label: `⏰ Vencido há ${Math.abs(dias)}d`, style: "border-destructive bg-destructive/10 text-destructive" };
   if (dias <= 3) return { label: `⚠️ Vence em ${dias}d`, style: "border-warning bg-warning/10 text-warning" };
