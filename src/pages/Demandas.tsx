@@ -289,7 +289,7 @@ const Demandas = () => {
     const list = ((data || []) as Demanda[]).map((d) => ({ ...d, status: normalizeText(d.status), titulo: normalizeText(d.titulo) })) as Demanda[];
 
     // Auto-mover vencidas para "Recontato"
-    const vencidas = list.filter((d) => d.prazo && d.status !== "Resolvido" && d.status !== "Recontato" && new Date(d.prazo) < new Date());
+    const vencidas = list.filter((d) => d.prazo && d.status !== "Resolvido" && d.status !== "Recontato" && parsePrazo(d.prazo) < new Date());
     if (vencidas.length > 0) {
       await Promise.all(vencidas.map((d) => supabase.from("demandas").update({ status: "Recontato" }).eq("id", d.id)));
       vencidas.forEach((d) => { const item = list.find((x) => x.id === d.id); if (item) item.status = "Recontato"; });
