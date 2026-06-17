@@ -357,7 +357,7 @@ const Demandas = () => {
       titulo: form.titulo,
       descricao: form.descricao || null,
       localizacao: form.localizacao || null,
-      prazo: form.prazo ? new Date(form.prazo).toISOString() : null,
+      prazo: form.prazo ? new Date(`${form.prazo}T12:00:00`).toISOString() : null,
       origem: form.origem || null,
       tipo: form.tipo || null,
       setor: form.setor || null,
