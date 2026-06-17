@@ -114,9 +114,16 @@ const addDays = (n: number) => {
   return d.toISOString().split("T")[0];
 };
 
+// Parse a prazo (ISO ou YYYY-MM-DD) como data local ao meio-dia, evitando shift de fuso horário
+const parsePrazo = (prazo: string): Date => {
+  const datePart = prazo.split("T")[0];
+  const [y, m, d] = datePart.split("-").map(Number);
+  return new Date(y, (m || 1) - 1, d || 1, 12, 0, 0);
+};
+
 const getPrazoBadge = (prazo: string | null, status: string) => {
   if (!prazo || status === "Resolvido") return null;
-  const d = new Date(prazo);
+  const d = parsePrazo(prazo);
   const dias = Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
   if (dias < 0) return { label: `⏰ Vencido há ${Math.abs(dias)}d`, style: "border-destructive bg-destructive/10 text-destructive" };
   if (dias <= 3) return { label: `⚠️ Vence em ${dias}d`, style: "border-warning bg-warning/10 text-warning" };
@@ -282,7 +289,7 @@ const Demandas = () => {
     const list = ((data || []) as Demanda[]).map((d) => ({ ...d, status: normalizeText(d.status), titulo: normalizeText(d.titulo) })) as Demanda[];
 
     // Auto-mover vencidas para "Recontato"
-    const vencidas = list.filter((d) => d.prazo && d.status !== "Resolvido" && d.status !== "Recontato" && new Date(d.prazo) < new Date());
+    const vencidas = list.filter((d) => d.prazo && d.status !== "Resolvido" && d.status !== "Recontato" && parsePrazo(d.prazo) < new Date());
     if (vencidas.length > 0) {
       await Promise.all(vencidas.map((d) => supabase.from("demandas").update({ status: "Recontato" }).eq("id", d.id)));
       vencidas.forEach((d) => { const item = list.find((x) => x.id === d.id); if (item) item.status = "Recontato"; });
@@ -357,7 +364,7 @@ const Demandas = () => {
       titulo: form.titulo,
       descricao: form.descricao || null,
       localizacao: form.localizacao || null,
-      prazo: form.prazo ? new Date(form.prazo).toISOString() : null,
+      prazo: form.prazo ? new Date(`${form.prazo}T12:00:00`).toISOString() : null,
       origem: form.origem || null,
       tipo: form.tipo || null,
       setor: form.setor || null,
@@ -469,7 +476,7 @@ const Demandas = () => {
 
   const isPrazoExpired = (prazo: string | null, status: string) => {
     if (!prazo || status === "Resolvido") return false;
-    return isPast(new Date(prazo));
+    return isPast(parsePrazo(prazo));
   };
 
   const total = filteredDemandas.length;
@@ -851,7 +858,7 @@ const Demandas = () => {
                               {demanda.prazo && (
                                 <span className={cn("flex items-center gap-1", prazoExpirado ? "text-destructive font-semibold" : "text-warning")}>
                                   <Clock className="h-3 w-3" />
-                                  Prazo: {format(new Date(demanda.prazo), "dd/MM/yyyy")}
+                                  Prazo: {format(parsePrazo(demanda.prazo), "dd/MM/yyyy")}
                                 </span>
                               )}
                               {assessorNome && (
