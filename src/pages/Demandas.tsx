@@ -476,7 +476,7 @@ const Demandas = () => {
 
   const isPrazoExpired = (prazo: string | null, status: string) => {
     if (!prazo || status === "Resolvido") return false;
-    return isPast(new Date(prazo));
+    return isPast(parsePrazo(prazo));
   };
 
   const total = filteredDemandas.length;
