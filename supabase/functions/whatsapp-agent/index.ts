@@ -687,6 +687,7 @@ async function handleCriarDemanda(params: any, senderProfile: any): Promise<stri
     localizacao: params.localizacao || null,
     status: "Em Análise",
     assessor_id: assessorId,
+    criado_por: senderProfile?.user_id ?? assessorId,
     prazo: prazoValue,
   });
   if (error) throw new Error(`DB error: ${error.message}`);
