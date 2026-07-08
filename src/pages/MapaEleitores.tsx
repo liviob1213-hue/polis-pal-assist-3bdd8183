@@ -253,6 +253,10 @@ const MapaEleitores = () => {
               {noGeoCount} sem localização
             </Badge>
           )}
+          <Button size="sm" variant="outline" onClick={handleRegeocode} disabled={regeocoding} className="gap-1">
+            {regeocoding ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+            Geocodificar pendentes
+          </Button>
         </div>
       </div>
 
