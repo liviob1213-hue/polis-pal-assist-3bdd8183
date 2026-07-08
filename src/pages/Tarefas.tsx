@@ -206,6 +206,11 @@ const Tarefas = () => {
   }, [user, role]);
 
   const filteredTarefas = tarefas.filter((t) => {
+    if (headerQuery) {
+      const q = headerQuery.toLowerCase();
+      const hay = `${t.titulo || ""} ${(t as any).descricao || ""}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
     if (filterDate) {
       const createdAt = new Date(t.created_at);
       if (filterDateEnd) {
