@@ -61,6 +61,8 @@ function mensagemAniversario(nome: string): string {
 
 export default function Aniversarios() {
   const [busca, setBusca] = useState("");
+  const { query: headerQuery } = useHeaderSearch();
+  useEffect(() => { setBusca(headerQuery); }, [headerQuery]);
 
   const { data: eleitores = [], isLoading } = useQuery({
     queryKey: ["eleitores-aniversarios"],
