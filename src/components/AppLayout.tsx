@@ -4,14 +4,29 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Bell, Search, Settings } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useHeaderSearch } from "@/contexts/HeaderSearchContext";
 
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
+// Rotas onde a busca do header deve ficar oculta (não faz sentido nelas)
+const HIDE_SEARCH_ROUTES = [
+  "/mapa-eleitores",
+  "/agenda",
+  "/assistente",
+  "/base-conhecimento",
+  "/historico-conversas",
+  "/resumo-mensal",
+];
+
 export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { query, setQuery } = useHeaderSearch();
+
+  const showSearch = !HIDE_SEARCH_ROUTES.some((r) => location.pathname.startsWith(r));
 
   return (
     <SidebarProvider>
@@ -23,13 +38,17 @@ export function AppLayout({ children }: AppLayoutProps) {
           <header className="h-14 md:h-16 flex items-center justify-between border-b border-border bg-card px-4 lg:px-6 shrink-0">
             <div className="flex items-center gap-3">
               <SidebarTrigger className="text-muted-foreground hover:text-foreground hidden md:flex" />
-              <div className="relative hidden md:block">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Pesquisar..."
-                  className="pl-9 w-64 bg-secondary/50 border-0 focus-visible:ring-1 focus-visible:ring-primary/20"
-                />
-              </div>
+              {showSearch && (
+                <div className="relative hidden md:block">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Pesquisar..."
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    className="pl-9 w-64 bg-secondary/50 border-0 focus-visible:ring-1 focus-visible:ring-primary/20"
+                  />
+                </div>
+              )}
               <h1 className="text-sm font-semibold md:hidden">Democrat.IA</h1>
             </div>
             <div className="flex items-center gap-1">
