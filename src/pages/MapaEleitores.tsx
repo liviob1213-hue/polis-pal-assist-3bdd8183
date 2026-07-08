@@ -153,8 +153,11 @@ const MapContent = ({ eleitores, searchQuery }: { eleitores: Eleitor[]; searchQu
 
 const MapaEleitores = () => {
   const { data: mapsApiKey = "", isLoading: keyLoading } = useGoogleMapsKey();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [regeocoding, setRegeocoding] = useState(false);
 
   const { data: eleitores = [], isLoading } = useQuery({
     queryKey: ["eleitores-mapa"],
@@ -167,6 +170,27 @@ const MapaEleitores = () => {
       return data as Eleitor[];
     },
   });
+
+  const handleRegeocode = async () => {
+    const pendentes = eleitores.filter((e) => e.endereco && (!e.latitude || !e.longitude));
+    if (pendentes.length === 0) {
+      toast({ title: "Nada para geocodificar", description: "Todos os eleitores com endereço já estão no mapa." });
+      return;
+    }
+    setRegeocoding(true);
+    let ok = 0, fail = 0;
+    for (const el of pendentes) {
+      try {
+        const { error } = await supabase.functions.invoke("geocode", {
+          body: { eleitor_id: el.id, endereco: el.endereco },
+        });
+        if (error) fail++; else ok++;
+      } catch { fail++; }
+    }
+    setRegeocoding(false);
+    toast({ title: "Geocodificação concluída", description: `${ok} localizados, ${fail} falharam.` });
+    queryClient.invalidateQueries({ queryKey: ["eleitores-mapa"] });
+  };
 
   // Debounce search for smooth UX
   useEffect(() => {
