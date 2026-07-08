@@ -8,6 +8,7 @@ import { useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
 import { AppLayout } from "@/components/AppLayout";
 import { AuthProvider, useAuth, ROUTE_TO_PERMISSION, PermissionKey } from "@/hooks/useAuth";
+import { HeaderSearchProvider } from "@/contexts/HeaderSearchContext";
 import Dashboard from "./pages/Dashboard";
 import Eleitores from "./pages/Eleitores";
 import MapaEleitores from "./pages/MapaEleitores";
@@ -159,7 +160,9 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <AnimatedRoutes />
+          <HeaderSearchProvider>
+            <AnimatedRoutes />
+          </HeaderSearchProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

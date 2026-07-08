@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useHeaderSearch } from "@/contexts/HeaderSearchContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -96,6 +97,7 @@ const normalizeStatus = (raw: string | null | undefined): StatusKey => {
 
 const Tarefas = () => {
   const { user, role } = useAuth();
+  const { query: headerQuery } = useHeaderSearch();
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [assessores, setAssessores] = useState<AssessorOption[]>([]);
   const [assessorMap, setAssessorMap] = useState<Record<string, string>>({});
@@ -204,6 +206,11 @@ const Tarefas = () => {
   }, [user, role]);
 
   const filteredTarefas = tarefas.filter((t) => {
+    if (headerQuery) {
+      const q = headerQuery.toLowerCase();
+      const hay = `${t.titulo || ""} ${(t as any).descricao || ""}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
     if (filterDate) {
       const createdAt = new Date(t.created_at);
       if (filterDateEnd) {

@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useHeaderSearch } from "@/contexts/HeaderSearchContext";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -60,6 +61,8 @@ function mensagemAniversario(nome: string): string {
 
 export default function Aniversarios() {
   const [busca, setBusca] = useState("");
+  const { query: headerQuery } = useHeaderSearch();
+  useEffect(() => { setBusca(headerQuery); }, [headerQuery]);
 
   const { data: eleitores = [], isLoading } = useQuery({
     queryKey: ["eleitores-aniversarios"],

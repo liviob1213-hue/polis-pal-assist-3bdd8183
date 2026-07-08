@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useHeaderSearch } from "@/contexts/HeaderSearchContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -133,6 +134,7 @@ const getPrazoBadge = (prazo: string | null, status: string) => {
 
 const Demandas = () => {
   const { user, role } = useAuth();
+  const { query: headerQuery } = useHeaderSearch();
   const [demandas, setDemandas] = useState<Demanda[]>([]);
   const [assessores, setAssessores] = useState<AssessorOption[]>([]);
   const [assessorMap, setAssessorMap] = useState<Record<string, string>>({});
@@ -329,6 +331,11 @@ const Demandas = () => {
   }, [user, role]);
 
   const filteredDemandas = demandas.filter((d) => {
+    if (headerQuery) {
+      const q = headerQuery.toLowerCase();
+      const hay = `${d.titulo || ""} ${(d as any).descricao || ""} ${d.localizacao || ""}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
     if (filterDate) {
       const createdAt = new Date(d.created_at);
       if (filterDateEnd) {
