@@ -97,6 +97,7 @@ const normalizeStatus = (raw: string | null | undefined): StatusKey => {
 
 const Tarefas = () => {
   const { user, role } = useAuth();
+  const { query: headerQuery } = useHeaderSearch();
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [assessores, setAssessores] = useState<AssessorOption[]>([]);
   const [assessorMap, setAssessorMap] = useState<Record<string, string>>({});
