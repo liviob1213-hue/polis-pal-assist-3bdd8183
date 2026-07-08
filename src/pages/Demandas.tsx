@@ -331,6 +331,11 @@ const Demandas = () => {
   }, [user, role]);
 
   const filteredDemandas = demandas.filter((d) => {
+    if (headerQuery) {
+      const q = headerQuery.toLowerCase();
+      const hay = `${d.titulo || ""} ${(d as any).descricao || ""} ${d.localizacao || ""}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
     if (filterDate) {
       const createdAt = new Date(d.created_at);
       if (filterDateEnd) {
