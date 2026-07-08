@@ -134,6 +134,7 @@ const getPrazoBadge = (prazo: string | null, status: string) => {
 
 const Demandas = () => {
   const { user, role } = useAuth();
+  const { query: headerQuery } = useHeaderSearch();
   const [demandas, setDemandas] = useState<Demanda[]>([]);
   const [assessores, setAssessores] = useState<AssessorOption[]>([]);
   const [assessorMap, setAssessorMap] = useState<Record<string, string>>({});
