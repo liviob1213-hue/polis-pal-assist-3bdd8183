@@ -2,11 +2,13 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { APIProvider, Map, AdvancedMarker, InfoWindow, useMap } from "@vis.gl/react-google-maps";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, MapPin, Phone, Navigation, Users, Search, BarChart3 } from "lucide-react";
+import { Loader2, MapPin, Phone, Navigation, Users, Search, BarChart3, RefreshCw } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { useGoogleMapsKey } from "@/hooks/useGoogleMapsKey";
 import { getStatusEleitor, STATUS_ELEITOR_LIST } from "@/lib/statusEleitor";
 
@@ -151,8 +153,11 @@ const MapContent = ({ eleitores, searchQuery }: { eleitores: Eleitor[]; searchQu
 
 const MapaEleitores = () => {
   const { data: mapsApiKey = "", isLoading: keyLoading } = useGoogleMapsKey();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [regeocoding, setRegeocoding] = useState(false);
 
   const { data: eleitores = [], isLoading } = useQuery({
     queryKey: ["eleitores-mapa"],
@@ -165,6 +170,27 @@ const MapaEleitores = () => {
       return data as Eleitor[];
     },
   });
+
+  const handleRegeocode = async () => {
+    const pendentes = eleitores.filter((e) => e.endereco && (!e.latitude || !e.longitude));
+    if (pendentes.length === 0) {
+      toast({ title: "Nada para geocodificar", description: "Todos os eleitores com endereço já estão no mapa." });
+      return;
+    }
+    setRegeocoding(true);
+    let ok = 0, fail = 0;
+    for (const el of pendentes) {
+      try {
+        const { error } = await supabase.functions.invoke("geocode", {
+          body: { eleitor_id: el.id, endereco: el.endereco },
+        });
+        if (error) fail++; else ok++;
+      } catch { fail++; }
+    }
+    setRegeocoding(false);
+    toast({ title: "Geocodificação concluída", description: `${ok} localizados, ${fail} falharam.` });
+    queryClient.invalidateQueries({ queryKey: ["eleitores-mapa"] });
+  };
 
   // Debounce search for smooth UX
   useEffect(() => {
@@ -227,6 +253,10 @@ const MapaEleitores = () => {
               {noGeoCount} sem localização
             </Badge>
           )}
+          <Button size="sm" variant="outline" onClick={handleRegeocode} disabled={regeocoding} className="gap-1">
+            {regeocoding ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+            Geocodificar pendentes
+          </Button>
         </div>
       </div>
 
