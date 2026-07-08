@@ -2,11 +2,13 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { APIProvider, Map, AdvancedMarker, InfoWindow, useMap } from "@vis.gl/react-google-maps";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, MapPin, Phone, Navigation, Users, Search, BarChart3 } from "lucide-react";
+import { Loader2, MapPin, Phone, Navigation, Users, Search, BarChart3, RefreshCw } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { useGoogleMapsKey } from "@/hooks/useGoogleMapsKey";
 import { getStatusEleitor, STATUS_ELEITOR_LIST } from "@/lib/statusEleitor";
 
