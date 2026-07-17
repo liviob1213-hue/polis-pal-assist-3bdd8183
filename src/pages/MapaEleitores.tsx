@@ -16,6 +16,7 @@ interface Eleitor {
   id: string;
   nome: string;
   endereco: string | null;
+  cidade: string | null;
   telefone: string | null;
   interesse: string | null;
   status_eleitor: string | null;
@@ -23,13 +24,16 @@ interface Eleitor {
   longitude: number | null;
 }
 
+const getEnderecoDisplay = (eleitor: Eleitor) => eleitor.cidade || eleitor.endereco || "";
+
 // Helper: group eleitores by a street/region key
 function groupByStreet(eleitores: Eleitor[]) {
   const map = new window.Map<string, number>();
   eleitores.forEach((e) => {
-    if (!e.endereco) return;
+    const endereco = getEnderecoDisplay(e);
+    if (!endereco) return;
     // Extract street name (first part before the number/comma)
-    const street = e.endereco.split(",")[0]?.trim() || e.endereco;
+    const street = endereco.split(",")[0]?.trim() || endereco;
     map.set(street, (map.get(street) || 0) + 1);
   });
   return Array.from(map.entries())
@@ -40,8 +44,9 @@ function groupByStreet(eleitores: Eleitor[]) {
 function groupByCity(eleitores: Eleitor[]) {
   const map = new window.Map<string, number>();
   eleitores.forEach((e) => {
-    if (!e.endereco) return;
-    const parts = e.endereco.split(",");
+    const endereco = getEnderecoDisplay(e);
+    if (!endereco) return;
+    const parts = endereco.split(",");
     // City is usually the 3rd or 4th part
     const city = parts.length >= 3 ? parts[parts.length - 3]?.trim() : parts[0]?.trim();
     if (city) map.set(city, (map.get(city) || 0) + 1);
@@ -123,10 +128,10 @@ const MapContent = ({ eleitores, searchQuery }: { eleitores: Eleitor[]; searchQu
                 {selectedEleitor.interesse}
               </span>
             )}
-            {selectedEleitor.endereco && (
+            {getEnderecoDisplay(selectedEleitor) && (
               <p className="text-xs text-gray-600 mb-1.5 flex items-start gap-1">
                 <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
-                {selectedEleitor.endereco}
+                {getEnderecoDisplay(selectedEleitor)}
               </p>
             )}
             {selectedEleitor.telefone && (
@@ -164,7 +169,7 @@ const MapaEleitores = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("eleitores")
-        .select("id, nome, endereco, telefone, interesse, latitude, longitude, status_eleitor")
+        .select("id, nome, endereco, cidade, telefone, interesse, latitude, longitude, status_eleitor")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as Eleitor[];
@@ -172,7 +177,7 @@ const MapaEleitores = () => {
   });
 
   const handleRegeocode = async () => {
-    const pendentes = eleitores.filter((e) => e.endereco && (!e.latitude || !e.longitude));
+    const pendentes = eleitores.filter((e) => getEnderecoDisplay(e) && (!e.latitude || !e.longitude));
     if (pendentes.length === 0) {
       toast({ title: "Nada para geocodificar", description: "Todos os eleitores com endereço já estão no mapa." });
       return;
@@ -182,7 +187,7 @@ const MapaEleitores = () => {
     for (const el of pendentes) {
       try {
         const { error } = await supabase.functions.invoke("geocode", {
-          body: { eleitor_id: el.id, endereco: el.endereco },
+          body: { eleitor_id: el.id, endereco: getEnderecoDisplay(el) },
         });
         if (error) fail++; else ok++;
       } catch { fail++; }
@@ -282,7 +287,7 @@ const MapaEleitores = () => {
               >
                 <MapPin className="h-3 w-3 text-accent shrink-0" />
                 <span className="truncate">{e.nome}</span>
-                <span className="text-xs text-muted-foreground ml-auto truncate max-w-[150px]">{e.endereco}</span>
+                <span className="text-xs text-muted-foreground ml-auto truncate max-w-[150px]">{getEnderecoDisplay(e)}</span>
               </button>
             ))}
           </div>
