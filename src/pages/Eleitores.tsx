@@ -658,6 +658,7 @@ const Eleitores = () => {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="relative max-w-md">
