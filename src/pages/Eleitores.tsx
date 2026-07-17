@@ -533,7 +533,7 @@ const Eleitores = () => {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".xlsx,.xls"
+          accept=".xlsx,.xls,.csv,text/csv"
           className="hidden"
           onChange={handleImportFile}
         />
