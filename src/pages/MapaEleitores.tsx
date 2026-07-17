@@ -24,7 +24,7 @@ interface Eleitor {
   longitude: number | null;
 }
 
-const getEnderecoDisplay = (eleitor: Eleitor) => eleitor.endereco || eleitor.cidade || "";
+const getEnderecoDisplay = (eleitor: Eleitor) => eleitor.cidade || eleitor.endereco || "";
 
 // Helper: group eleitores by a street/region key
 function groupByStreet(eleitores: Eleitor[]) {
@@ -128,7 +128,7 @@ const MapContent = ({ eleitores, searchQuery }: { eleitores: Eleitor[]; searchQu
                 {selectedEleitor.interesse}
               </span>
             )}
-            {selectedEleitor.endereco && (
+            {getEnderecoDisplay(selectedEleitor) && (
               <p className="text-xs text-gray-600 mb-1.5 flex items-start gap-1">
                 <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
                 {getEnderecoDisplay(selectedEleitor)}
@@ -187,7 +187,7 @@ const MapaEleitores = () => {
     for (const el of pendentes) {
       try {
         const { error } = await supabase.functions.invoke("geocode", {
-          body: { eleitor_id: el.id, endereco: el.endereco },
+          body: { eleitor_id: el.id, endereco: getEnderecoDisplay(el) },
         });
         if (error) fail++; else ok++;
       } catch { fail++; }
