@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import * as XLSX from "xlsx";
 import { useHeaderSearch } from "@/contexts/HeaderSearchContext";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Search, Pencil, MessageCircle, Trash2, Send, Save, Star, Loader2, Cake, AlertCircle, Bot, Megaphone, ArrowRight, History, CheckCircle2, Clock } from "lucide-react";
+import { Plus, Search, Pencil, MessageCircle, Trash2, Send, Save, Star, Loader2, Cake, AlertCircle, Bot, Megaphone, ArrowRight, History, CheckCircle2, Clock, Upload } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -108,6 +109,102 @@ const Eleitores = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: mapsApiKey = "" } = useGoogleMapsKey();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
+
+  const normHeader = (s: string) =>
+    String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "").trim();
+
+  const HEADER_MAP: Record<string, "nome" | "telefone" | "endereco"> = {
+    nome: "nome", nomecompleto: "nome",
+    telefone: "telefone", celular: "telefone", fone: "telefone", whatsapp: "telefone", contato: "telefone",
+    endereco: "endereco", logradouro: "endereco", rua: "endereco",
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (e.target) e.target.value = "";
+    if (!file) return;
+    setImporting(true);
+    setImportProgress({ done: 0, total: 0 });
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: "Erro", description: "Usuário não autenticado.", variant: "destructive" });
+        setImporting(false);
+        return;
+      }
+
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(ws, { defval: null, raw: false });
+
+      // Build column mapping from first row's keys
+      const colMap: Record<string, "nome" | "telefone" | "endereco"> = {};
+      if (rows[0]) {
+        for (const key of Object.keys(rows[0])) {
+          const canonical = HEADER_MAP[normHeader(key)];
+          if (canonical) colMap[key] = canonical;
+        }
+      }
+
+      const payloads: any[] = [];
+      let skipped = 0;
+      for (const row of rows) {
+        const rec: any = { nome: null, telefone: null, endereco: null };
+        for (const [origKey, canonical] of Object.entries(colMap)) {
+          const val = row[origKey];
+          if (val !== null && val !== undefined && String(val).trim() !== "") {
+            rec[canonical] = String(val).trim();
+          }
+        }
+        if (!rec.nome) { skipped++; continue; }
+        payloads.push({
+          nome: rec.nome,
+          telefone: rec.telefone,
+          endereco: rec.endereco,
+          politico_id: user.id,
+          criado_por: user.id,
+          status_eleitor: "possivel_eleitor",
+          agente_ativo: true,
+        });
+      }
+
+      setImportProgress({ done: 0, total: payloads.length });
+      const BATCH = 500;
+      let inserted = 0;
+      let errors = 0;
+      const errorMsgs: string[] = [];
+      for (let i = 0; i < payloads.length; i += BATCH) {
+        const lote = payloads.slice(i, i + BATCH);
+        const { error } = await supabase.from("eleitores").insert(lote);
+        if (error) {
+          errors += lote.length;
+          if (errorMsgs.length < 2) errorMsgs.push(error.message);
+        } else {
+          inserted += lote.length;
+        }
+        setImportProgress({ done: Math.min(i + BATCH, payloads.length), total: payloads.length });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["eleitores"] });
+      queryClient.invalidateQueries({ queryKey: ["eleitores-mapa"] });
+
+      toast({
+        title: "Importação concluída",
+        description: `${inserted} inseridos, ${skipped} sem nome pulados${errors ? `, ${errors} com erro: ${errorMsgs.join("; ")}` : ""}.`,
+        variant: errors ? "destructive" : "default",
+      });
+    } catch (err: any) {
+      console.error("[Import]", err);
+      toast({ title: "Falha ao importar", description: err?.message || "Erro desconhecido", variant: "destructive" });
+    } finally {
+      setImporting(false);
+      setImportProgress({ done: 0, total: 0 });
+    }
+  };
 
   const { data: eleitores = [], isLoading } = useQuery({
     queryKey: ["eleitores"],
@@ -376,6 +473,25 @@ const Eleitores = () => {
           </div>
           <p className="text-muted-foreground text-xs sm:text-sm mt-1">Gerencie os contatos e interesses da sua base.</p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.xls"
+          className="hidden"
+          onChange={handleImportFile}
+        />
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={importing}
+        >
+          {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+          {importing
+            ? (importProgress.total > 0 ? `Importando ${importProgress.done} de ${importProgress.total}` : "Importando...")
+            : "Importar planilha"}
+        </Button>
         <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingId(null); setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "", demanda_origem: "", demanda_tipo: "", demanda_setor: "", demanda_localizacao: "", demanda_prazo: "" }); } }}>
           <DialogTrigger asChild>
             <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
@@ -542,6 +658,7 @@ const Eleitores = () => {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="relative max-w-md">
