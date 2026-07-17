@@ -256,6 +256,7 @@ const Eleitores = () => {
           nome: rec.nome,
           telefone: rec.telefone,
           endereco: rec.endereco,
+          cidade: rec.endereco,
           politico_id: user.id,
           criado_por: user.id,
           status_eleitor: "possivel_eleitor",
@@ -536,7 +537,7 @@ const Eleitores = () => {
     const composed = [eleitor.logradouro, eleitor.numero, eleitor.complemento, eleitor.bairro, eleitor.cidade, eleitor.estado, eleitor.cep]
       .filter(Boolean)
       .join(", ");
-    return eleitor.endereco || composed || "Sem endereço";
+    return eleitor.cidade || eleitor.endereco || composed || "Sem endereço";
   };
 
   const openWhatsapp = (eleitor: Eleitor) => {
