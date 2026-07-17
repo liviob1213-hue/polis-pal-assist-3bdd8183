@@ -109,6 +109,102 @@ const Eleitores = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: mapsApiKey = "" } = useGoogleMapsKey();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
+
+  const normHeader = (s: string) =>
+    String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "").trim();
+
+  const HEADER_MAP: Record<string, "nome" | "telefone" | "endereco"> = {
+    nome: "nome", nomecompleto: "nome",
+    telefone: "telefone", celular: "telefone", fone: "telefone", whatsapp: "telefone", contato: "telefone",
+    endereco: "endereco", logradouro: "endereco", rua: "endereco",
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (e.target) e.target.value = "";
+    if (!file) return;
+    setImporting(true);
+    setImportProgress({ done: 0, total: 0 });
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: "Erro", description: "Usuário não autenticado.", variant: "destructive" });
+        setImporting(false);
+        return;
+      }
+
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(ws, { defval: null, raw: false });
+
+      // Build column mapping from first row's keys
+      const colMap: Record<string, "nome" | "telefone" | "endereco"> = {};
+      if (rows[0]) {
+        for (const key of Object.keys(rows[0])) {
+          const canonical = HEADER_MAP[normHeader(key)];
+          if (canonical) colMap[key] = canonical;
+        }
+      }
+
+      const payloads: any[] = [];
+      let skipped = 0;
+      for (const row of rows) {
+        const rec: any = { nome: null, telefone: null, endereco: null };
+        for (const [origKey, canonical] of Object.entries(colMap)) {
+          const val = row[origKey];
+          if (val !== null && val !== undefined && String(val).trim() !== "") {
+            rec[canonical] = String(val).trim();
+          }
+        }
+        if (!rec.nome) { skipped++; continue; }
+        payloads.push({
+          nome: rec.nome,
+          telefone: rec.telefone,
+          endereco: rec.endereco,
+          politico_id: user.id,
+          criado_por: user.id,
+          status_eleitor: "possivel_eleitor",
+          agente_ativo: true,
+        });
+      }
+
+      setImportProgress({ done: 0, total: payloads.length });
+      const BATCH = 500;
+      let inserted = 0;
+      let errors = 0;
+      const errorMsgs: string[] = [];
+      for (let i = 0; i < payloads.length; i += BATCH) {
+        const lote = payloads.slice(i, i + BATCH);
+        const { error } = await supabase.from("eleitores").insert(lote);
+        if (error) {
+          errors += lote.length;
+          if (errorMsgs.length < 2) errorMsgs.push(error.message);
+        } else {
+          inserted += lote.length;
+        }
+        setImportProgress({ done: Math.min(i + BATCH, payloads.length), total: payloads.length });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["eleitores"] });
+      queryClient.invalidateQueries({ queryKey: ["eleitores-mapa"] });
+
+      toast({
+        title: "Importação concluída",
+        description: `${inserted} inseridos, ${skipped} sem nome pulados${errors ? `, ${errors} com erro: ${errorMsgs.join("; ")}` : ""}.`,
+        variant: errors ? "destructive" : "default",
+      });
+    } catch (err: any) {
+      console.error("[Import]", err);
+      toast({ title: "Falha ao importar", description: err?.message || "Erro desconhecido", variant: "destructive" });
+    } finally {
+      setImporting(false);
+      setImportProgress({ done: 0, total: 0 });
+    }
+  };
 
   const { data: eleitores = [], isLoading } = useQuery({
     queryKey: ["eleitores"],
