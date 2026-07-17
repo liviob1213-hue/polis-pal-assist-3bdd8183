@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import * as XLSX from "xlsx";
 import { useHeaderSearch } from "@/contexts/HeaderSearchContext";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
