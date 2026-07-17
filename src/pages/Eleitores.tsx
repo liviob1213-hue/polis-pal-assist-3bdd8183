@@ -203,17 +203,25 @@ const Eleitores = () => {
       let skipped = 0;
       for (const row of rows) {
         const rec: any = { nome: null, telefone: null, endereco: null };
+        const enderecoParts: string[] = [];
         for (const [origKey, canonical] of Object.entries(colMap)) {
           const val = row[origKey];
-          if (val !== null && val !== undefined && String(val).trim() !== "") {
-            rec[canonical] = canonical === "telefone" ? cleanImportedPhone(val) : cleanImportedText(val);
+          if (val === null || val === undefined || String(val).trim() === "") continue;
+          if (canonical === "endereco") {
+            const t = cleanImportedText(val);
+            if (t && !enderecoParts.includes(t)) enderecoParts.push(t);
+          } else if (canonical === "telefone") {
+            if (!rec.telefone) rec.telefone = cleanImportedPhone(val);
+          } else {
+            rec[canonical] = cleanImportedText(val);
           }
         }
+        if (enderecoParts.length) rec.endereco = enderecoParts.join(", ");
         if (!rec.nome) { skipped++; continue; }
         payloads.push({
           nome: rec.nome,
-          telefone: cleanImportedPhone(rec.telefone),
-          endereco: cleanImportedText(rec.endereco),
+          telefone: rec.telefone,
+          endereco: rec.endereco,
           politico_id: user.id,
           criado_por: user.id,
           status_eleitor: "possivel_eleitor",
