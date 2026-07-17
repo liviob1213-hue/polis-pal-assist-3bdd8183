@@ -117,9 +117,12 @@ const Eleitores = () => {
     String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "").trim();
 
   const HEADER_MAP: Record<string, "nome" | "telefone" | "endereco"> = {
-    nome: "nome", nomecompleto: "nome",
-    telefone: "telefone", celular: "telefone", fone: "telefone", whatsapp: "telefone", contato: "telefone",
-    endereco: "endereco", logradouro: "endereco", rua: "endereco",
+    nome: "nome", nomecompleto: "nome", name: "nome",
+    telefone: "telefone", telefones: "telefone", celular: "telefone", celulares: "telefone",
+    fone: "telefone", fones: "telefone", whatsapp: "telefone", whats: "telefone",
+    contato: "telefone", contatos: "telefone", numero: "telefone", tel: "telefone", phone: "telefone",
+    endereco: "endereco", enderecos: "endereco", logradouro: "endereco", rua: "endereco",
+    address: "endereco", endereço: "endereco",
   };
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -138,17 +141,27 @@ const Eleitores = () => {
 
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: "array" });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(ws, { defval: null, raw: false });
 
-      // Build column mapping from first row's keys
+      // Iterate ALL sheets and concatenate rows
+      const rows: Record<string, any>[] = [];
+      for (const sheetName of wb.SheetNames) {
+        const ws = wb.Sheets[sheetName];
+        const sheetRows: Record<string, any>[] = XLSX.utils.sheet_to_json(ws, { defval: null, raw: false });
+        rows.push(...sheetRows);
+      }
+
+      // Build column mapping from union of all row keys
       const colMap: Record<string, "nome" | "telefone" | "endereco"> = {};
-      if (rows[0]) {
-        for (const key of Object.keys(rows[0])) {
+      const seenKeys = new Set<string>();
+      for (const r of rows) {
+        for (const key of Object.keys(r)) {
+          if (seenKeys.has(key)) continue;
+          seenKeys.add(key);
           const canonical = HEADER_MAP[normHeader(key)];
           if (canonical) colMap[key] = canonical;
         }
       }
+
 
       const payloads: any[] = [];
       let skipped = 0;
