@@ -114,15 +114,51 @@ const Eleitores = () => {
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
 
   const normHeader = (s: string) =>
-    String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "").trim();
+    String(s ?? "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "")
+      .trim();
 
-  const HEADER_MAP: Record<string, "nome" | "telefone" | "endereco"> = {
-    nome: "nome", nomecompleto: "nome", name: "nome",
-    telefone: "telefone", telefones: "telefone", celular: "telefone", celulares: "telefone",
-    fone: "telefone", fones: "telefone", whatsapp: "telefone", whats: "telefone",
-    contato: "telefone", contatos: "telefone", numero: "telefone", tel: "telefone", phone: "telefone",
-    endereco: "endereco", enderecos: "endereco", logradouro: "endereco", rua: "endereco",
-    address: "endereco", endereço: "endereco",
+  const identifyImportColumn = (header: string): "nome" | "telefone" | "endereco" | null => {
+    const h = normHeader(header);
+    if (!h) return null;
+    if (/^(nome|nomecompleto|nomedocontato|eleitor|cliente|lideranca|name)$/.test(h) || h.includes("nome")) return "nome";
+    if (
+      h.includes("telefone") ||
+      h.includes("telefones") ||
+      h.includes("tel") ||
+      h.includes("fone") ||
+      h.includes("fones") ||
+      h.includes("celular") ||
+      h.includes("whatsapp") ||
+      h.includes("zap") ||
+      h.includes("contato") ||
+      h.includes("phone")
+    ) return "telefone";
+    if (
+      h.includes("endereco") ||
+      h.includes("enderecos") ||
+      h.includes("logradouro") ||
+      h.includes("bairro") ||
+      h.includes("cidade") ||
+      h.includes("address") ||
+      h === "rua"
+    ) return "endereco";
+    return null;
+  };
+
+  const cleanImportedPhone = (value: unknown) => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return null;
+    const phones = raw.match(/(?:\+?55\s*)?(?:\(?\d{2}\)?\s*)?\d{4,5}[-.\s]?\d{4}/g);
+    return (phones?.[0] || raw).replace(/\.0$/, "").trim();
+  };
+
+  const cleanImportedText = (value: unknown) => {
+    const raw = String(value ?? "").trim();
+    return raw ? raw : null;
   };
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -157,7 +193,7 @@ const Eleitores = () => {
         for (const key of Object.keys(r)) {
           if (seenKeys.has(key)) continue;
           seenKeys.add(key);
-          const canonical = HEADER_MAP[normHeader(key)];
+          const canonical = identifyImportColumn(key);
           if (canonical) colMap[key] = canonical;
         }
       }
@@ -170,14 +206,14 @@ const Eleitores = () => {
         for (const [origKey, canonical] of Object.entries(colMap)) {
           const val = row[origKey];
           if (val !== null && val !== undefined && String(val).trim() !== "") {
-            rec[canonical] = String(val).trim();
+            rec[canonical] = canonical === "telefone" ? cleanImportedPhone(val) : cleanImportedText(val);
           }
         }
         if (!rec.nome) { skipped++; continue; }
         payloads.push({
           nome: rec.nome,
-          telefone: rec.telefone,
-          endereco: rec.endereco,
+          telefone: cleanImportedPhone(rec.telefone),
+          endereco: cleanImportedText(rec.endereco),
           politico_id: user.id,
           criado_por: user.id,
           status_eleitor: "possivel_eleitor",
@@ -454,6 +490,13 @@ const Eleitores = () => {
     setDialogOpen(true);
   };
 
+  const getEnderecoDisplay = (eleitor: Eleitor) => {
+    const composed = [eleitor.logradouro, eleitor.numero, eleitor.complemento, eleitor.bairro, eleitor.cidade, eleitor.estado, eleitor.cep]
+      .filter(Boolean)
+      .join(", ");
+    return eleitor.endereco || composed || "Sem endereço";
+  };
+
   const openWhatsapp = (eleitor: Eleitor) => {
     setWhatsappDialog(eleitor);
     setWhatsappMsg("");
@@ -717,7 +760,7 @@ const Eleitores = () => {
                             </Badge>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground truncate">{eleitor.endereco || "Sem endereço"}</p>
+                        <p className="text-xs text-muted-foreground truncate">{getEnderecoDisplay(eleitor)}</p>
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                           <MessageCircle className="h-3 w-3 text-success" /> {eleitor.telefone || "Sem telefone"}
                         </div>
