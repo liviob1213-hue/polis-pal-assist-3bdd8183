@@ -143,10 +143,36 @@ const Eleitores = () => {
       h.includes("logradouro") ||
       h.includes("bairro") ||
       h.includes("cidade") ||
+      h.includes("municipio") ||
+      h.includes("localidade") ||
+      h.includes("localizacao") ||
+      h.includes("regiao") ||
+      h.includes("distrito") ||
+      h.includes("zona") ||
+      h.includes("cep") ||
+      h.includes("complemento") ||
+      h.includes("numero") ||
+      h.includes("nro") ||
+      h.includes("uf") ||
+      h.includes("estado") ||
       h.includes("address") ||
+      h.includes("street") ||
+      h.includes("city") ||
       h === "rua"
     ) return "endereco";
     return null;
+  };
+
+  const shouldUseAsFallbackAddress = (header: string, value: unknown) => {
+    const h = normHeader(header);
+    const text = String(value ?? "").trim();
+    if (!text) return false;
+    if (identifyImportColumn(header)) return false;
+    if (/^(id|uuid|codigo|cod|status|grupo|tag|etiqueta|observacao|observacoes|obs|data|aniversario|nascimento|email|cpf|cnpj)$/.test(h)) return false;
+    if (text.includes("@")) return false;
+    const digits = text.replace(/\D/g, "");
+    if (digits.length >= 8 && digits.length >= text.length * 0.55) return false;
+    return /\b(rua|r\.?|avenida|av\.?|travessa|tv\.?|alameda|praca|praça|bairro|cidade|mg|cep|centro|zona|distrito|vila|jardim|jd\.?)\b/i.test(text) || text.length >= 3;
   };
 
   const cleanImportedPhone = (value: unknown) => {
@@ -214,6 +240,14 @@ const Eleitores = () => {
             if (!rec.telefone) rec.telefone = cleanImportedPhone(val);
           } else {
             rec[canonical] = cleanImportedText(val);
+          }
+        }
+        if (!enderecoParts.length) {
+          for (const [origKey, val] of Object.entries(row)) {
+            if (shouldUseAsFallbackAddress(origKey, val)) {
+              const t = cleanImportedText(val);
+              if (t && t !== rec.nome && t !== rec.telefone && !enderecoParts.includes(t)) enderecoParts.push(t);
+            }
           }
         }
         if (enderecoParts.length) rec.endereco = enderecoParts.join(", ");
