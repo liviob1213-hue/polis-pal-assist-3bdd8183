@@ -301,12 +301,19 @@ const Eleitores = () => {
   const { data: eleitores = [], isLoading } = useQuery({
     queryKey: ["eleitores"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("eleitores")
-        .select("id, nome, endereco, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, interesse, observacoes, latitude, longitude, data_nascimento, agente_ativo, status_eleitor")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as Eleitor[];
+      const PAGE = 1000;
+      let all: Eleitor[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from("eleitores")
+          .select("id, nome, endereco, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, interesse, observacoes, latitude, longitude, data_nascimento, agente_ativo, status_eleitor")
+          .order("created_at", { ascending: false })
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        all = all.concat((data || []) as Eleitor[]);
+        if (!data || data.length < PAGE) break;
+      }
+      return all;
     },
   });
 
