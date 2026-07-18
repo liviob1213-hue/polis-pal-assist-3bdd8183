@@ -520,11 +520,8 @@ const Eleitores = () => {
     localStorage.setItem("whatsapp-templates", JSON.stringify(updated));
   };
 
-  const filtered = eleitores.filter(
-    (e) =>
-      e.nome.toLowerCase().includes(search.toLowerCase()) ||
-      (e.interesse || "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = eleitores;
+
 
   const handleSave = () => {
     if (!form.nome || !form.telefone) {
