@@ -309,33 +309,44 @@ const Eleitores = () => {
     }
   };
 
-  const { data: eleitores = [], isLoading } = useQuery({
-    queryKey: ["eleitores"],
+  const { data: eleitoresPage, isLoading } = useQuery({
+    queryKey: ["eleitores", page, debouncedSearch],
     queryFn: async () => {
-      const PAGE = 1000;
-      let all: Eleitor[] = [];
-      for (let from = 0; ; from += PAGE) {
-        const { data, error } = await supabase
-          .from("eleitores")
-          .select("id, nome, endereco, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, interesse, observacoes, latitude, longitude, data_nascimento, agente_ativo, status_eleitor")
-          .order("created_at", { ascending: false })
-          .range(from, from + PAGE - 1);
-        if (error) throw error;
-        all = all.concat((data || []) as Eleitor[]);
-        if (!data || data.length < PAGE) break;
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      let q = supabase
+        .from("eleitores")
+        .select(
+          "id, nome, endereco, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, interesse, observacoes, latitude, longitude, data_nascimento, agente_ativo, status_eleitor",
+          { count: "exact" }
+        )
+        .order("created_at", { ascending: false })
+        .range(from, to);
+      if (debouncedSearch) {
+        const term = debouncedSearch.replace(/[%,]/g, "");
+        q = q.or(`nome.ilike.%${term}%,interesse.ilike.%${term}%`);
       }
-      return all;
+      const { data, error, count } = await q;
+      if (error) throw error;
+      return { rows: (data || []) as Eleitor[], count: count ?? 0 };
     },
+    placeholderData: (prev) => prev,
   });
 
-  // Carrega todas as demandas vinculadas a eleitores para mostrar contadores nos cards
+  const eleitores = eleitoresPage?.rows ?? [];
+  const totalCount = eleitoresPage?.count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  // Carrega apenas as demandas dos eleitores visíveis nesta página
+  const visibleIds = eleitores.map((e) => e.id);
   const { data: demandasPorEleitor = {} } = useQuery({
-    queryKey: ["demandas-por-eleitor"],
+    queryKey: ["demandas-por-eleitor-page", visibleIds],
+    enabled: visibleIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("demandas")
         .select("id, titulo, descricao, status, created_at, eleitor_id")
-        .not("eleitor_id", "is", null)
+        .in("eleitor_id", visibleIds)
         .order("created_at", { ascending: false });
       if (error) throw error;
       const map: Record<string, DemandaEleitor[]> = {};
