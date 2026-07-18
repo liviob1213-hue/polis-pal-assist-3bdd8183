@@ -320,7 +320,7 @@ const Eleitores = () => {
           "id, nome, endereco, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, interesse, observacoes, latitude, longitude, data_nascimento, agente_ativo, status_eleitor",
           { count: "exact" }
         )
-        .order("created_at", { ascending: false })
+        .order("nome", { ascending: true })
         .range(from, to);
       if (debouncedSearch) {
         const term = debouncedSearch.replace(/[%,]/g, "");
