@@ -928,8 +928,35 @@ const Eleitores = () => {
               </CardContent>
             </Card>
           )}
+
+          {totalCount > 0 && (
+            <div className="flex items-center justify-between gap-2 pt-2">
+              <p className="text-xs text-muted-foreground">
+                Página {page + 1} de {totalPages} · {totalCount} eleitores
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 0 || isLoading}
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page + 1 >= totalPages || isLoading}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Próxima
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
+
 
       {/* Dialog: histórico de demandas do eleitor */}
       <Dialog open={!!demandaDialog} onOpenChange={(o) => { if (!o) setDemandaDialog(null); }}>
