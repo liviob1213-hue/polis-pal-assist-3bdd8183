@@ -86,10 +86,21 @@ const interestColors: Record<string, string> = {
   Esporte: "bg-info/10 text-info border-info/20",
 };
 
+const PAGE_SIZE = 50;
+
 const Eleitores = () => {
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(0);
   const { query: headerQuery } = useHeaderSearch();
   useEffect(() => { setSearch(headerQuery); }, [headerQuery]);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(0);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [search]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "", demanda_origem: "", demanda_tipo: "", demanda_setor: "", demanda_localizacao: "", demanda_prazo: "" });
