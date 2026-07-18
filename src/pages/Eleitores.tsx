@@ -86,10 +86,21 @@ const interestColors: Record<string, string> = {
   Esporte: "bg-info/10 text-info border-info/20",
 };
 
+const PAGE_SIZE = 50;
+
 const Eleitores = () => {
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(0);
   const { query: headerQuery } = useHeaderSearch();
   useEffect(() => { setSearch(headerQuery); }, [headerQuery]);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(0);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [search]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "", demanda_origem: "", demanda_tipo: "", demanda_setor: "", demanda_localizacao: "", demanda_prazo: "" });
@@ -298,33 +309,44 @@ const Eleitores = () => {
     }
   };
 
-  const { data: eleitores = [], isLoading } = useQuery({
-    queryKey: ["eleitores"],
+  const { data: eleitoresPage, isLoading } = useQuery({
+    queryKey: ["eleitores", page, debouncedSearch],
     queryFn: async () => {
-      const PAGE = 1000;
-      let all: Eleitor[] = [];
-      for (let from = 0; ; from += PAGE) {
-        const { data, error } = await supabase
-          .from("eleitores")
-          .select("id, nome, endereco, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, interesse, observacoes, latitude, longitude, data_nascimento, agente_ativo, status_eleitor")
-          .order("created_at", { ascending: false })
-          .range(from, from + PAGE - 1);
-        if (error) throw error;
-        all = all.concat((data || []) as Eleitor[]);
-        if (!data || data.length < PAGE) break;
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      let q = supabase
+        .from("eleitores")
+        .select(
+          "id, nome, endereco, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, interesse, observacoes, latitude, longitude, data_nascimento, agente_ativo, status_eleitor",
+          { count: "exact" }
+        )
+        .order("created_at", { ascending: false })
+        .range(from, to);
+      if (debouncedSearch) {
+        const term = debouncedSearch.replace(/[%,]/g, "");
+        q = q.or(`nome.ilike.%${term}%,interesse.ilike.%${term}%`);
       }
-      return all;
+      const { data, error, count } = await q;
+      if (error) throw error;
+      return { rows: (data || []) as Eleitor[], count: count ?? 0 };
     },
+    placeholderData: (prev) => prev,
   });
 
-  // Carrega todas as demandas vinculadas a eleitores para mostrar contadores nos cards
+  const eleitores = eleitoresPage?.rows ?? [];
+  const totalCount = eleitoresPage?.count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  // Carrega apenas as demandas dos eleitores visíveis nesta página
+  const visibleIds = eleitores.map((e) => e.id);
   const { data: demandasPorEleitor = {} } = useQuery({
-    queryKey: ["demandas-por-eleitor"],
+    queryKey: ["demandas-por-eleitor-page", visibleIds],
+    enabled: visibleIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("demandas")
         .select("id, titulo, descricao, status, created_at, eleitor_id")
-        .not("eleitor_id", "is", null)
+        .in("eleitor_id", visibleIds)
         .order("created_at", { ascending: false });
       if (error) throw error;
       const map: Record<string, DemandaEleitor[]> = {};
@@ -406,7 +428,7 @@ const Eleitores = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["eleitores"] });
       queryClient.invalidateQueries({ queryKey: ["eleitores-mapa"] });
-      queryClient.invalidateQueries({ queryKey: ["demandas-por-eleitor"] });
+      queryClient.invalidateQueries({ queryKey: ["demandas-por-eleitor-page"] });
       queryClient.invalidateQueries({ queryKey: ["demandas"] });
       toast({ title: editingId ? "Eleitor atualizado!" : "Eleitor adicionado!" });
       setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "", demanda_origem: "", demanda_tipo: "", demanda_setor: "", demanda_localizacao: "", demanda_prazo: "" });
@@ -454,7 +476,7 @@ const Eleitores = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["demandas-por-eleitor"] });
+      queryClient.invalidateQueries({ queryKey: ["demandas-por-eleitor-page"] });
       queryClient.invalidateQueries({ queryKey: ["demandas"] });
       toast({ title: "✅ Enviada para Gestão de Demandas!", description: "A demanda foi movida para 'Em Andamento'." });
       setDemandaDialog(null);
@@ -473,7 +495,7 @@ const Eleitores = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["demandas-por-eleitor"] });
+      queryClient.invalidateQueries({ queryKey: ["demandas-por-eleitor-page"] });
       queryClient.invalidateQueries({ queryKey: ["demandas"] });
       toast({ title: "📌 Demanda registrada!" });
       setNovaDemandaDialog(null);
@@ -498,11 +520,8 @@ const Eleitores = () => {
     localStorage.setItem("whatsapp-templates", JSON.stringify(updated));
   };
 
-  const filtered = eleitores.filter(
-    (e) =>
-      e.nome.toLowerCase().includes(search.toLowerCase()) ||
-      (e.interesse || "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = eleitores;
+
 
   const handleSave = () => {
     if (!form.nome || !form.telefone) {
@@ -575,7 +594,7 @@ const Eleitores = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Base de Eleitores</h1>
-            <Badge variant="secondary" className="text-xs font-semibold">{eleitores.length}</Badge>
+            <Badge variant="secondary" className="text-xs font-semibold">{totalCount}</Badge>
           </div>
           <p className="text-muted-foreground text-xs sm:text-sm mt-1">Gerencie os contatos e interesses da sua base.</p>
         </div>
@@ -909,8 +928,35 @@ const Eleitores = () => {
               </CardContent>
             </Card>
           )}
+
+          {totalCount > 0 && (
+            <div className="flex items-center justify-between gap-2 pt-2">
+              <p className="text-xs text-muted-foreground">
+                Página {page + 1} de {totalPages} · {totalCount} eleitores
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 0 || isLoading}
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page + 1 >= totalPages || isLoading}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Próxima
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
+
 
       {/* Dialog: histórico de demandas do eleitor */}
       <Dialog open={!!demandaDialog} onOpenChange={(o) => { if (!o) setDemandaDialog(null); }}>
