@@ -428,7 +428,7 @@ const Eleitores = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["eleitores"] });
       queryClient.invalidateQueries({ queryKey: ["eleitores-mapa"] });
-      queryClient.invalidateQueries({ queryKey: ["demandas-por-eleitor"] });
+      queryClient.invalidateQueries({ queryKey: ["demandas-por-eleitor-page"] });
       queryClient.invalidateQueries({ queryKey: ["demandas"] });
       toast({ title: editingId ? "Eleitor atualizado!" : "Eleitor adicionado!" });
       setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "", demanda_origem: "", demanda_tipo: "", demanda_setor: "", demanda_localizacao: "", demanda_prazo: "" });
@@ -476,7 +476,7 @@ const Eleitores = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["demandas-por-eleitor"] });
+      queryClient.invalidateQueries({ queryKey: ["demandas-por-eleitor-page"] });
       queryClient.invalidateQueries({ queryKey: ["demandas"] });
       toast({ title: "✅ Enviada para Gestão de Demandas!", description: "A demanda foi movida para 'Em Andamento'." });
       setDemandaDialog(null);
@@ -495,7 +495,7 @@ const Eleitores = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["demandas-por-eleitor"] });
+      queryClient.invalidateQueries({ queryKey: ["demandas-por-eleitor-page"] });
       queryClient.invalidateQueries({ queryKey: ["demandas"] });
       toast({ title: "📌 Demanda registrada!" });
       setNovaDemandaDialog(null);
@@ -594,7 +594,7 @@ const Eleitores = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Base de Eleitores</h1>
-            <Badge variant="secondary" className="text-xs font-semibold">{eleitores.length}</Badge>
+            <Badge variant="secondary" className="text-xs font-semibold">{totalCount}</Badge>
           </div>
           <p className="text-muted-foreground text-xs sm:text-sm mt-1">Gerencie os contatos e interesses da sua base.</p>
         </div>
