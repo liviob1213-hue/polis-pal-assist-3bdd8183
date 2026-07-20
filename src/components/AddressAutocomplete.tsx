@@ -15,6 +15,7 @@ interface AddressAutocompleteProps {
   onAddressSelect?: (components: AddressComponents) => void;
   placeholder?: string;
   apiKey: string;
+  types?: string[];
 }
 
 function extractComponents(place: any): AddressComponents {
