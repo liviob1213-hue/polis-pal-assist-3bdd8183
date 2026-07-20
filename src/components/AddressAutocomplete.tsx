@@ -15,6 +15,7 @@ interface AddressAutocompleteProps {
   onAddressSelect?: (components: AddressComponents) => void;
   placeholder?: string;
   apiKey: string;
+  types?: string[];
 }
 
 function extractComponents(place: any): AddressComponents {
@@ -39,7 +40,7 @@ function extractComponents(place: any): AddressComponents {
   return components;
 }
 
-const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "Digite o endereço...", apiKey }: AddressAutocompleteProps) => {
+const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "Digite o endereço...", apiKey, types = ["geocode"] }: AddressAutocompleteProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
   const [loaded, setLoaded] = useState(false);
@@ -68,7 +69,7 @@ const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "
     if (!loaded || !inputRef.current || autocompleteRef.current) return;
 
     const autocomplete = new (window as any).google.maps.places.Autocomplete(inputRef.current, {
-      types: ["address"],
+      types,
       componentRestrictions: { country: "br" },
     });
 

@@ -632,17 +632,17 @@ const Eleitores = () => {
 
               <div className="space-y-3 p-3 rounded-lg bg-secondary/30 border border-border">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Endereço</p>
-                <div><Label>Rua / Logradouro</Label><AddressAutocomplete apiKey={mapsApiKey} value={form.rua} onChange={(v) => setForm((prev) => ({ ...prev, rua: v }))} onAddressSelect={(c) => setForm((prev) => ({ ...prev, rua: c.rua, bairro: c.bairro, cidade: c.cidade, estado: c.estado, cep: c.cep }))} placeholder="Ex: Rua das Flores" /></div>
+                <div><Label>Rua / Logradouro</Label><AddressAutocomplete apiKey={mapsApiKey} value={form.rua} onChange={(v) => setForm((prev) => ({ ...prev, rua: v }))} onAddressSelect={(c) => setForm((prev) => ({ ...prev, rua: c.rua || prev.rua, bairro: c.bairro || prev.bairro, cidade: c.cidade || prev.cidade, estado: c.estado || prev.estado, cep: c.cep || prev.cep }))} placeholder="Digite rua, cidade ou CEP..." /></div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><Label>Número</Label><Input value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} placeholder="Nº" /></div>
                   <div><Label>Complemento</Label><Input value={form.complemento} onChange={(e) => setForm({ ...form, complemento: e.target.value })} placeholder="Apto, Bloco..." /></div>
                 </div>
                 <div><Label>Bairro</Label><Input value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} placeholder="Bairro" /></div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div><Label>Cidade</Label><Input value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} placeholder="Cidade" /></div>
+                  <div><Label>Cidade</Label><AddressAutocomplete apiKey={mapsApiKey} value={form.cidade} onChange={(v) => setForm((prev) => ({ ...prev, cidade: v }))} onAddressSelect={(c) => setForm((prev) => ({ ...prev, cidade: c.cidade || prev.cidade, estado: c.estado || prev.estado }))} placeholder="Cidade" types={["(cities)"]} /></div>
                   <div><Label>Estado</Label><Input value={form.estado} onChange={(e) => setForm({ ...form, estado: e.target.value })} placeholder="UF" maxLength={2} /></div>
                 </div>
-                <div className="w-1/2"><Label>CEP</Label><Input value={form.cep} onChange={(e) => setForm({ ...form, cep: e.target.value })} placeholder="00000-000" /></div>
+                <div className="w-1/2"><Label>CEP</Label><AddressAutocomplete apiKey={mapsApiKey} value={form.cep} onChange={(v) => setForm((prev) => ({ ...prev, cep: v }))} onAddressSelect={(c) => setForm((prev) => ({ ...prev, cep: c.cep || prev.cep, rua: c.rua || prev.rua, bairro: c.bairro || prev.bairro, cidade: c.cidade || prev.cidade, estado: c.estado || prev.estado }))} placeholder="00000-000" types={["(regions)"]} /></div>
               </div>
 
               <div><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} placeholder="(00) 00000-0000" /></div>
