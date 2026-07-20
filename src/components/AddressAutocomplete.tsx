@@ -116,6 +116,7 @@ const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "
   const [loaded, setLoaded] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
+  const typesKey = types.join("|");
 
   useEffect(() => {
     if (!apiKey) return;
@@ -178,7 +179,7 @@ const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "
       cancelled = true;
       window.clearTimeout(timeout);
     };
-  }, [loaded, types, value]);
+  }, [loaded, typesKey, value]);
 
   const handleSelect = async (suggestion: any) => {
     const prediction = suggestion.placePrediction;
