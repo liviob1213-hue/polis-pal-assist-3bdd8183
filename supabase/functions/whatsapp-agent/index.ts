@@ -1343,9 +1343,9 @@ Deno.serve(async (req) => {
     if (!(await isAuthorized(senderPhone))) {
       console.log(`🚫 Número não autorizado (não é político/assessor): ${senderPhone}`);
 
-      // ─── Atendimento humanizado ao ELEITOR (se agente_ativo) ───
+      // ─── Atendimento humanizado ao ELEITOR (cadastrado ou não) ───
       try {
-        const handled = await handleEleitorMessage(senderPhone, message);
+        const handled = await handleEleitorConversation(senderPhone, message);
         if (handled) {
           return jsonResponse({ status: "eleitor_atendido", phone: senderPhone });
         }
