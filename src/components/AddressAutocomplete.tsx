@@ -42,6 +42,33 @@ function extractComponents(place: any): AddressComponents {
   return components;
 }
 
+function getSelectedLabel(place: any, input: HTMLInputElement | null) {
+  return String(place?.formatted_address || place?.name || input?.value || "").trim();
+}
+
+function applyFallbackComponents(components: AddressComponents, selectedLabel: string) {
+  if (!selectedLabel) return components;
+
+  const next = { ...components };
+  const pieces = selectedLabel.split(",").map((part) => part.trim()).filter(Boolean);
+
+  if (!next.cidade && pieces[0]) {
+    next.cidade = pieces[0];
+  }
+
+  if (!next.estado) {
+    const stateMatch = selectedLabel.match(/\b([A-Z]{2})\b/);
+    if (stateMatch) next.estado = stateMatch[1];
+  }
+
+  if (!next.cep) {
+    const cepMatch = selectedLabel.match(/\b\d{5}-?\d{3}\b/);
+    if (cepMatch) next.cep = cepMatch[0];
+  }
+
+  return next;
+}
+
 const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "Digite o endereço...", apiKey, types = ["geocode"] }: AddressAutocompleteProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
@@ -72,6 +99,7 @@ const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "
 
     const autocomplete = new (window as any).google.maps.places.Autocomplete(inputRef.current, {
       types,
+      fields: ["address_components", "formatted_address", "geometry", "name", "place_id"],
       componentRestrictions: { country: "br" },
     });
 
@@ -79,21 +107,18 @@ const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "
       const place = autocomplete.getPlace();
       if (!place) return;
 
+      const selectedLabel = getSelectedLabel(place, inputRef.current);
+
       if (onAddressSelect) {
-        const components = extractComponents(place);
+        const components = applyFallbackComponents(extractComponents(place), selectedLabel);
         onAddressSelect(components);
-        // Only overwrite the current field if we actually extracted a street
-        if (components.rua) {
-          onChange(components.rua);
-        } else if (components.cidade) {
-          onChange(components.cidade);
-        } else if (place.formatted_address) {
-          onChange(place.formatted_address);
-        }
+        onChange(components.rua || components.cidade || components.cep || selectedLabel);
       } else if (place.formatted_address) {
         onChange(place.formatted_address);
       } else if (place.name) {
         onChange(place.name);
+      } else if (selectedLabel) {
+        onChange(selectedLabel);
       }
     });
 
