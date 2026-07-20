@@ -27,8 +27,10 @@ function extractComponents(place: any): AddressComponents {
     const types: string[] = c.types;
     if (types.includes("route")) components.rua = c.long_name;
     if (types.includes("street_number")) streetNumber = c.long_name;
-    if (types.includes("sublocality_level_1") || types.includes("sublocality")) components.bairro = c.long_name;
-    if (types.includes("administrative_area_level_2")) components.cidade = c.long_name;
+    if (types.includes("sublocality_level_1") || types.includes("sublocality") || types.includes("neighborhood")) components.bairro = c.long_name;
+    if (types.includes("locality") || types.includes("administrative_area_level_2")) {
+      if (!components.cidade) components.cidade = c.long_name;
+    }
     if (types.includes("administrative_area_level_1")) components.estado = c.short_name;
     if (types.includes("postal_code")) components.cep = c.long_name;
   }
@@ -80,7 +82,14 @@ const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "
       if (onAddressSelect) {
         const components = extractComponents(place);
         onAddressSelect(components);
-        onChange(components.rua);
+        // Only overwrite the current field if we actually extracted a street
+        if (components.rua) {
+          onChange(components.rua);
+        } else if (components.cidade) {
+          onChange(components.cidade);
+        } else if (place.formatted_address) {
+          onChange(place.formatted_address);
+        }
       } else if (place.formatted_address) {
         onChange(place.formatted_address);
       } else if (place.name) {
