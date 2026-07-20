@@ -40,7 +40,7 @@ function extractComponents(place: any): AddressComponents {
   return components;
 }
 
-const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "Digite o endereço...", apiKey }: AddressAutocompleteProps) => {
+const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "Digite o endereço...", apiKey, types = ["geocode"] }: AddressAutocompleteProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
   const [loaded, setLoaded] = useState(false);
