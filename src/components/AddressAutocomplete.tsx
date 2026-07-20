@@ -82,7 +82,14 @@ const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "
       if (onAddressSelect) {
         const components = extractComponents(place);
         onAddressSelect(components);
-        onChange(components.rua);
+        // Only overwrite the current field if we actually extracted a street
+        if (components.rua) {
+          onChange(components.rua);
+        } else if (components.cidade) {
+          onChange(components.cidade);
+        } else if (place.formatted_address) {
+          onChange(place.formatted_address);
+        }
       } else if (place.formatted_address) {
         onChange(place.formatted_address);
       } else if (place.name) {
