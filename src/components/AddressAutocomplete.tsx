@@ -76,6 +76,10 @@ function extractComponents(place: any): AddressComponents {
   return components;
 }
 
+function extractAddressComponents(parts: any[] = []): AddressComponents {
+  return extractComponents({ address_components: parts });
+}
+
 function getSelectedLabel(place: any, input: HTMLInputElement | null) {
   return String(place?.formatted_address || place?.formattedAddress || place?.displayName?.text || place?.name || input?.value || "").trim();
 }
@@ -112,6 +116,9 @@ const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "
   const inputRef = useRef<HTMLInputElement>(null);
   const sessionTokenRef = useRef<any>(null);
   const placesLibRef = useRef<any>(null);
+  const legacyAutocompleteServiceRef = useRef<any>(null);
+  const legacyPlacesServiceRef = useRef<any>(null);
+  const legacySessionTokenRef = useRef<any>(null);
   const suppressSearchRef = useRef(false);
   const [loaded, setLoaded] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -124,10 +131,16 @@ const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "
 
     loadGoogleMaps(apiKey)
       .then(async () => {
-        const placesLib = await (window as any).google.maps.importLibrary("places");
+        const googleMaps = (window as any).google.maps;
+        const placesLib = await googleMaps.importLibrary("places");
         if (cancelled) return;
         placesLibRef.current = placesLib;
-        sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
+        if (placesLib.AutocompleteSessionToken) {
+          sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
+        }
+        legacyAutocompleteServiceRef.current = new googleMaps.places.AutocompleteService();
+        legacyPlacesServiceRef.current = new googleMaps.places.PlacesService(document.createElement("div"));
+        legacySessionTokenRef.current = new googleMaps.places.AutocompleteSessionToken();
         setLoaded(true);
       })
       .catch(() => setLoaded(false));
@@ -153,18 +166,47 @@ const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "
     let cancelled = false;
     const timeout = window.setTimeout(async () => {
       try {
+        let results: any[] = [];
         const { AutocompleteSuggestion } = placesLibRef.current;
-        const includedPrimaryTypes = getIncludedPrimaryTypes(types);
-        const { suggestions: results = [] } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
-          input: searchText,
-          ...(includedPrimaryTypes ? { includedPrimaryTypes } : {}),
-          includedRegionCodes: ["br"],
-          language: "pt-BR",
-          sessionToken: sessionTokenRef.current,
-        });
+
+        if (AutocompleteSuggestion) {
+          try {
+            const includedPrimaryTypes = getIncludedPrimaryTypes(types);
+            const response = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
+              input: searchText,
+              ...(includedPrimaryTypes ? { includedPrimaryTypes } : {}),
+              includedRegionCodes: ["br"],
+              language: "pt-BR",
+              sessionToken: sessionTokenRef.current,
+            });
+            results = (response.suggestions || []).filter((item: any) => item.placePrediction);
+          } catch {
+            results = [];
+          }
+        }
+
+        if (!results.length && legacyAutocompleteServiceRef.current) {
+          results = await new Promise((resolve) => {
+            legacyAutocompleteServiceRef.current.getPlacePredictions(
+              {
+                input: searchText,
+                componentRestrictions: { country: "br" },
+                types,
+                sessionToken: legacySessionTokenRef.current,
+              },
+              (predictions: any[] | null, status: string) => {
+                if (status === (window as any).google.maps.places.PlacesServiceStatus.OK && predictions) {
+                  resolve(predictions.map((prediction) => ({ legacyPrediction: prediction })));
+                } else {
+                  resolve([]);
+                }
+              },
+            );
+          });
+        }
 
         if (!cancelled) {
-          setSuggestions(results.filter((item: any) => item.placePrediction).slice(0, 6));
+          setSuggestions(results.slice(0, 6));
           setOpen(true);
         }
       } catch (error) {
@@ -182,19 +224,39 @@ const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "
   }, [loaded, typesKey, value]);
 
   const handleSelect = async (suggestion: any) => {
-    const prediction = suggestion.placePrediction;
+    const prediction = suggestion.placePrediction || suggestion.legacyPrediction;
     if (!prediction) return;
 
-    const label = String(prediction.text?.toString?.() || "").trim();
+    const label = String(prediction.text?.toString?.() || prediction.description || "").trim();
     suppressSearchRef.current = true;
     setSuggestions([]);
     setOpen(false);
     if (label) onChange(label);
 
     try {
-      const place = prediction.toPlace();
-      await place.fetchFields({ fields: ["addressComponents", "formattedAddress", "displayName", "location"] });
-      const selectedLabel = getSelectedLabel(place, inputRef.current) || label;
+      let place: any = null;
+      let selectedLabel = label;
+
+      if (suggestion.placePrediction?.toPlace) {
+        place = suggestion.placePrediction.toPlace();
+        await place.fetchFields({ fields: ["addressComponents", "formattedAddress", "displayName", "location"] });
+        selectedLabel = getSelectedLabel(place, inputRef.current) || label;
+      } else if (legacyPlacesServiceRef.current && prediction.place_id) {
+        place = await new Promise((resolve, reject) => {
+          legacyPlacesServiceRef.current.getDetails(
+            {
+              placeId: prediction.place_id,
+              fields: ["address_components", "formatted_address", "name", "geometry"],
+              sessionToken: legacySessionTokenRef.current,
+            },
+            (details: any, status: string) => {
+              if (status === (window as any).google.maps.places.PlacesServiceStatus.OK && details) resolve(details);
+              else reject(new Error(status));
+            },
+          );
+        });
+        selectedLabel = getSelectedLabel(place, inputRef.current) || label;
+      }
 
       if (onAddressSelect) {
         const components = applyFallbackComponents(extractComponents(place), selectedLabel);
@@ -204,9 +266,16 @@ const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "
         onChange(selectedLabel);
       }
 
-      sessionTokenRef.current = new placesLibRef.current.AutocompleteSessionToken();
+      if (placesLibRef.current.AutocompleteSessionToken) {
+        sessionTokenRef.current = new placesLibRef.current.AutocompleteSessionToken();
+      }
+      if ((window as any).google?.maps?.places?.AutocompleteSessionToken) {
+        legacySessionTokenRef.current = new (window as any).google.maps.places.AutocompleteSessionToken();
+      }
     } catch {
-      if (label) onChange(label);
+      const components = applyFallbackComponents(extractAddressComponents([]), label);
+      if (onAddressSelect) onAddressSelect(components);
+      if (label) onChange(components.cidade || components.cep || label);
     }
   };
 
@@ -227,9 +296,9 @@ const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "
       {open && suggestions.length > 0 && (
         <div className="absolute left-0 right-0 top-full z-[100] mt-1 max-h-64 overflow-auto rounded-md border border-border bg-popover shadow-lg">
           {suggestions.map((suggestion) => {
-            const prediction = suggestion.placePrediction;
-            const label = String(prediction?.text?.toString?.() || "");
-            const id = prediction?.placeId || label;
+            const prediction = suggestion.placePrediction || suggestion.legacyPrediction;
+            const label = String(prediction?.text?.toString?.() || prediction?.description || "");
+            const id = prediction?.placeId || prediction?.place_id || label;
 
             return (
               <button
