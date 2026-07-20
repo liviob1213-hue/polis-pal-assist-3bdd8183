@@ -60,7 +60,38 @@ const MapContent = ({ eleitores, searchQuery }: { eleitores: Eleitor[]; searchQu
   const [selectedEleitor, setSelectedEleitor] = useState<Eleitor | null>(null);
   const map = useMap();
 
-  const geoEleitores = eleitores.filter((e) => e.latitude && e.longitude);
+  // Jitter overlapping pins: group by rounded lat/lng and spread duplicates in a small spiral
+  const geoEleitores = useMemo(() => {
+    const withCoords = eleitores.filter((e) => e.latitude && e.longitude);
+    const groups = new window.Map<string, Eleitor[]>();
+    withCoords.forEach((e) => {
+      const key = `${e.latitude!.toFixed(4)}_${e.longitude!.toFixed(4)}`;
+      const arr = groups.get(key) || [];
+      arr.push(e);
+      groups.set(key, arr);
+    });
+    const jittered: Eleitor[] = [];
+    groups.forEach((arr) => {
+      if (arr.length === 1) {
+        jittered.push(arr[0]);
+        return;
+      }
+      // Golden-angle spiral, ~15m per step (0.00015 deg)
+      const step = 0.00018;
+      arr.forEach((e, i) => {
+        if (i === 0) {
+          jittered.push(e);
+          return;
+        }
+        const angle = i * 2.399963; // golden angle in radians
+        const radius = step * Math.sqrt(i);
+        const dLat = radius * Math.cos(angle);
+        const dLng = (radius * Math.sin(angle)) / Math.cos((e.latitude! * Math.PI) / 180);
+        jittered.push({ ...e, latitude: e.latitude! + dLat, longitude: e.longitude! + dLng });
+      });
+    });
+    return jittered;
+  }, [eleitores]);
 
   // Fit bounds on first load
   useEffect(() => {
