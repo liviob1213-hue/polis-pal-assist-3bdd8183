@@ -103,6 +103,11 @@ function applyFallbackComponents(components: AddressComponents, selectedLabel: s
   return next;
 }
 
+function getIncludedPrimaryTypes(types: string[]) {
+  const allowed = types.filter((type) => type && type !== "geocode" && type !== "address");
+  return allowed.length ? allowed : undefined;
+}
+
 const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "Digite o endereço...", apiKey, types = ["geocode"] }: AddressAutocompleteProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const sessionTokenRef = useRef<any>(null);
@@ -148,8 +153,10 @@ const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "
     const timeout = window.setTimeout(async () => {
       try {
         const { AutocompleteSuggestion } = placesLibRef.current;
+        const includedPrimaryTypes = getIncludedPrimaryTypes(types);
         const { suggestions: results = [] } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
           input: searchText,
+          ...(includedPrimaryTypes ? { includedPrimaryTypes } : {}),
           includedRegionCodes: ["br"],
           language: "pt-BR",
           sessionToken: sessionTokenRef.current,
@@ -171,7 +178,7 @@ const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "
       cancelled = true;
       window.clearTimeout(timeout);
     };
-  }, [loaded, value]);
+  }, [loaded, types, value]);
 
   const handleSelect = async (suggestion: any) => {
     const prediction = suggestion.placePrediction;
