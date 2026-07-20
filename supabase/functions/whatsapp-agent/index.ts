@@ -1061,89 +1061,245 @@ async function findEleitorByPhone(phone: string) {
   return match || null;
 }
 
-async function handleEleitorMessage(senderPhone: string, message: string): Promise<boolean> {
-  const eleitor = await findEleitorByPhone(senderPhone);
-  if (!eleitor) {
-    console.log(`ℹ️ Telefone ${senderPhone} não encontrado na base de eleitores.`);
-    return false;
-  }
-  if (!eleitor.agente_ativo) {
-    console.log(`💤 Agente desativado para o eleitor ${eleitor.nome}.`);
-    return false;
-  }
-
-  console.log(`🤖 Atendendo eleitor: ${eleitor.nome}`);
+// Pega o contexto do fluxo de eleitor da última mensagem do assistente
+async function getEleitorFlowContext(phone: string): Promise<any | null> {
   const sb = supabaseAdmin();
+  const { data } = await sb
+    .from("chat_history")
+    .select("context")
+    .eq("telefone", phone)
+    .eq("role", "assistant")
+    .not("context", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (data && data.length > 0 && data[0].context?.eleitor_flow) {
+    return data[0].context.eleitor_flow;
+  }
+  return null;
+}
 
-  // Salva mensagem do eleitor no histórico
+// Escolhe o político dono do atendimento (para tenancy).
+// Se houver apenas 1 político no sistema, usa ele. Caso contrário, retorna null.
+async function pickDefaultPoliticoId(): Promise<string | null> {
+  const sb = supabaseAdmin();
+  const { data } = await sb
+    .from("profiles")
+    .select("user_id")
+    .eq("role", "politico")
+    .limit(2);
+  if (!data || data.length === 0) return null;
+  return data[0].user_id;
+}
+
+// Fluxo unificado: registra demanda para eleitor já cadastrado,
+// ou faz onboarding + cadastra demanda para eleitor novo.
+async function handleEleitorConversation(senderPhone: string, message: string): Promise<boolean> {
+  const sb = supabaseAdmin();
+  const eleitor = await findEleitorByPhone(senderPhone);
+  const flow = await getEleitorFlowContext(senderPhone);
+
   await saveChatMessage(senderPhone, "user", message);
 
-  // Busca demandas vinculadas a este eleitor
-  const { data: demandas } = await sb
-    .from("demandas")
-    .select("id, titulo, descricao, status, created_at, prazo")
-    .eq("eleitor_id", eleitor.id)
-    .order("created_at", { ascending: false })
-    .limit(10);
+  const send = async (text: string, ctx: any = null) => {
+    await saveChatMessage(senderPhone, "assistant", text, ctx);
+    try {
+      await sendMessage(senderPhone, text);
+    } catch (e) {
+      console.error("Erro enviando WhatsApp eleitor:", e);
+    }
+  };
 
-  const demandasContexto = (demandas && demandas.length > 0)
-    ? demandas.map((d: any, i: number) => {
-        const data = new Date(d.created_at).toLocaleDateString("pt-BR");
-        const prazo = d.prazo ? ` | Prazo: ${new Date(d.prazo).toLocaleDateString("pt-BR")}` : "";
-        return `${i + 1}. "${d.titulo}" - Status: ${d.status} (registrada em ${data})${prazo}${d.descricao ? `\n   Descrição: ${d.descricao}` : ""}`;
-      }).join("\n")
-    : "Este eleitor ainda não tem demandas registradas no sistema.";
+  const msgLower = message.trim().toLowerCase();
+  const isYes = /^(sim|s|confirmo|confirmar|ok|pode|isso|correto|certo|beleza|blz|👍)/i.test(msgLower);
 
-  // Histórico recente para contexto conversacional
-  const history = await getChatHistory(senderPhone, 10);
-  const chatMessages = history.slice(0, -1).map((h) => ({ role: h.role, message: h.message }));
+  // ─── ELEITOR JÁ CADASTRADO ────────────────────────────────
+  if (eleitor) {
+    if (eleitor.agente_ativo === false) {
+      console.log(`💤 Agente desativado para o eleitor ${eleitor.nome}.`);
+      return false;
+    }
 
-  const systemPrompt = `Você é a *assistente virtual do gabinete*, atendendo o(a) eleitor(a) *${eleitor.nome}* pelo WhatsApp.
+    // Início do atendimento
+    if (!flow || !flow.step) {
+      await send(
+        `Olá, ${eleitor.nome.split(" ")[0]}! 👋 Aqui é do gabinete pelo WhatsApp.\n\nVocê gostaria de *registrar uma nova demanda* ou saber o *status* das suas demandas anteriores?\n\nSe for uma demanda nova, me conte brevemente o que você precisa.`,
+        { eleitor_flow: { step: "await_demanda", eleitor_id: eleitor.id } },
+      );
+      return true;
+    }
 
-PERSONALIDADE:
-- Acolhedora, educada, calorosa e empática - fale como um atendente humano experiente, NUNCA como um robô.
-- Use o nome do eleitor com naturalidade (não em toda mensagem).
-- Tom brasileiro, informal-respeitoso. Pode usar "Olá", "Tudo bem?", "Pois não", "Ficamos à disposição".
-- Mensagens CURTAS (1 a 4 frases). Evite textão. Use 1 emoji no máximo, com moderação.
-- NUNCA diga que é uma IA, robô, bot ou agente automático. Você é "do gabinete".
+    if (flow.step === "await_demanda") {
+      // Quer só status?
+      if (/status|andament|como.*(est|vai)|novidade|minhas demand/.test(msgLower)) {
+        const { data: demandas } = await sb
+          .from("demandas")
+          .select("titulo,status,created_at,prazo")
+          .eq("eleitor_id", eleitor.id)
+          .order("created_at", { ascending: false })
+          .limit(10);
+        if (!demandas || demandas.length === 0) {
+          await send(
+            "📋 Ainda não temos nenhuma demanda registrada em seu nome.\n\nSe quiser abrir uma agora, é só me contar o que precisa.",
+            { eleitor_flow: { step: "await_demanda", eleitor_id: eleitor.id } },
+          );
+        } else {
+          const lines = demandas
+            .map((d: any, i: number) => {
+              const dt = new Date(d.created_at).toLocaleDateString("pt-BR");
+              return `${i + 1}. *${d.titulo}* — ${d.status} (${dt})`;
+            })
+            .join("\n");
+          await send(
+            `📋 *Suas demandas:*\n\n${lines}\n\nDeseja registrar uma nova? É só me contar. 🙂`,
+            { eleitor_flow: { step: "await_demanda", eleitor_id: eleitor.id } },
+          );
+        }
+        return true;
+      }
 
-CAPACIDADES:
-- Pode consultar e informar o STATUS das demandas que o eleitor solicitou.
-- Pode responder dúvidas gerais sobre o atendimento do gabinete.
-- Pode anotar novas reclamações/solicitações (apenas confirme que vai registrar - não invente protocolos).
-- NÃO invente status, datas ou prazos. Use SOMENTE os dados abaixo.
+      // Trata a mensagem como o texto da demanda
+      await send(
+        `Perfeito! Confirmando, você quer registrar esta demanda:\n\n"${message}"\n\nEstá correto? Responda *sim* para confirmar, ou envie o texto corrigido.`,
+        { eleitor_flow: { step: "confirm_demanda", eleitor_id: eleitor.id, demanda_texto: message } },
+      );
+      return true;
+    }
 
-DADOS DO ELEITOR:
-- Nome: ${eleitor.nome}
-- Endereço: ${eleitor.endereco || "não informado"}
-- Interesse: ${eleitor.interesse || "não informado"}
+    if (flow.step === "confirm_demanda") {
+      if (isYes) {
+        const texto: string = flow.demanda_texto || message;
+        const titulo = texto.slice(0, 80);
+        const politicoId = (eleitor as any).politico_id || (await pickDefaultPoliticoId());
+        const { error } = await sb.from("demandas").insert({
+          titulo,
+          descricao: texto,
+          status: "Em Análise",
+          eleitor_id: eleitor.id,
+          origem: "whatsapp_eleitor",
+          criado_por: politicoId,
+        });
+        if (error) {
+          console.error("insert demanda eleitor:", error);
+          await send(
+            "Tive um problema ao registrar sua demanda agora. Nossa equipe vai te contatar em breve. 🙏",
+            null,
+          );
+        } else {
+          await send(
+            `✅ Sua demanda foi registrada com sucesso!\n\nNossa equipe vai analisar e retornar em breve. Muito obrigado, ${eleitor.nome.split(" ")[0]}! 🙌`,
+            null,
+          );
+        }
+        return true;
+      }
+      // Correção: usa o novo texto
+      await send(
+        `Anotado! Vou considerar a versão atualizada:\n\n"${message}"\n\nResponda *sim* para registrar.`,
+        { eleitor_flow: { step: "confirm_demanda", eleitor_id: eleitor.id, demanda_texto: message } },
+      );
+      return true;
+    }
 
-DEMANDAS DO ELEITOR (use estes dados ao responder sobre status):
-${demandasContexto}
-
-REGRAS:
-- Se ele perguntar "como está minha demanda?" / "tem novidade?" → resuma o status das demandas acima de forma humana.
-- Se ele tiver MAIS DE UMA demanda e a pergunta for genérica, mencione brevemente cada uma.
-- Se ele relatar uma NOVA reclamação/solicitação, agradeça, confirme que vai registrar e que a equipe entrará em contato.
-- Se a pergunta fugir totalmente do contexto do gabinete, responda educadamente que vai encaminhar para a equipe.`;
-
-  let reply: string;
-  try {
-    reply = await callAI(systemPrompt, message, chatMessages);
-  } catch (e) {
-    console.error("Erro AI eleitor:", e);
-    reply = `Olá, ${eleitor.nome.split(" ")[0]}! Recebi sua mensagem e nossa equipe vai te responder em breve. `;
+    return false;
   }
 
-  await saveChatMessage(senderPhone, "assistant", reply);
-
-  try {
-    await sendMessage(senderPhone, reply);
-  } catch (e) {
-    console.error("Erro enviando WhatsApp para eleitor:", e);
+  // ─── ELEITOR NÃO CADASTRADO — ONBOARDING ──────────────────
+  if (!flow || !flow.step) {
+    await send(
+      `Olá! 👋 Aqui é do gabinete pelo WhatsApp.\n\nNotei que você ainda não é cadastrado(a) na nossa base. Vou fazer um cadastro rapidinho para poder te atender melhor.\n\nPara começar, qual é o seu *nome completo*?`,
+      { eleitor_flow: { step: "onb_nome", data: {} } },
+    );
+    return true;
   }
 
-  return true;
+  const data = flow.data || {};
+
+  if (flow.step === "onb_nome") {
+    data.nome = message.trim();
+    await send(
+      `Prazer em conhecer, ${data.nome.split(" ")[0]}! 🙂\n\nEm qual *cidade* você mora?`,
+      { eleitor_flow: { step: "onb_cidade", data } },
+    );
+    return true;
+  }
+
+  if (flow.step === "onb_cidade") {
+    data.cidade = message.trim();
+    await send(
+      `Ótimo! Qual o seu principal *interesse* ou área de preocupação?\n\nEx: Saúde, Educação, Segurança, Infraestrutura, Outro`,
+      { eleitor_flow: { step: "onb_interesse", data } },
+    );
+    return true;
+  }
+
+  if (flow.step === "onb_interesse") {
+    data.interesse = message.trim();
+    await send(
+      `Perfeito! Agora me conte: qual *demanda ou solicitação* você gostaria de registrar? Descreva com o máximo de detalhes que puder. 📋`,
+      { eleitor_flow: { step: "onb_demanda", data } },
+    );
+    return true;
+  }
+
+  if (flow.step === "onb_demanda") {
+    data.demanda_texto = message.trim();
+    await send(
+      `Confirmando seu cadastro e demanda:\n\n👤 Nome: *${data.nome}*\n📍 Cidade: *${data.cidade}*\n🎯 Interesse: *${data.interesse}*\n📋 Demanda: "${data.demanda_texto}"\n\nEstá tudo certo? Responda *sim* para finalizar o cadastro.`,
+      { eleitor_flow: { step: "onb_confirm", data } },
+    );
+    return true;
+  }
+
+  if (flow.step === "onb_confirm") {
+    if (isYes) {
+      const politicoId = await pickDefaultPoliticoId();
+      const { data: novoEleitor, error: eErr } = await sb
+        .from("eleitores")
+        .insert({
+          nome: data.nome,
+          telefone: formatPhoneForUazapi(senderPhone),
+          cidade: data.cidade,
+          interesse: data.interesse,
+          politico_id: politicoId,
+          criado_por: politicoId,
+          agente_ativo: true,
+        })
+        .select("id")
+        .single();
+      if (eErr) {
+        console.error("insert eleitor:", eErr);
+        await send(
+          "Tive um problema ao concluir seu cadastro agora. Nossa equipe vai te contatar em breve. 🙏",
+          null,
+        );
+        return true;
+      }
+      const titulo = data.demanda_texto.slice(0, 80);
+      const { error: dErr } = await sb.from("demandas").insert({
+        titulo,
+        descricao: data.demanda_texto,
+        status: "Em Análise",
+        eleitor_id: novoEleitor.id,
+        origem: "whatsapp_eleitor",
+        criado_por: politicoId,
+      });
+      if (dErr) console.error("insert demanda onboarding:", dErr);
+      await send(
+        `✅ Cadastro concluído e demanda registrada!\n\nNossa equipe vai analisar e retornar em breve. Muito obrigado, ${data.nome.split(" ")[0]}! 🙌`,
+        null,
+      );
+      return true;
+    }
+    // Não confirmou: interpreta como correção da demanda
+    data.demanda_texto = message.trim();
+    await send(
+      `Atualizei a demanda para:\n\n"${data.demanda_texto}"\n\nAgora responda *sim* para confirmar o cadastro.`,
+      { eleitor_flow: { step: "onb_confirm", data } },
+    );
+    return true;
+  }
+
+  return false;
 }
 
 // ─── Main Handler ───────────────────────────────────────────
