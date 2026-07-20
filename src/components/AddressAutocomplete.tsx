@@ -69,7 +69,7 @@ const AddressAutocomplete = ({ value, onChange, onAddressSelect, placeholder = "
     if (!loaded || !inputRef.current || autocompleteRef.current) return;
 
     const autocomplete = new (window as any).google.maps.places.Autocomplete(inputRef.current, {
-      types: ["address"],
+      types,
       componentRestrictions: { country: "br" },
     });
 
