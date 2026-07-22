@@ -30,16 +30,17 @@ Deno.serve(async (req) => {
     const sb = createClient(supabaseUrl, supabaseKey);
     const now = new Date();
 
-    // Fetch ALL pending tarefas and demandas (not just overdue)
-    const [tarefasRes, demandasRes, profilesRes] = await Promise.all([
-      sb.from("tarefas").select("titulo, status, prazo, assessor_id, created_at").neq("status", "Finalizadas"),
-      sb.from("demandas").select("titulo, status, prazo, assessor_id, created_at").neq("status", "Resolvido"),
+    const [tarefasRes, demandasRes, profilesRes, linksRes] = await Promise.all([
+      sb.from("tarefas").select("titulo, status, prazo, assessor_id, criado_por, politician_id, created_at").neq("status", "Finalizadas"),
+      sb.from("demandas").select("titulo, status, prazo, assessor_id, criado_por, created_at").neq("status", "Resolvido"),
       sb.from("profiles").select("user_id, nome, telefone, role"),
+      sb.from("politician_assessors").select("politician_id, assessor_id"),
     ]);
 
     const tarefas = tarefasRes.data || [];
     const demandas = demandasRes.data || [];
     const profiles = profilesRes.data || [];
+    const links = linksRes.data || [];
 
     const phoneMap: Record<string, string> = {};
     const nameMap: Record<string, string> = {};
@@ -50,31 +51,61 @@ Deno.serve(async (req) => {
       roleMap[p.user_id] = p.role;
     });
 
-    // Group items by assessor_id (owner)
-    const itemsByUser: Record<string, { tarefas: any[], demandas: any[], overdueTarefas: any[], overdueDemandas: any[] }> = {};
+    // politician_id -> Set<assessor_id>
+    const teamByPolitician: Record<string, Set<string>> = {};
+    // assessor_id -> politician_id
+    const politicianByAssessor: Record<string, string> = {};
+    links.forEach((l: any) => {
+      if (!teamByPolitician[l.politician_id]) teamByPolitician[l.politician_id] = new Set();
+      teamByPolitician[l.politician_id].add(l.assessor_id);
+      politicianByAssessor[l.assessor_id] = l.politician_id;
+    });
 
-    const ensureUser = (userId: string) => {
-      if (!itemsByUser[userId]) {
-        itemsByUser[userId] = { tarefas: [], demandas: [], overdueTarefas: [], overdueDemandas: [] };
-      }
+    // Determine the owning politician for any given tarefa/demanda
+    const ownerPoliticianTarefa = (t: any): string | null => {
+      if (t.politician_id) return t.politician_id;
+      if (t.assessor_id && politicianByAssessor[t.assessor_id]) return politicianByAssessor[t.assessor_id];
+      if (t.assessor_id && roleMap[t.assessor_id] === "politico") return t.assessor_id;
+      if (t.criado_por && roleMap[t.criado_por] === "politico") return t.criado_por;
+      if (t.criado_por && politicianByAssessor[t.criado_por]) return politicianByAssessor[t.criado_por];
+      return null;
+    };
+    const ownerPoliticianDemanda = (d: any): string | null => {
+      if (d.assessor_id && politicianByAssessor[d.assessor_id]) return politicianByAssessor[d.assessor_id];
+      if (d.assessor_id && roleMap[d.assessor_id] === "politico") return d.assessor_id;
+      if (d.criado_por && roleMap[d.criado_por] === "politico") return d.criado_por;
+      if (d.criado_por && politicianByAssessor[d.criado_por]) return politicianByAssessor[d.criado_por];
+      return null;
+    };
+
+    // Group items per USER (for individual assessor summaries) and per POLITICIAN (for gabinete overview)
+    type Bucket = { tarefas: any[]; demandas: any[]; overdueTarefas: any[]; overdueDemandas: any[] };
+    const empty = (): Bucket => ({ tarefas: [], demandas: [], overdueTarefas: [], overdueDemandas: [] });
+
+    const itemsByUser: Record<string, Bucket> = {};
+    const itemsByPolitician: Record<string, Bucket> = {};
+
+    const pushTarefa = (map: Record<string, Bucket>, key: string, t: any) => {
+      if (!map[key]) map[key] = empty();
+      map[key].tarefas.push(t);
+      if (t.prazo && new Date(t.prazo) < now) map[key].overdueTarefas.push(t);
+    };
+    const pushDemanda = (map: Record<string, Bucket>, key: string, d: any) => {
+      if (!map[key]) map[key] = empty();
+      map[key].demandas.push(d);
+      if (d.prazo && new Date(d.prazo) < now) map[key].overdueDemandas.push(d);
     };
 
     tarefas.forEach((t: any) => {
-      if (!t.assessor_id) return;
-      ensureUser(t.assessor_id);
-      itemsByUser[t.assessor_id].tarefas.push(t);
-      if (t.prazo && new Date(t.prazo) < now) {
-        itemsByUser[t.assessor_id].overdueTarefas.push(t);
-      }
+      if (t.assessor_id) pushTarefa(itemsByUser, t.assessor_id, t);
+      const pol = ownerPoliticianTarefa(t);
+      if (pol) pushTarefa(itemsByPolitician, pol, t);
     });
 
     demandas.forEach((d: any) => {
-      if (!d.assessor_id) return;
-      ensureUser(d.assessor_id);
-      itemsByUser[d.assessor_id].demandas.push(d);
-      if (d.prazo && new Date(d.prazo) < now) {
-        itemsByUser[d.assessor_id].overdueDemandas.push(d);
-      }
+      if (d.assessor_id) pushDemanda(itemsByUser, d.assessor_id, d);
+      const pol = ownerPoliticianDemanda(d);
+      if (pol) pushDemanda(itemsByPolitician, pol, d);
     });
 
     const sendMessageFn = async (phone: string, text: string) => {
@@ -86,16 +117,8 @@ Deno.serve(async (req) => {
       });
     };
 
-    let totalAlerts = 0;
-
-    // Send individual summary to each user (politician or assessor) with pending items
-    for (const [userId, items] of Object.entries(itemsByUser)) {
-      const phone = phoneMap[userId];
-      if (!phone) continue;
-
-      const nome = nameMap[userId] || "Usuário";
+    const buildLines = (items: Bucket): string[] => {
       const lines: string[] = [];
-
       if (items.overdueTarefas.length > 0) {
         lines.push(`🔴 *${items.overdueTarefas.length} tarefa(s) com prazo vencido:*`);
         items.overdueTarefas.forEach((t: any) => {
@@ -103,7 +126,6 @@ Deno.serve(async (req) => {
           lines.push(`  ⏰ ${t.titulo} (prazo: ${prazoStr})`);
         });
       }
-
       if (items.overdueDemandas.length > 0) {
         lines.push(`🔴 *${items.overdueDemandas.length} demanda(s) com prazo vencido:*`);
         items.overdueDemandas.forEach((d: any) => {
@@ -111,10 +133,8 @@ Deno.serve(async (req) => {
           lines.push(`  ⏰ ${d.titulo} (prazo: ${prazoStr})`);
         });
       }
-
       const pendingTarefas = items.tarefas.filter((t: any) => !items.overdueTarefas.includes(t));
       const pendingDemandas = items.demandas.filter((d: any) => !items.overdueDemandas.includes(d));
-
       if (pendingTarefas.length > 0) {
         lines.push(`🟡 *${pendingTarefas.length} tarefa(s) pendente(s):*`);
         pendingTarefas.slice(0, 5).forEach((t: any) => {
@@ -123,7 +143,6 @@ Deno.serve(async (req) => {
         });
         if (pendingTarefas.length > 5) lines.push(`  _...e mais ${pendingTarefas.length - 5}_`);
       }
-
       if (pendingDemandas.length > 0) {
         lines.push(`🟡 *${pendingDemandas.length} demanda(s) pendente(s):*`);
         pendingDemandas.slice(0, 5).forEach((d: any) => {
@@ -132,11 +151,20 @@ Deno.serve(async (req) => {
         });
         if (pendingDemandas.length > 5) lines.push(`  _...e mais ${pendingDemandas.length - 5}_`);
       }
+      return lines;
+    };
 
+    let totalAlerts = 0;
+
+    // Individual assessor summaries (own workload only)
+    for (const [userId, items] of Object.entries(itemsByUser)) {
+      if (roleMap[userId] === "politico") continue; // politicians handled below
+      const phone = phoneMap[userId];
+      if (!phone) continue;
+      const nome = nameMap[userId] || "Usuário";
+      const lines = buildLines(items);
       if (lines.length === 0) continue;
-
       const msg = `📊 *Resumo Diário - ${now.toLocaleDateString("pt-BR")}*\n\nOlá ${nome}!\n\n${lines.join("\n")}\n\n_Atualize os status pelo WhatsApp ou pelo sistema._`;
-
       try {
         await sendMessageFn(phone, msg);
         totalAlerts++;
@@ -145,21 +173,23 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Send global summary to politicians (overview of ALL items)
-    const allOverdueTarefas = tarefas.filter((t: any) => t.prazo && new Date(t.prazo) < now);
-    const allOverdueDemandas = demandas.filter((d: any) => d.prazo && new Date(d.prazo) < now);
-
+    // Per-politician gabinete summary (SCOPED to their own tenant)
     const politicians = profiles.filter((p: any) => p.role === "politico" && p.telefone);
     for (const pol of politicians) {
-      // Skip if politician already received individual alert above
-      const alreadySent = itemsByUser[pol.user_id];
+      const bucket = itemsByPolitician[pol.user_id] || empty();
+      const lines = buildLines(bucket);
 
-      const summary = `📊 *Visão Geral do Gabinete - ${now.toLocaleDateString("pt-BR")}*\n\n📋 ${tarefas.length} tarefa(s) pendente(s)\n📋 ${demandas.length} demanda(s) pendente(s)\n${allOverdueTarefas.length > 0 ? `⚠️ ${allOverdueTarefas.length} tarefa(s) com prazo vencido\n` : ""}${allOverdueDemandas.length > 0 ? `⚠️ ${allOverdueDemandas.length} demanda(s) com prazo vencido` : "✅ Nenhum prazo vencido"}`;
+      const header = `📊 *Resumo do seu Gabinete - ${now.toLocaleDateString("pt-BR")}*\n\nOlá ${pol.nome || "Político"}!\n\n📋 ${bucket.tarefas.length} tarefa(s) pendente(s)\n📋 ${bucket.demandas.length} demanda(s) pendente(s)`;
+
+      const body = lines.length > 0
+        ? `\n\n${lines.join("\n")}`
+        : `\n\n✅ Nenhuma pendência no momento.`;
 
       try {
-        await sendMessageFn(pol.telefone, summary);
+        await sendMessageFn(pol.telefone, `${header}${body}`);
+        totalAlerts++;
       } catch (e) {
-        console.error(`Error sending summary to politician:`, e);
+        console.error(`Error sending summary to politician ${pol.user_id}:`, e);
       }
     }
 
@@ -170,7 +200,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("daily-reminder error:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "Erro interno" }),
+      JSON.stringify({ error: (error as Error).message || "Erro interno" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
