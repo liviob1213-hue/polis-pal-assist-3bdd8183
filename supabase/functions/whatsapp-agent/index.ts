@@ -1491,10 +1491,10 @@ IMPORTANTE:
 
     switch (finalExtracted.intent) {
       case "cadastrar_eleitor":
-        reply = await handleCadastrarEleitor(finalExtracted);
+        reply = await handleCadastrarEleitor(finalExtracted, senderProfile);
         break;
       case "consultar_eleitor":
-        reply = await handleConsultarEleitor(finalExtracted);
+        reply = await handleConsultarEleitor(finalExtracted, senderProfile);
         break;
       case "criar_demanda":
         reply = await handleCriarDemanda(finalExtracted, senderProfile);
