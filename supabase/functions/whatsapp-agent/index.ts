@@ -291,9 +291,8 @@ async function getEffectivePlan(profile: any): Promise<"bronze" | "prata" | "our
 async function isAuthorized(phone: string): Promise<boolean> {
   const profile = await findProfileByPhone(phone);
   if (!profile) return false;
-  // Autorizado se for político ou assessor - não exigimos is_authorized/whatsapp_verified aqui,
-  // pois o webhook do WhatsApp não tem como "verificar" o número novamente.
-  return profile.role === "politico" || profile.role === "assessor";
+  // Apenas POLÍTICOS respondem no agente. Assessores e eleitores são ignorados.
+  return profile.role === "politico";
 }
 
 // ─── Get sender profile and role ────────────────────────────
