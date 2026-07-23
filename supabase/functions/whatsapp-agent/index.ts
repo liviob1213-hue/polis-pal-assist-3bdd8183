@@ -1343,24 +1343,13 @@ Deno.serve(async (req) => {
     console.log(`💬 Mensagem de ${senderPhone}: ${message}`);
 
     if (!(await isAuthorized(senderPhone))) {
-      console.log(`🚫 Número não autorizado (não é político/assessor): ${senderPhone}`);
+      console.log(`🚫 Número não é de político — ignorando: ${senderPhone}`);
 
-      // ─── Atendimento humanizado ao ELEITOR (cadastrado ou não) ───
-      try {
-        const handled = await handleEleitorConversation(senderPhone, message);
-        if (handled) {
-          return jsonResponse({ status: "eleitor_atendido", phone: senderPhone });
-        }
-      } catch (e) {
-        console.error("Erro ao atender eleitor:", e);
-      }
-
-      // ANTI-BAN: Mark message_queue entry as replied when an eleitor responds
-      // This allows the next message in the campaign to be sent
+      // ANTI-BAN: se for um eleitor respondendo a uma campanha, marca como respondido
+      // para liberar a próxima mensagem da fila. Nenhuma resposta é enviada ao eleitor.
       try {
         const sb = supabaseAdmin();
         const formattedPhone = formatPhoneForUazapi(senderPhone);
-        // Find the most recent "enviado" message to this phone that hasn't been replied to
         const { data: queueMsg } = await sb
           .from("message_queue")
           .select("id, destinatario_nome, campanha_id")
@@ -1369,7 +1358,7 @@ Deno.serve(async (req) => {
           .is("respondido_em", null)
           .order("enviado_em", { ascending: false })
           .limit(1);
-        
+
         if (queueMsg && queueMsg.length > 0) {
           await sb.from("message_queue").update({
             respondido_em: new Date().toISOString(),
@@ -1377,9 +1366,8 @@ Deno.serve(async (req) => {
           console.log(`✅ Eleitor ${queueMsg[0].destinatario_nome} respondeu! Campanha ${queueMsg[0].campanha_id} desbloqueada.`);
         }
 
-        // Also try matching without the 9th digit (phone stored differently)
-        const phoneWith9 = formattedPhone.length === 12 
-          ? formattedPhone.slice(0, 4) + "9" + formattedPhone.slice(4) 
+        const phoneWith9 = formattedPhone.length === 12
+          ? formattedPhone.slice(0, 4) + "9" + formattedPhone.slice(4)
           : formattedPhone;
         if (phoneWith9 !== formattedPhone) {
           const { data: queueMsg2 } = await sb
@@ -1400,8 +1388,8 @@ Deno.serve(async (req) => {
       } catch (e) {
         console.error("Error marking queue reply:", e);
       }
-      
-      return jsonResponse({ status: "unauthorized", phone: senderPhone });
+
+      return jsonResponse({ status: "ignored_non_politico", phone: senderPhone });
     }
 
     // Save user message to history
