@@ -129,70 +129,56 @@ function extractAudioUrl(body: any): string | null {
 }
 
 async function transcribeAudio(audioUrl: string): Promise<string> {
-  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-  if (!lovableKey) throw new Error("LOVABLE_API_KEY not configured");
+  const openaiKey = Deno.env.get("OPENAI_API_KEY");
+  if (!openaiKey) throw new Error("OPENAI_API_KEY not configured");
 
-  // Obter o áudio em base64 (Gemini aceita áudio inline)
-  let audioB64: string;
+  // Baixar/decodificar o áudio
+  let audioBytes: Uint8Array;
   let mimeType = "audio/ogg";
+  let filename = "audio.ogg";
 
   if (audioUrl.startsWith("base64:")) {
-    audioB64 = audioUrl.slice(7);
+    const b64 = audioUrl.slice(7);
+    const bin = atob(b64);
+    audioBytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) audioBytes[i] = bin.charCodeAt(i);
   } else {
     const audioRes = await fetch(audioUrl);
     if (!audioRes.ok) throw new Error(`Failed to download audio: ${audioRes.status}`);
     const ct = audioRes.headers.get("content-type");
     if (ct && ct.startsWith("audio/")) mimeType = ct.split(";")[0];
-    const buf = new Uint8Array(await audioRes.arrayBuffer());
-    // Converter para base64 em chunks (evita stack overflow em áudios grandes)
-    let binary = "";
-    const chunkSize = 0x8000;
-    for (let i = 0; i < buf.length; i += chunkSize) {
-      binary += String.fromCharCode(...buf.subarray(i, i + chunkSize));
-    }
-    audioB64 = btoa(binary);
+    audioBytes = new Uint8Array(await audioRes.arrayBuffer());
   }
 
-  // Lovable AI Gateway (Gemini) - transcrição multimodal de áudio
-  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  // Ajusta extensão pelo mime
+  if (mimeType.includes("mp3") || mimeType.includes("mpeg")) filename = "audio.mp3";
+  else if (mimeType.includes("m4a") || mimeType.includes("mp4")) filename = "audio.m4a";
+  else if (mimeType.includes("wav")) filename = "audio.wav";
+  else if (mimeType.includes("webm")) filename = "audio.webm";
+  else { filename = "audio.ogg"; mimeType = "audio/ogg"; }
+
+  const form = new FormData();
+  form.append("file", new Blob([audioBytes], { type: mimeType }), filename);
+  form.append("model", "whisper-1");
+  form.append("language", "pt");
+  form.append("response_format", "text");
+
+  const resp = await fetch("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${lovableKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        {
-          role: "system",
-          content:
-            "Você é um transcritor de áudio em português brasileiro. Transcreva LITERALMENTE o conteúdo falado no áudio, sem comentários, sem prefixos, sem aspas. Retorne apenas o texto transcrito.",
-        },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "Transcreva este áudio em português brasileiro:" },
-            {
-              type: "input_audio",
-              input_audio: { data: audioB64, format: mimeType.includes("mp3") ? "mp3" : "ogg" },
-            },
-          ],
-        },
-      ],
-    }),
+    headers: { Authorization: `Bearer ${openaiKey}` },
+    body: form,
   });
 
   if (!resp.ok) {
     const errText = await resp.text();
-    console.error("Gemini transcription error:", resp.status, errText);
+    console.error("Whisper transcription error:", resp.status, errText);
     if (resp.status === 429) throw new Error("Limite de requisições atingido, tente novamente em alguns instantes.");
-    if (resp.status === 402) throw new Error("Créditos da IA esgotados. Adicione créditos em Settings → Workspace → Usage.");
-    throw new Error(`Gemini transcription API ${resp.status}`);
+    if (resp.status === 401) throw new Error("OPENAI_API_KEY inválida.");
+    throw new Error(`Whisper API ${resp.status}`);
   }
 
-  const result = await resp.json();
-  const text = result?.choices?.[0]?.message?.content || "";
-  return typeof text === "string" ? text.trim() : "";
+  const text = await resp.text();
+  return (text || "").trim();
 }
 
 function extractSenderPhone(body: any): string {
