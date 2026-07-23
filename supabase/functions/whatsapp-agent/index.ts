@@ -129,70 +129,56 @@ function extractAudioUrl(body: any): string | null {
 }
 
 async function transcribeAudio(audioUrl: string): Promise<string> {
-  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-  if (!lovableKey) throw new Error("LOVABLE_API_KEY not configured");
+  const openaiKey = Deno.env.get("OPENAI_API_KEY");
+  if (!openaiKey) throw new Error("OPENAI_API_KEY not configured");
 
-  // Obter o áudio em base64 (Gemini aceita áudio inline)
-  let audioB64: string;
+  // Baixar/decodificar o áudio
+  let audioBytes: Uint8Array;
   let mimeType = "audio/ogg";
+  let filename = "audio.ogg";
 
   if (audioUrl.startsWith("base64:")) {
-    audioB64 = audioUrl.slice(7);
+    const b64 = audioUrl.slice(7);
+    const bin = atob(b64);
+    audioBytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) audioBytes[i] = bin.charCodeAt(i);
   } else {
     const audioRes = await fetch(audioUrl);
     if (!audioRes.ok) throw new Error(`Failed to download audio: ${audioRes.status}`);
     const ct = audioRes.headers.get("content-type");
     if (ct && ct.startsWith("audio/")) mimeType = ct.split(";")[0];
-    const buf = new Uint8Array(await audioRes.arrayBuffer());
-    // Converter para base64 em chunks (evita stack overflow em áudios grandes)
-    let binary = "";
-    const chunkSize = 0x8000;
-    for (let i = 0; i < buf.length; i += chunkSize) {
-      binary += String.fromCharCode(...buf.subarray(i, i + chunkSize));
-    }
-    audioB64 = btoa(binary);
+    audioBytes = new Uint8Array(await audioRes.arrayBuffer());
   }
 
-  // Lovable AI Gateway (Gemini) - transcrição multimodal de áudio
-  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  // Ajusta extensão pelo mime
+  if (mimeType.includes("mp3") || mimeType.includes("mpeg")) filename = "audio.mp3";
+  else if (mimeType.includes("m4a") || mimeType.includes("mp4")) filename = "audio.m4a";
+  else if (mimeType.includes("wav")) filename = "audio.wav";
+  else if (mimeType.includes("webm")) filename = "audio.webm";
+  else { filename = "audio.ogg"; mimeType = "audio/ogg"; }
+
+  const form = new FormData();
+  form.append("file", new Blob([audioBytes], { type: mimeType }), filename);
+  form.append("model", "whisper-1");
+  form.append("language", "pt");
+  form.append("response_format", "text");
+
+  const resp = await fetch("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${lovableKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        {
-          role: "system",
-          content:
-            "Você é um transcritor de áudio em português brasileiro. Transcreva LITERALMENTE o conteúdo falado no áudio, sem comentários, sem prefixos, sem aspas. Retorne apenas o texto transcrito.",
-        },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "Transcreva este áudio em português brasileiro:" },
-            {
-              type: "input_audio",
-              input_audio: { data: audioB64, format: mimeType.includes("mp3") ? "mp3" : "ogg" },
-            },
-          ],
-        },
-      ],
-    }),
+    headers: { Authorization: `Bearer ${openaiKey}` },
+    body: form,
   });
 
   if (!resp.ok) {
     const errText = await resp.text();
-    console.error("Gemini transcription error:", resp.status, errText);
+    console.error("Whisper transcription error:", resp.status, errText);
     if (resp.status === 429) throw new Error("Limite de requisições atingido, tente novamente em alguns instantes.");
-    if (resp.status === 402) throw new Error("Créditos da IA esgotados. Adicione créditos em Settings → Workspace → Usage.");
-    throw new Error(`Gemini transcription API ${resp.status}`);
+    if (resp.status === 401) throw new Error("OPENAI_API_KEY inválida.");
+    throw new Error(`Whisper API ${resp.status}`);
   }
 
-  const result = await resp.json();
-  const text = result?.choices?.[0]?.message?.content || "";
-  return typeof text === "string" ? text.trim() : "";
+  const text = await resp.text();
+  return (text || "").trim();
 }
 
 function extractSenderPhone(body: any): string {
@@ -305,9 +291,8 @@ async function getEffectivePlan(profile: any): Promise<"bronze" | "prata" | "our
 async function isAuthorized(phone: string): Promise<boolean> {
   const profile = await findProfileByPhone(phone);
   if (!profile) return false;
-  // Autorizado se for político ou assessor - não exigimos is_authorized/whatsapp_verified aqui,
-  // pois o webhook do WhatsApp não tem como "verificar" o número novamente.
-  return profile.role === "politico" || profile.role === "assessor";
+  // Apenas POLÍTICOS respondem no agente. Assessores e eleitores são ignorados.
+  return profile.role === "politico";
 }
 
 // ─── Get sender profile and role ────────────────────────────
@@ -596,21 +581,29 @@ function normalizeText(s: string): string {
 
 // ─── Intent Handlers ────────────────────────────────────────
 
-async function handleCadastrarEleitor(params: any): Promise<string> {
+async function handleCadastrarEleitor(params: any, senderProfile: any): Promise<string> {
   const sb = supabaseAdmin();
+  // Todo eleitor cadastrado por um político vai para o cadastro (tenant) dele
+  const politicoId = senderProfile?.role === "politico" ? senderProfile.user_id : null;
   const { error } = await sb.from("eleitores").insert({
     nome: params.nome || "Sem nome",
     telefone: params.telefone || null,
     endereco: params.endereco || null,
     interesse: params.interesse || null,
+    politico_id: politicoId,
+    criado_por: politicoId,
   });
   if (error) throw new Error(`DB error: ${error.message}`);
   return `✅ Eleitor *${params.nome}* cadastrado com sucesso!`;
 }
 
-async function handleConsultarEleitor(params: any): Promise<string> {
+async function handleConsultarEleitor(params: any, senderProfile: any): Promise<string> {
   const sb = supabaseAdmin();
   let query = sb.from("eleitores").select("*").order("nome", { ascending: true });
+  // Escopo por político: só mostra eleitores do próprio cadastro
+  if (senderProfile?.role === "politico") {
+    query = query.eq("politico_id", senderProfile.user_id);
+  }
   if (params.localizacao) query = query.ilike("endereco", `%${params.localizacao}%`);
   if (params.interesse) query = query.ilike("interesse", `%${params.interesse}%`);
   if (params.busca_texto && !params.localizacao && !params.interesse) {
@@ -622,6 +615,7 @@ async function handleConsultarEleitor(params: any): Promise<string> {
   const lines = data.map((e: any, i: number) => `${i + 1}. *${e.nome}*\n   📍 ${e.endereco || "Sem endereço"}\n   📞 ${e.telefone || "Sem telefone"}\n   🎯 ${e.interesse || "Sem interesse"}`);
   return `👥 *${data.length} eleitor(es) encontrado(s):*\n\n${lines.join("\n\n")}`;
 }
+
 
 async function handleCriarDemanda(params: any, senderProfile: any): Promise<string> {
   const sb = supabaseAdmin();
@@ -955,9 +949,17 @@ async function handleCriarTarefa(params: any, senderProfile: any): Promise<strin
     assessorId = senderProfile.user_id;
   }
 
+  const politicianId = senderProfile?.role === "politico" ? senderProfile.user_id : null;
   const { data: tarefa, error: tErr } = await sb
     .from("tarefas")
-    .insert({ titulo, descricao: params.descricao || null, prazo, assessor_id: assessorId })
+    .insert({
+      titulo,
+      descricao: params.descricao || null,
+      prazo,
+      assessor_id: assessorId,
+      politician_id: politicianId,
+      criado_por: senderProfile?.user_id ?? null,
+    })
     .select("id")
     .single();
   if (tErr) throw new Error(`DB error: ${tErr.message}`);
@@ -1341,24 +1343,13 @@ Deno.serve(async (req) => {
     console.log(`💬 Mensagem de ${senderPhone}: ${message}`);
 
     if (!(await isAuthorized(senderPhone))) {
-      console.log(`🚫 Número não autorizado (não é político/assessor): ${senderPhone}`);
+      console.log(`🚫 Número não é de político — ignorando: ${senderPhone}`);
 
-      // ─── Atendimento humanizado ao ELEITOR (cadastrado ou não) ───
-      try {
-        const handled = await handleEleitorConversation(senderPhone, message);
-        if (handled) {
-          return jsonResponse({ status: "eleitor_atendido", phone: senderPhone });
-        }
-      } catch (e) {
-        console.error("Erro ao atender eleitor:", e);
-      }
-
-      // ANTI-BAN: Mark message_queue entry as replied when an eleitor responds
-      // This allows the next message in the campaign to be sent
+      // ANTI-BAN: se for um eleitor respondendo a uma campanha, marca como respondido
+      // para liberar a próxima mensagem da fila. Nenhuma resposta é enviada ao eleitor.
       try {
         const sb = supabaseAdmin();
         const formattedPhone = formatPhoneForUazapi(senderPhone);
-        // Find the most recent "enviado" message to this phone that hasn't been replied to
         const { data: queueMsg } = await sb
           .from("message_queue")
           .select("id, destinatario_nome, campanha_id")
@@ -1367,7 +1358,7 @@ Deno.serve(async (req) => {
           .is("respondido_em", null)
           .order("enviado_em", { ascending: false })
           .limit(1);
-        
+
         if (queueMsg && queueMsg.length > 0) {
           await sb.from("message_queue").update({
             respondido_em: new Date().toISOString(),
@@ -1375,9 +1366,8 @@ Deno.serve(async (req) => {
           console.log(`✅ Eleitor ${queueMsg[0].destinatario_nome} respondeu! Campanha ${queueMsg[0].campanha_id} desbloqueada.`);
         }
 
-        // Also try matching without the 9th digit (phone stored differently)
-        const phoneWith9 = formattedPhone.length === 12 
-          ? formattedPhone.slice(0, 4) + "9" + formattedPhone.slice(4) 
+        const phoneWith9 = formattedPhone.length === 12
+          ? formattedPhone.slice(0, 4) + "9" + formattedPhone.slice(4)
           : formattedPhone;
         if (phoneWith9 !== formattedPhone) {
           const { data: queueMsg2 } = await sb
@@ -1398,8 +1388,8 @@ Deno.serve(async (req) => {
       } catch (e) {
         console.error("Error marking queue reply:", e);
       }
-      
-      return jsonResponse({ status: "unauthorized", phone: senderPhone });
+
+      return jsonResponse({ status: "ignored_non_politico", phone: senderPhone });
     }
 
     // Save user message to history
@@ -1501,10 +1491,10 @@ IMPORTANTE:
 
     switch (finalExtracted.intent) {
       case "cadastrar_eleitor":
-        reply = await handleCadastrarEleitor(finalExtracted);
+        reply = await handleCadastrarEleitor(finalExtracted, senderProfile);
         break;
       case "consultar_eleitor":
-        reply = await handleConsultarEleitor(finalExtracted);
+        reply = await handleConsultarEleitor(finalExtracted, senderProfile);
         break;
       case "criar_demanda":
         reply = await handleCriarDemanda(finalExtracted, senderProfile);
@@ -1532,7 +1522,7 @@ IMPORTANTE:
         break;
       default:
         reply = await callAI(
-          "Você é o assistente do gabinete *DEMOCRAT.AI* no WhatsApp. Responda em português brasileiro, de forma amigável, calorosa e útil. Seja conciso. Use *negrito do WhatsApp* (asteriscos) para destacar nomes, status e títulos. Use emojis com frequência (✅ 📋 👥 📜 ⚠️ 📍 📞 📅 💬 📌 ℹ️) para tornar a resposta visualmente rica. NUNCA use markdown ** (dois asteriscos) — apenas *um* asterisco para negrito.",
+          `Você é o assistente do gabinete *DEMOCRAT.AI* no WhatsApp. O político que fala com você agora é *${senderProfile?.nome || "político"}* — sempre que fizer sentido, chame-o pelo primeiro nome. Responda em português brasileiro, de forma amigável, calorosa e útil. Seja conciso. Use *negrito do WhatsApp* (asteriscos) para destacar nomes, status e títulos. Use emojis com frequência (✅ 📋 👥 📜 ⚠️ 📍 📞 📅 💬 📌 ℹ️). NUNCA use markdown ** (dois asteriscos) — apenas *um* asterisco para negrito.`,
           message,
           chatMessages
         );
