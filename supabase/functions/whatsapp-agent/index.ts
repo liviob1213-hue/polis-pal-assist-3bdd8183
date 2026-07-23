@@ -581,21 +581,29 @@ function normalizeText(s: string): string {
 
 // ─── Intent Handlers ────────────────────────────────────────
 
-async function handleCadastrarEleitor(params: any): Promise<string> {
+async function handleCadastrarEleitor(params: any, senderProfile: any): Promise<string> {
   const sb = supabaseAdmin();
+  // Todo eleitor cadastrado por um político vai para o cadastro (tenant) dele
+  const politicoId = senderProfile?.role === "politico" ? senderProfile.user_id : null;
   const { error } = await sb.from("eleitores").insert({
     nome: params.nome || "Sem nome",
     telefone: params.telefone || null,
     endereco: params.endereco || null,
     interesse: params.interesse || null,
+    politico_id: politicoId,
+    criado_por: politicoId,
   });
   if (error) throw new Error(`DB error: ${error.message}`);
   return `✅ Eleitor *${params.nome}* cadastrado com sucesso!`;
 }
 
-async function handleConsultarEleitor(params: any): Promise<string> {
+async function handleConsultarEleitor(params: any, senderProfile: any): Promise<string> {
   const sb = supabaseAdmin();
   let query = sb.from("eleitores").select("*").order("nome", { ascending: true });
+  // Escopo por político: só mostra eleitores do próprio cadastro
+  if (senderProfile?.role === "politico") {
+    query = query.eq("politico_id", senderProfile.user_id);
+  }
   if (params.localizacao) query = query.ilike("endereco", `%${params.localizacao}%`);
   if (params.interesse) query = query.ilike("interesse", `%${params.interesse}%`);
   if (params.busca_texto && !params.localizacao && !params.interesse) {
@@ -607,6 +615,7 @@ async function handleConsultarEleitor(params: any): Promise<string> {
   const lines = data.map((e: any, i: number) => `${i + 1}. *${e.nome}*\n   📍 ${e.endereco || "Sem endereço"}\n   📞 ${e.telefone || "Sem telefone"}\n   🎯 ${e.interesse || "Sem interesse"}`);
   return `👥 *${data.length} eleitor(es) encontrado(s):*\n\n${lines.join("\n\n")}`;
 }
+
 
 async function handleCriarDemanda(params: any, senderProfile: any): Promise<string> {
   const sb = supabaseAdmin();
