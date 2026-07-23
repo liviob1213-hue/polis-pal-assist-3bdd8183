@@ -949,9 +949,17 @@ async function handleCriarTarefa(params: any, senderProfile: any): Promise<strin
     assessorId = senderProfile.user_id;
   }
 
+  const politicianId = senderProfile?.role === "politico" ? senderProfile.user_id : null;
   const { data: tarefa, error: tErr } = await sb
     .from("tarefas")
-    .insert({ titulo, descricao: params.descricao || null, prazo, assessor_id: assessorId })
+    .insert({
+      titulo,
+      descricao: params.descricao || null,
+      prazo,
+      assessor_id: assessorId,
+      politician_id: politicianId,
+      criado_por: senderProfile?.user_id ?? null,
+    })
     .select("id")
     .single();
   if (tErr) throw new Error(`DB error: ${tErr.message}`);
