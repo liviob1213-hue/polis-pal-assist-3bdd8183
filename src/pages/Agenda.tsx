@@ -182,7 +182,7 @@ const Agenda = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <Card className="glass-card lg:col-span-1">
-          <CardContent className="p-4 flex justify-center">
+          <CardContent className="p-4 flex flex-col items-center gap-2">
             <Calendar
               mode="single"
               selected={date}
@@ -190,8 +190,29 @@ const Agenda = () => {
               locale={ptBR}
               className="pointer-events-auto"
               modifiers={{ hasEvent: datesWithEvents }}
-              modifiersStyles={{ hasEvent: { fontWeight: "bold", textDecoration: "underline" } }}
+              modifiersClassNames={{
+                hasEvent:
+                  "relative after:content-[''] after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:h-1.5 after:w-1.5 after:rounded-full after:bg-primary after:ring-2 after:ring-background",
+              }}
+              classNames={{
+                day_today: "bg-transparent text-foreground ring-1 ring-border",
+                cell: "text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
+              }}
             />
+            <div className="flex flex-wrap items-center justify-center gap-3 text-[10px] sm:text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <span className="relative h-2 w-2 rounded-full bg-primary ring-2 ring-background" />
+                Tem compromisso
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-primary" />
+                Dia selecionado
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full ring-1 ring-border" />
+                Hoje
+              </span>
+            </div>
           </CardContent>
         </Card>
 
