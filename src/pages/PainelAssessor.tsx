@@ -74,7 +74,7 @@ const tarefaColumns: { key: TarefaStatusKey; title: string; dotColor: string }[]
   { key: "Concluído", title: "Concluído", dotColor: "bg-success" },
 ];
 
-const interesses = ["Saúde", "Obras", "Educação", "Segurança", "Transporte", "Meio Ambiente", "Manutenção", "Cultura", "Social", "Esporte"];
+const interesses = ["Saúde", "Obras", "Educação", "Segurança", "Transporte", "Meio Ambiente", "Manutenção", "Cultura", "Social", "Esporte", "Juventude", "Emprego"];
 
 const ORIGENS = [
   { value: "Rua", label: "🏠 Rua" },
@@ -82,6 +82,7 @@ const ORIGENS = [
   { value: "Instagram/TikTok", label: "📱 Instagram / TikTok" },
   { value: "WhatsApp", label: "💬 WhatsApp" },
   { value: "Pessoal", label: "🤝 Pessoal (contato direto)" },
+  { value: "Email", label: "✉️ Email" },
 ];
 const TIPOS = [
   { value: "Reclamação", label: "Reclamação" },

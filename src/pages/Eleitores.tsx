@@ -52,7 +52,7 @@ interface DemandaEleitor {
   eleitor_id: string;
 }
 
-const interesses = ["Saúde", "Obras", "Educação", "Segurança", "Transporte", "Meio Ambiente", "Manutenção", "Cultura", "Social", "Esporte"];
+const interesses = ["Saúde", "Obras", "Educação", "Segurança", "Transporte", "Meio Ambiente", "Manutenção", "Cultura", "Social", "Esporte", "Juventude", "Emprego"];
 
 const ORIGENS = [
   { value: "Rua", label: "🏠 Rua" },
@@ -60,6 +60,7 @@ const ORIGENS = [
   { value: "Instagram/TikTok", label: "📱 Instagram / TikTok" },
   { value: "WhatsApp", label: "💬 WhatsApp" },
   { value: "Pessoal", label: "🤝 Pessoal (contato direto)" },
+  { value: "Email", label: "✉️ Email" },
 ];
 const TIPOS_DEMANDA = [
   { value: "Reclamação", label: "Reclamação" },
@@ -84,6 +85,8 @@ const interestColors: Record<string, string> = {
   Cultura: "bg-accent/10 text-accent border-accent/20",
   Social: "bg-primary/10 text-primary border-primary/20",
   Esporte: "bg-info/10 text-info border-info/20",
+  Juventude: "bg-info/10 text-info border-info/20",
+  Emprego: "bg-accent/10 text-accent border-accent/20",
 };
 
 const PAGE_SIZE = 50;

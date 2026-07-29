@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Clock, CalendarDays } from "lucide-react";
+import { Plus, Clock, CalendarDays, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -35,7 +35,8 @@ const Agenda = () => {
   const [agendaItems, setAgendaItems] = useState<AgendaItem[]>([]);
   const [tarefas, setTarefas] = useState<TarefaItem[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ titulo: "", tipo: "Reunião", horario: "" });
+  const [editing, setEditing] = useState<AgendaItem | null>(null);
+  const [form, setForm] = useState({ titulo: "", tipo: "Reunião", horario: "", data: "" });
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -70,30 +71,73 @@ const Agenda = () => {
     ...tarefas.filter((t) => t.prazo).map((t) => new Date(t.prazo!)),
   ];
 
-  const handleAdd = async () => {
-    if (!form.titulo || !form.horario) {
-      toast({ title: "Preencha título e horário", variant: "destructive" });
+  const buildDataHora = (dataStr: string, horario: string): Date | null => {
+    if (!dataStr || !horario) return null;
+    const [y, m, d] = dataStr.split("-").map(Number);
+    const [hours, minutes] = horario.split(":").map(Number);
+    if (!y || !m || !d) return null;
+    const dh = new Date(y, m - 1, d);
+    dh.setHours(hours || 0, minutes || 0, 0, 0);
+    return dh;
+  };
+
+  const openNew = () => {
+    setEditing(null);
+    setForm({
+      titulo: "",
+      tipo: "Reunião",
+      horario: "",
+      data: format(date, "yyyy-MM-dd"),
+    });
+    setDialogOpen(true);
+  };
+
+  const openEdit = (item: AgendaItem) => {
+    const dh = new Date(item.data_hora);
+    setEditing(item);
+    setForm({
+      titulo: item.titulo,
+      tipo: item.descricao || "Reunião",
+      horario: format(dh, "HH:mm"),
+      data: format(dh, "yyyy-MM-dd"),
+    });
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.titulo || !form.horario || !form.data) {
+      toast({ title: "Preencha título, data e horário", variant: "destructive" });
       return;
     }
-    const [hours, minutes] = form.horario.split(":").map(Number);
-    const dataHora = new Date(date);
-    dataHora.setHours(hours || 0, minutes || 0, 0, 0);
+    const dataHora = buildDataHora(form.data, form.horario);
+    if (!dataHora) {
+      toast({ title: "Data ou horário inválidos", variant: "destructive" });
+      return;
+    }
 
-    const { error } = await supabase.from("agenda").insert({
+    const payload = {
       titulo: form.titulo,
       descricao: form.tipo,
       data_hora: dataHora.toISOString(),
-    });
+    };
+
+    const { error } = editing
+      ? await supabase.from("agenda").update(payload).eq("id", editing.id)
+      : await supabase.from("agenda").insert(payload);
 
     if (error) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
       return;
     }
 
-    setForm({ titulo: "", tipo: "Reunião", horario: "" });
+    setDate(dataHora);
+    setForm({ titulo: "", tipo: "Reunião", horario: "", data: "" });
+    setEditing(null);
     setDialogOpen(false);
-    toast({ title: "Compromisso adicionado!" });
+    toast({ title: editing ? "Compromisso atualizado!" : "Compromisso adicionado!" });
+    fetchData();
   };
+
 
   const statusBadge: Record<string, string> = {
     "Novas Tarefas": "bg-warning/10 text-warning border-warning/20",
@@ -108,16 +152,17 @@ const Agenda = () => {
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Agenda Oficial</h1>
           <p className="text-muted-foreground text-xs sm:text-sm mt-1">Compromissos e sessões plenárias.</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
-            <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
+            <Button onClick={openNew} className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
               <Plus className="h-4 w-4" /> Novo Compromisso
             </Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Novo Compromisso</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editing ? "Editar Compromisso" : "Novo Compromisso"}</DialogTitle></DialogHeader>
             <div className="space-y-4 pt-2">
               <div><Label>Título</Label><Input value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} placeholder="Título do compromisso" /></div>
+              <div><Label>Data</Label><Input type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} /></div>
               <div><Label>Horário</Label><Input value={form.horario} onChange={(e) => setForm({ ...form, horario: e.target.value })} placeholder="HH:MM" /></div>
               <div>
                 <Label>Tipo</Label>
@@ -131,7 +176,7 @@ const Agenda = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={handleAdd} className="w-full gradient-primary text-primary-foreground">Adicionar</Button>
+              <Button onClick={handleSave} className="w-full gradient-primary text-primary-foreground">{editing ? "Salvar alterações" : "Adicionar"}</Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -167,7 +212,11 @@ const Agenda = () => {
             ) : (
               <div className="space-y-3">
                 {dayAgenda.map((c) => (
-                  <Card key={c.id} className="glass-card hover:shadow-[var(--shadow-md)] transition-shadow">
+                  <Card
+                    key={c.id}
+                    onClick={() => openEdit(c)}
+                    className="glass-card hover:shadow-[var(--shadow-md)] transition-shadow cursor-pointer"
+                  >
                     <CardContent className="flex items-center gap-4 p-4">
                       <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-primary/5 min-w-[60px]">
                         <Clock className="h-4 w-4 text-primary mb-1" />
@@ -175,10 +224,19 @@ const Agenda = () => {
                           {format(new Date(c.data_hora), "HH:mm")}
                         </span>
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <p className="font-semibold text-sm">{c.titulo}</p>
                         {c.descricao && <Badge variant="secondary" className="text-xs mt-1">{c.descricao}</Badge>}
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={(e) => { e.stopPropagation(); openEdit(c); }}
+                        aria-label="Editar compromisso"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                     </CardContent>
                   </Card>
                 ))}

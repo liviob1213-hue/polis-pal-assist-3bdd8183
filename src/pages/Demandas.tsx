@@ -52,6 +52,7 @@ const ORIGENS = [
   { value: "Instagram/TikTok", label: "📱 Instagram / TikTok" },
   { value: "WhatsApp", label: "💬 WhatsApp" },
   { value: "Pessoal", label: "🤝 Pessoal (contato direto)" },
+  { value: "Email", label: "✉️ Email" },
 ];
 const TIPOS = [
   { value: "Reclamação", label: "Reclamação" },
