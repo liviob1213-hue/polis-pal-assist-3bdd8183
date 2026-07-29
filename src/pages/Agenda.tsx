@@ -152,16 +152,17 @@ const Agenda = () => {
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Agenda Oficial</h1>
           <p className="text-muted-foreground text-xs sm:text-sm mt-1">Compromissos e sessões plenárias.</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
-            <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
+            <Button onClick={openNew} className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
               <Plus className="h-4 w-4" /> Novo Compromisso
             </Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Novo Compromisso</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editing ? "Editar Compromisso" : "Novo Compromisso"}</DialogTitle></DialogHeader>
             <div className="space-y-4 pt-2">
               <div><Label>Título</Label><Input value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} placeholder="Título do compromisso" /></div>
+              <div><Label>Data</Label><Input type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} /></div>
               <div><Label>Horário</Label><Input value={form.horario} onChange={(e) => setForm({ ...form, horario: e.target.value })} placeholder="HH:MM" /></div>
               <div>
                 <Label>Tipo</Label>
@@ -175,7 +176,7 @@ const Agenda = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={handleAdd} className="w-full gradient-primary text-primary-foreground">Adicionar</Button>
+              <Button onClick={handleSave} className="w-full gradient-primary text-primary-foreground">{editing ? "Salvar alterações" : "Adicionar"}</Button>
             </div>
           </DialogContent>
         </Dialog>
