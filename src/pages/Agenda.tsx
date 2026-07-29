@@ -212,7 +212,11 @@ const Agenda = () => {
             ) : (
               <div className="space-y-3">
                 {dayAgenda.map((c) => (
-                  <Card key={c.id} className="glass-card hover:shadow-[var(--shadow-md)] transition-shadow">
+                  <Card
+                    key={c.id}
+                    onClick={() => openEdit(c)}
+                    className="glass-card hover:shadow-[var(--shadow-md)] transition-shadow cursor-pointer"
+                  >
                     <CardContent className="flex items-center gap-4 p-4">
                       <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-primary/5 min-w-[60px]">
                         <Clock className="h-4 w-4 text-primary mb-1" />
@@ -220,10 +224,19 @@ const Agenda = () => {
                           {format(new Date(c.data_hora), "HH:mm")}
                         </span>
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <p className="font-semibold text-sm">{c.titulo}</p>
                         {c.descricao && <Badge variant="secondary" className="text-xs mt-1">{c.descricao}</Badge>}
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={(e) => { e.stopPropagation(); openEdit(c); }}
+                        aria-label="Editar compromisso"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                     </CardContent>
                   </Card>
                 ))}
