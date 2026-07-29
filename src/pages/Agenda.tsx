@@ -65,11 +65,8 @@ const Agenda = () => {
   // Tarefas com prazo para o dia selecionado
   const dayTarefas = tarefas.filter((t) => t.prazo && isSameDay(new Date(t.prazo), date));
 
-  // Datas com eventos (para highlight no calendário)
-  const datesWithEvents = [
-    ...agendaItems.map((a) => new Date(a.data_hora)),
-    ...tarefas.filter((t) => t.prazo).map((t) => new Date(t.prazo!)),
-  ];
+  // Datas com eventos (para highlight no calendário) — apenas compromissos da agenda
+  const datesWithEvents = agendaItems.map((a) => new Date(a.data_hora));
 
   const buildDataHora = (dataStr: string, horario: string): Date | null => {
     if (!dataStr || !horario) return null;
