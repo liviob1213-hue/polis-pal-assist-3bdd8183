@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Clock, CalendarDays } from "lucide-react";
+import { Plus, Clock, CalendarDays, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
