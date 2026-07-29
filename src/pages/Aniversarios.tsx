@@ -29,6 +29,8 @@ const interestColors: Record<string, string> = {
   "Segurança": "bg-destructive/10 text-destructive border-destructive/20",
   "Transporte": "bg-accent/10 text-accent border-accent/20",
   "Meio Ambiente": "bg-success/10 text-success border-success/20",
+  "Juventude": "bg-info/10 text-info border-info/20",
+  "Emprego": "bg-accent/10 text-accent border-accent/20",
 };
 
 const MESES = [
