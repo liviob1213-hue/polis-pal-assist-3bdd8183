@@ -35,7 +35,8 @@ const Agenda = () => {
   const [agendaItems, setAgendaItems] = useState<AgendaItem[]>([]);
   const [tarefas, setTarefas] = useState<TarefaItem[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ titulo: "", tipo: "Reunião", horario: "" });
+  const [editing, setEditing] = useState<AgendaItem | null>(null);
+  const [form, setForm] = useState({ titulo: "", tipo: "Reunião", horario: "", data: "" });
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -70,30 +71,73 @@ const Agenda = () => {
     ...tarefas.filter((t) => t.prazo).map((t) => new Date(t.prazo!)),
   ];
 
-  const handleAdd = async () => {
-    if (!form.titulo || !form.horario) {
-      toast({ title: "Preencha título e horário", variant: "destructive" });
+  const buildDataHora = (dataStr: string, horario: string): Date | null => {
+    if (!dataStr || !horario) return null;
+    const [y, m, d] = dataStr.split("-").map(Number);
+    const [hours, minutes] = horario.split(":").map(Number);
+    if (!y || !m || !d) return null;
+    const dh = new Date(y, m - 1, d);
+    dh.setHours(hours || 0, minutes || 0, 0, 0);
+    return dh;
+  };
+
+  const openNew = () => {
+    setEditing(null);
+    setForm({
+      titulo: "",
+      tipo: "Reunião",
+      horario: "",
+      data: format(date, "yyyy-MM-dd"),
+    });
+    setDialogOpen(true);
+  };
+
+  const openEdit = (item: AgendaItem) => {
+    const dh = new Date(item.data_hora);
+    setEditing(item);
+    setForm({
+      titulo: item.titulo,
+      tipo: item.descricao || "Reunião",
+      horario: format(dh, "HH:mm"),
+      data: format(dh, "yyyy-MM-dd"),
+    });
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.titulo || !form.horario || !form.data) {
+      toast({ title: "Preencha título, data e horário", variant: "destructive" });
       return;
     }
-    const [hours, minutes] = form.horario.split(":").map(Number);
-    const dataHora = new Date(date);
-    dataHora.setHours(hours || 0, minutes || 0, 0, 0);
+    const dataHora = buildDataHora(form.data, form.horario);
+    if (!dataHora) {
+      toast({ title: "Data ou horário inválidos", variant: "destructive" });
+      return;
+    }
 
-    const { error } = await supabase.from("agenda").insert({
+    const payload = {
       titulo: form.titulo,
       descricao: form.tipo,
       data_hora: dataHora.toISOString(),
-    });
+    };
+
+    const { error } = editing
+      ? await supabase.from("agenda").update(payload).eq("id", editing.id)
+      : await supabase.from("agenda").insert(payload);
 
     if (error) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
       return;
     }
 
-    setForm({ titulo: "", tipo: "Reunião", horario: "" });
+    setDate(dataHora);
+    setForm({ titulo: "", tipo: "Reunião", horario: "", data: "" });
+    setEditing(null);
     setDialogOpen(false);
-    toast({ title: "Compromisso adicionado!" });
+    toast({ title: editing ? "Compromisso atualizado!" : "Compromisso adicionado!" });
+    fetchData();
   };
+
 
   const statusBadge: Record<string, string> = {
     "Novas Tarefas": "bg-warning/10 text-warning border-warning/20",
