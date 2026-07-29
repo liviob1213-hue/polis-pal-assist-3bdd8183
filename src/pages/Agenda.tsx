@@ -127,7 +127,8 @@ const Agenda = () => {
       return;
     }
 
-    setDate(dataHora);
+    const [y, m, d] = form.data.split("-").map(Number);
+    setDate(new Date(y, m - 1, d));
     setForm({ titulo: "", tipo: "Reunião", horario: "", data: "" });
     setEditing(null);
     setDialogOpen(false);
