@@ -375,6 +375,9 @@ export default function Aniversarios() {
                         {isHoje ? "Hoje!" : e.dias === 1 ? "Amanhã" : `${e.dias} dias`}
                       </p>
                     </div>
+                    <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={() => abrirEdicao(e)} title="Editar">
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -386,6 +389,7 @@ export default function Aniversarios() {
                       <MessageCircle className="h-3.5 w-3.5" />
                       WhatsApp
                     </Button>
+
                   </div>
                 );
               })}
