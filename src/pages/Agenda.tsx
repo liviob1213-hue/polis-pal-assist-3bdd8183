@@ -236,7 +236,26 @@ const Agenda = () => {
                   </SelectContent>
                 </Select>
               </div>
+              {role === "politico" && assessores.length > 0 && (
+                <div>
+                  <Label>Responsável (Google Agenda de destino)</Label>
+                  <Select value={form.responsavel} onValueChange={(v) => setForm({ ...form, responsavel: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="eu">Minha agenda</SelectItem>
+                      {assessores.map((a) => (
+                        <SelectItem key={a.user_id} value={a.user_id}>{a.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <Button onClick={handleSave} className="w-full gradient-primary text-primary-foreground">{editing ? "Salvar alterações" : "Adicionar"}</Button>
+              {editing && (
+                <Button variant="destructive" className="w-full" onClick={() => handleDelete(editing)}>
+                  Excluir compromisso
+                </Button>
+              )}
             </div>
           </DialogContent>
         </Dialog>
