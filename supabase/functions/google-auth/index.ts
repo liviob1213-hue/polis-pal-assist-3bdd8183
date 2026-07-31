@@ -41,11 +41,7 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
 
   try {
-    // ---------- 1) Início do fluxo: redireciona para o Google ----------
-    if (req.method === "GET" && url.searchParams.get("action") === "start") {
-      const user = await getUserFromToken(url.searchParams.get("token"));
-      if (!user) return new Response("Não autenticado", { status: 401, headers: corsHeaders });
-
+    function buildAuthUrl(userId: string) {
       const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
       authUrl.searchParams.set("client_id", GOOGLE_CLIENT_ID);
       authUrl.searchParams.set("redirect_uri", GOOGLE_REDIRECT_URI);
@@ -55,9 +51,8 @@ Deno.serve(async (req) => {
       authUrl.searchParams.set("prompt", "consent");
       authUrl.searchParams.set("include_granted_scopes", "true");
       // state carrega o dono da agenda (político OU assessor — cada um conecta a sua)
-      authUrl.searchParams.set("state", user.id);
-
-      return new Response(null, { status: 302, headers: { ...corsHeaders, Location: authUrl.toString() } });
+      authUrl.searchParams.set("state", userId);
+      return authUrl.toString();
     }
 
     // ---------- 2) Callback do Google ----------
@@ -128,12 +123,20 @@ Deno.serve(async (req) => {
 
       const body = await req.json().catch(() => ({}));
 
+      // Início do fluxo: devolve a URL de consentimento do Google (sem redirecionar)
+      if (body.action === "start" || body.action === "authorize") {
+        return new Response(JSON.stringify({ url: buildAuthUrl(user.id) }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       if (body.action === "disconnect") {
         await admin.from("google_calendar_tokens").delete().eq("user_id", user.id);
         return new Response(JSON.stringify({ connected: false }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
 
       const { data } = await admin
         .from("google_calendar_tokens")

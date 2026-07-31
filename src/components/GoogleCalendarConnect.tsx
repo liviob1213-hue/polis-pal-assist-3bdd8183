@@ -6,7 +6,8 @@ import { CalendarCheck, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL ?? "https://aecwbjydyoxkonqbkfft.supabase.co"}/functions/v1`;
+
+
 
 const GoogleCalendarConnect = () => {
   const { toast } = useToast();
@@ -31,16 +32,18 @@ const GoogleCalendarConnect = () => {
 
   const handleConnect = async () => {
     setLoading(true);
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData.session?.access_token;
-    if (!token) {
-      toast({ title: "Faça login novamente", variant: "destructive" });
+    const { data, error } = await supabase.functions.invoke("google-auth", {
+      method: "POST",
+      body: { action: "start" },
+    });
+    if (error || !data?.url) {
+      toast({ title: "Não foi possível iniciar a conexão com o Google", variant: "destructive" });
       setLoading(false);
       return;
     }
-    // Redireciona para a Edge Function, que devolve o consentimento do Google
-    window.location.href = `${FUNCTIONS_URL}/google-auth?action=start&token=${encodeURIComponent(token)}`;
+    window.location.href = data.url as string;
   };
+
 
   const handleDisconnect = async () => {
     setLoading(true);
