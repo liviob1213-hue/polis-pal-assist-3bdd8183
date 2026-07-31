@@ -32,3 +32,9 @@ verify_jwt = false
 
 [functions.kiwify-webhook]
 verify_jwt = false
+
+[functions.google-auth]
+verify_jwt = false
+
+[functions.sync-google-event]
+verify_jwt = false

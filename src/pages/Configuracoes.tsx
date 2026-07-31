@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { Bot, CalendarDays, ChevronRight, UserCheck, Cake } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import GoogleCalendarConnect from "@/components/GoogleCalendarConnect";
 
 const Configuracoes = () => {
   const { toast } = useToast();
@@ -89,6 +90,8 @@ const Configuracoes = () => {
           ))}
         </CardContent>
       </Card>
+
+      <GoogleCalendarConnect />
 
       <Card className="glass-card">
         <CardHeader>
