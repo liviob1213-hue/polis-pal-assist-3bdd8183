@@ -66,15 +66,79 @@ function calcularIdade(dataIso: string): number {
   return idade;
 }
 
-function mensagemAniversario(nome: string): string {
+const MSG_KEY = "mensagens_aniversario";
+
+function getMensagensCustom(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(MSG_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function mensagemPadrao(nome: string): string {
   const primeiroNome = nome.split(" ")[0];
   return `🎉 Olá, ${primeiroNome}! Hoje é um dia muito especial — seu aniversário! 🎂\n\nDesejo a você muita saúde, paz, alegria e realizações. Que este novo ciclo seja repleto de conquistas e momentos felizes ao lado de quem você ama.\n\nUm forte abraço! 🥳🎁`;
+}
+
+function mensagemAniversario(id: string, nome: string): string {
+  const custom = getMensagensCustom()[id];
+  if (custom && custom.trim()) return custom.replace(/\{nome\}/g, nome.split(" ")[0]);
+  return mensagemPadrao(nome);
 }
 
 export default function Aniversarios() {
   const [busca, setBusca] = useState("");
   const { query: headerQuery } = useHeaderSearch();
   useEffect(() => { setBusca(headerQuery); }, [headerQuery]);
+  const queryClient = useQueryClient();
+
+  const [editando, setEditando] = useState<Eleitor | null>(null);
+  const [formEdit, setFormEdit] = useState({ nome: "", telefone: "", data_nascimento: "", mensagem: "" });
+  const [salvando, setSalvando] = useState(false);
+
+  const abrirEdicao = (e: Eleitor) => {
+    setEditando(e);
+    setFormEdit({
+      nome: e.nome ?? "",
+      telefone: e.telefone ?? "",
+      data_nascimento: e.data_nascimento ?? "",
+      mensagem: getMensagensCustom()[e.id] || mensagemPadrao(e.nome ?? ""),
+    });
+  };
+
+  const salvarEdicao = async () => {
+    if (!editando) return;
+    if (!formEdit.nome.trim()) {
+      toast({ title: "Informe o nome", variant: "destructive" });
+      return;
+    }
+    setSalvando(true);
+    const { error } = await supabase
+      .from("eleitores")
+      .update({
+        nome: formEdit.nome.trim(),
+        telefone: formEdit.telefone.trim() || null,
+        data_nascimento: formEdit.data_nascimento || null,
+      })
+      .eq("id", editando.id);
+    setSalvando(false);
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      return;
+    }
+    const msgs = getMensagensCustom();
+    if (formEdit.mensagem.trim() && formEdit.mensagem !== mensagemPadrao(formEdit.nome)) {
+      msgs[editando.id] = formEdit.mensagem;
+    } else {
+      delete msgs[editando.id];
+    }
+    localStorage.setItem(MSG_KEY, JSON.stringify(msgs));
+    toast({ title: "Aniversariante atualizado!" });
+    setEditando(null);
+    queryClient.invalidateQueries({ queryKey: ["eleitores-aniversarios"] });
+    queryClient.invalidateQueries({ queryKey: ["eleitores"] });
+  };
 
   const { data: eleitores = [], isLoading } = useQuery({
     queryKey: ["eleitores-aniversarios"],
@@ -126,10 +190,11 @@ export default function Aniversarios() {
     }
     const phone = eleitor.telefone.replace(/\D/g, "");
     const fullPhone = phone.startsWith("55") ? phone : `55${phone}`;
-    const msg = encodeURIComponent(mensagemAniversario(eleitor.nome));
+    const msg = encodeURIComponent(mensagemAniversario(eleitor.id, eleitor.nome));
     window.open(`https://wa.me/${fullPhone}?text=${msg}`, "_blank");
     toast({ title: "WhatsApp aberto!", description: `Mensagem pronta para ${eleitor.nome.split(" ")[0]}` });
   };
+
 
   const formatDataBR = (iso: string) => {
     const [_, m, d] = iso.split("-").map(Number);
