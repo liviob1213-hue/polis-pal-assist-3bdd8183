@@ -1,17 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
 import { useHeaderSearch } from "@/contexts/HeaderSearchContext";
 import { motion } from "framer-motion";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Cake, Search, MessageCircle, Sparkles, PartyPopper, Phone } from "lucide-react";
+import { Cake, Search, MessageCircle, Sparkles, PartyPopper, Phone, Pencil } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { getStatusEleitor } from "@/lib/statusEleitor";
+
 
 interface Eleitor {
   id: string;
@@ -56,15 +66,79 @@ function calcularIdade(dataIso: string): number {
   return idade;
 }
 
-function mensagemAniversario(nome: string): string {
+const MSG_KEY = "mensagens_aniversario";
+
+function getMensagensCustom(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(MSG_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function mensagemPadrao(nome: string): string {
   const primeiroNome = nome.split(" ")[0];
   return `🎉 Olá, ${primeiroNome}! Hoje é um dia muito especial — seu aniversário! 🎂\n\nDesejo a você muita saúde, paz, alegria e realizações. Que este novo ciclo seja repleto de conquistas e momentos felizes ao lado de quem você ama.\n\nUm forte abraço! 🥳🎁`;
+}
+
+function mensagemAniversario(id: string, nome: string): string {
+  const custom = getMensagensCustom()[id];
+  if (custom && custom.trim()) return custom.replace(/\{nome\}/g, nome.split(" ")[0]);
+  return mensagemPadrao(nome);
 }
 
 export default function Aniversarios() {
   const [busca, setBusca] = useState("");
   const { query: headerQuery } = useHeaderSearch();
   useEffect(() => { setBusca(headerQuery); }, [headerQuery]);
+  const queryClient = useQueryClient();
+
+  const [editando, setEditando] = useState<Eleitor | null>(null);
+  const [formEdit, setFormEdit] = useState({ nome: "", telefone: "", data_nascimento: "", mensagem: "" });
+  const [salvando, setSalvando] = useState(false);
+
+  const abrirEdicao = (e: Eleitor) => {
+    setEditando(e);
+    setFormEdit({
+      nome: e.nome ?? "",
+      telefone: e.telefone ?? "",
+      data_nascimento: e.data_nascimento ?? "",
+      mensagem: getMensagensCustom()[e.id] || mensagemPadrao(e.nome ?? ""),
+    });
+  };
+
+  const salvarEdicao = async () => {
+    if (!editando) return;
+    if (!formEdit.nome.trim()) {
+      toast({ title: "Informe o nome", variant: "destructive" });
+      return;
+    }
+    setSalvando(true);
+    const { error } = await supabase
+      .from("eleitores")
+      .update({
+        nome: formEdit.nome.trim(),
+        telefone: formEdit.telefone.trim() || null,
+        data_nascimento: formEdit.data_nascimento || null,
+      })
+      .eq("id", editando.id);
+    setSalvando(false);
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      return;
+    }
+    const msgs = getMensagensCustom();
+    if (formEdit.mensagem.trim() && formEdit.mensagem !== mensagemPadrao(formEdit.nome)) {
+      msgs[editando.id] = formEdit.mensagem;
+    } else {
+      delete msgs[editando.id];
+    }
+    localStorage.setItem(MSG_KEY, JSON.stringify(msgs));
+    toast({ title: "Aniversariante atualizado!" });
+    setEditando(null);
+    queryClient.invalidateQueries({ queryKey: ["eleitores-aniversarios"] });
+    queryClient.invalidateQueries({ queryKey: ["eleitores"] });
+  };
 
   const { data: eleitores = [], isLoading } = useQuery({
     queryKey: ["eleitores-aniversarios"],
@@ -116,10 +190,11 @@ export default function Aniversarios() {
     }
     const phone = eleitor.telefone.replace(/\D/g, "");
     const fullPhone = phone.startsWith("55") ? phone : `55${phone}`;
-    const msg = encodeURIComponent(mensagemAniversario(eleitor.nome));
+    const msg = encodeURIComponent(mensagemAniversario(eleitor.id, eleitor.nome));
     window.open(`https://wa.me/${fullPhone}?text=${msg}`, "_blank");
     toast({ title: "WhatsApp aberto!", description: `Mensagem pronta para ${eleitor.nome.split(" ")[0]}` });
   };
+
 
   const formatDataBR = (iso: string) => {
     const [_, m, d] = iso.split("-").map(Number);
@@ -203,6 +278,9 @@ export default function Aniversarios() {
                     </p>
                   )}
                 </div>
+                <Button variant="ghost" size="icon" className="shrink-0" onClick={() => abrirEdicao(e)} title="Editar">
+                  <Pencil className="h-4 w-4" />
+                </Button>
                 <Button
                   onClick={() => enviarWhatsapp(e)}
                   className="bg-success hover:bg-success/90 text-success-foreground gap-2 shrink-0"
@@ -211,6 +289,7 @@ export default function Aniversarios() {
                   <MessageCircle className="h-4 w-4" />
                   Parabenizar
                 </Button>
+
               </div>
             ))}
           </CardContent>
@@ -296,6 +375,9 @@ export default function Aniversarios() {
                         {isHoje ? "Hoje!" : e.dias === 1 ? "Amanhã" : `${e.dias} dias`}
                       </p>
                     </div>
+                    <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={() => abrirEdicao(e)} title="Editar">
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -307,6 +389,7 @@ export default function Aniversarios() {
                       <MessageCircle className="h-3.5 w-3.5" />
                       WhatsApp
                     </Button>
+
                   </div>
                 );
               })}
@@ -314,6 +397,56 @@ export default function Aniversarios() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!editando} onOpenChange={(o) => !o && setEditando(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Editar aniversariante</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nome</Label>
+              <Input value={formEdit.nome} onChange={(ev) => setFormEdit({ ...formEdit, nome: ev.target.value })} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label>Data de nascimento</Label>
+                <Input
+                  type="date"
+                  value={formEdit.data_nascimento}
+                  onChange={(ev) => setFormEdit({ ...formEdit, data_nascimento: ev.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Telefone</Label>
+                <Input
+                  value={formEdit.telefone}
+                  onChange={(ev) => setFormEdit({ ...formEdit, telefone: ev.target.value })}
+                  placeholder="31 99999-9999"
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Mensagem de aniversário</Label>
+              <Textarea
+                rows={6}
+                value={formEdit.mensagem}
+                onChange={(ev) => setFormEdit({ ...formEdit, mensagem: ev.target.value })}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Use <code>{"{nome}"}</code> para inserir o primeiro nome automaticamente.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditando(null)}>Cancelar</Button>
+            <Button onClick={salvarEdicao} disabled={salvando} className="gradient-primary text-primary-foreground">
+              {salvando ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
+

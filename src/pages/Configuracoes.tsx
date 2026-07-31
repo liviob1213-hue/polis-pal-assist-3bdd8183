@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,20 +11,45 @@ import { Bot, CalendarDays, ChevronRight, UserCheck, Cake } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const Configuracoes = () => {
-  const [form, setForm] = useState({
-    nome: "Carlos Mendes",
-    partido: "Partido Novo",
-    email: "gabinete@camara.gov.br",
-  });
-  const [notifDemandas, setNotifDemandas] = useState(true);
-  const [notifRelatorio, setNotifRelatorio] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { role } = useAuth();
+  const { role, user } = useAuth();
+
+  const storageKey = user ? `perfil_parlamentar_${user.id}` : null;
+
+  const [form, setForm] = useState({ nome: "", partido: "", email: "" });
+  const [notifDemandas, setNotifDemandas] = useState(true);
+  const [notifRelatorio, setNotifRelatorio] = useState(true);
+
+  useEffect(() => {
+    if (!storageKey) return;
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const p = JSON.parse(saved);
+        setForm({ nome: p.nome ?? "", partido: p.partido ?? "", email: p.email ?? user?.email ?? "" });
+        if (typeof p.notifDemandas === "boolean") setNotifDemandas(p.notifDemandas);
+        if (typeof p.notifRelatorio === "boolean") setNotifRelatorio(p.notifRelatorio);
+      } else {
+        setForm((f) => ({ ...f, email: user?.email ?? "" }));
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [storageKey, user?.email]);
 
   const handleSave = () => {
+    if (!storageKey) {
+      toast({ title: "Faça login para salvar", variant: "destructive" });
+      return;
+    }
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify({ ...form, notifDemandas, notifRelatorio }),
+    );
     toast({ title: "Configurações salvas com sucesso!" });
   };
+
 
   const toolItems = [
     { title: "Agenda Oficial", description: "Gerencie compromissos e eventos", icon: CalendarDays, url: "/agenda" },
