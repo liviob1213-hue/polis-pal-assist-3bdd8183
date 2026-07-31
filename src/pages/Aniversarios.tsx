@@ -1,17 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
 import { useHeaderSearch } from "@/contexts/HeaderSearchContext";
 import { motion } from "framer-motion";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Cake, Search, MessageCircle, Sparkles, PartyPopper, Phone } from "lucide-react";
+import { Cake, Search, MessageCircle, Sparkles, PartyPopper, Phone, Pencil } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { getStatusEleitor } from "@/lib/statusEleitor";
+
 
 interface Eleitor {
   id: string;
