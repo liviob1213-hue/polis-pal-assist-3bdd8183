@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface AgendaItem {
   id: string;
@@ -20,6 +21,8 @@ interface AgendaItem {
   descricao: string | null;
   data_hora: string;
   tarefa_id: string | null;
+  assessor_id?: string | null;
+  criado_por?: string | null;
 }
 
 interface TarefaItem {
@@ -34,10 +37,12 @@ const Agenda = () => {
   const [date, setDate] = useState<Date>(new Date());
   const [agendaItems, setAgendaItems] = useState<AgendaItem[]>([]);
   const [tarefas, setTarefas] = useState<TarefaItem[]>([]);
+  const [assessores, setAssessores] = useState<{ user_id: string; nome: string }[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AgendaItem | null>(null);
-  const [form, setForm] = useState({ titulo: "", tipo: "Reunião", horario: "", data: "" });
+  const [form, setForm] = useState({ titulo: "", tipo: "Reunião", horario: "", data: "", responsavel: "eu" });
   const { toast } = useToast();
+  const { user, role } = useAuth();
 
   const fetchData = async () => {
     const [agendaRes, tarefasRes] = await Promise.all([
@@ -47,6 +52,36 @@ const Agenda = () => {
     setAgendaItems(agendaRes.data || []);
     setTarefas(tarefasRes.data || []);
   };
+
+  // Lista de assessores do político (para rotear o compromisso ao Google Agenda correto)
+  useEffect(() => {
+    const loadAssessores = async () => {
+      if (role !== "politico" || !user) return;
+      const { data: links } = await supabase
+        .from("politician_assessors")
+        .select("assessor_id")
+        .eq("politician_id", user.id);
+      const ids = (links || []).map((l: { assessor_id: string }) => l.assessor_id);
+      if (!ids.length) return setAssessores([]);
+      const { data: profs } = await supabase.from("profiles").select("user_id, nome").in("user_id", ids);
+      setAssessores(profs || []);
+    };
+    loadAssessores();
+  }, [role, user]);
+
+  // Envia o compromisso para a Edge Function; ela resolve o DONO e usa o token dele
+  const syncGoogle = async (action: "create" | "update" | "delete", agendaId: string, ownerUserId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-google-event", {
+        body: { action, agenda_id: agendaId, owner_user_id: ownerUserId },
+      });
+      if (error) console.warn("Falha ao sincronizar com o Google Agenda:", error);
+      else if (data?.skipped) console.info("Google Agenda não conectado para o dono do evento.");
+    } catch (e) {
+      console.warn("sync-google-event:", e);
+    }
+  };
+
 
   useEffect(() => {
     fetchData();
