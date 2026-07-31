@@ -389,6 +389,56 @@ export default function Aniversarios() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!editando} onOpenChange={(o) => !o && setEditando(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Editar aniversariante</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nome</Label>
+              <Input value={formEdit.nome} onChange={(ev) => setFormEdit({ ...formEdit, nome: ev.target.value })} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label>Data de nascimento</Label>
+                <Input
+                  type="date"
+                  value={formEdit.data_nascimento}
+                  onChange={(ev) => setFormEdit({ ...formEdit, data_nascimento: ev.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Telefone</Label>
+                <Input
+                  value={formEdit.telefone}
+                  onChange={(ev) => setFormEdit({ ...formEdit, telefone: ev.target.value })}
+                  placeholder="31 99999-9999"
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Mensagem de aniversário</Label>
+              <Textarea
+                rows={6}
+                value={formEdit.mensagem}
+                onChange={(ev) => setFormEdit({ ...formEdit, mensagem: ev.target.value })}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Use <code>{"{nome}"}</code> para inserir o primeiro nome automaticamente.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditando(null)}>Cancelar</Button>
+            <Button onClick={salvarEdicao} disabled={salvando} className="gradient-primary text-primary-foreground">
+              {salvando ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
+
