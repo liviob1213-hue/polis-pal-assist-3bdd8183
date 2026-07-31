@@ -120,6 +120,7 @@ const Agenda = () => {
       tipo: "Reunião",
       horario: "",
       data: format(date, "yyyy-MM-dd"),
+      responsavel: "eu",
     });
     setDialogOpen(true);
   };
@@ -132,6 +133,7 @@ const Agenda = () => {
       tipo: item.descricao || "Reunião",
       horario: format(dh, "HH:mm"),
       data: format(dh, "yyyy-MM-dd"),
+      responsavel: item.assessor_id && item.assessor_id !== user?.id ? item.assessor_id : "eu",
     });
     setDialogOpen(true);
   };
@@ -147,29 +149,54 @@ const Agenda = () => {
       return;
     }
 
+    // Dono do compromisso: assessor escolhido ou o próprio usuário logado
+    const ownerId = form.responsavel !== "eu" ? form.responsavel : user?.id ?? null;
+
     const payload = {
       titulo: form.titulo,
       descricao: form.tipo,
       data_hora: dataHora.toISOString(),
+      assessor_id: ownerId,
+      criado_por: user?.id ?? null,
     };
 
-    const { error } = editing
-      ? await supabase.from("agenda").update(payload).eq("id", editing.id)
-      : await supabase.from("agenda").insert(payload);
+    const { data: saved, error } = editing
+      ? await supabase.from("agenda").update(payload).eq("id", editing.id).select("id").maybeSingle()
+      : await supabase.from("agenda").insert(payload).select("id").maybeSingle();
 
     if (error) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
       return;
     }
 
+    const agendaId = saved?.id ?? editing?.id;
+    if (agendaId && ownerId) {
+      await syncGoogle(editing ? "update" : "create", agendaId, ownerId);
+    }
+
     const [y, m, d] = form.data.split("-").map(Number);
     setDate(new Date(y, m - 1, d));
-    setForm({ titulo: "", tipo: "Reunião", horario: "", data: "" });
+    setForm({ titulo: "", tipo: "Reunião", horario: "", data: "", responsavel: "eu" });
     setEditing(null);
     setDialogOpen(false);
     toast({ title: editing ? "Compromisso atualizado!" : "Compromisso adicionado!" });
     fetchData();
   };
+
+  const handleDelete = async (item: AgendaItem) => {
+    const ownerId = item.assessor_id ?? item.criado_por ?? user?.id ?? null;
+    if (ownerId) await syncGoogle("delete", item.id, ownerId);
+    const { error } = await supabase.from("agenda").delete().eq("id", item.id);
+    if (error) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+      return;
+    }
+    setDialogOpen(false);
+    setEditing(null);
+    toast({ title: "Compromisso excluído" });
+    fetchData();
+  };
+
 
 
   const statusBadge: Record<string, string> = {
