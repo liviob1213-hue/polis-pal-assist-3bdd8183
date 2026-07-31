@@ -123,12 +123,20 @@ Deno.serve(async (req) => {
 
       const body = await req.json().catch(() => ({}));
 
+      // Início do fluxo: devolve a URL de consentimento do Google (sem redirecionar)
+      if (body.action === "start" || body.action === "authorize") {
+        return new Response(JSON.stringify({ url: buildAuthUrl(user.id) }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       if (body.action === "disconnect") {
         await admin.from("google_calendar_tokens").delete().eq("user_id", user.id);
         return new Response(JSON.stringify({ connected: false }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
 
       const { data } = await admin
         .from("google_calendar_tokens")
