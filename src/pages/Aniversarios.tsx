@@ -278,6 +278,9 @@ export default function Aniversarios() {
                     </p>
                   )}
                 </div>
+                <Button variant="ghost" size="icon" className="shrink-0" onClick={() => abrirEdicao(e)} title="Editar">
+                  <Pencil className="h-4 w-4" />
+                </Button>
                 <Button
                   onClick={() => enviarWhatsapp(e)}
                   className="bg-success hover:bg-success/90 text-success-foreground gap-2 shrink-0"
@@ -286,6 +289,7 @@ export default function Aniversarios() {
                   <MessageCircle className="h-4 w-4" />
                   Parabenizar
                 </Button>
+
               </div>
             ))}
           </CardContent>
