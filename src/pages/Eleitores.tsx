@@ -34,6 +34,7 @@ interface Eleitor {
   estado: string | null;
   cep: string | null;
   telefone: string | null;
+  email?: string | null;
   interesse: string | null;
   observacoes: string | null;
   latitude: number | null;
@@ -106,7 +107,7 @@ const Eleitores = () => {
   }, [search]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "", demanda_origem: "", demanda_tipo: "", demanda_setor: "", demanda_localizacao: "", demanda_prazo: "" });
+  const [form, setForm] = useState({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", email: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "", demanda_origem: "", demanda_tipo: "", demanda_setor: "", demanda_localizacao: "", demanda_prazo: "" });
   const [whatsappDialog, setWhatsappDialog] = useState<Eleitor | null>(null);
   const [whatsappMsg, setWhatsappMsg] = useState("");
   const [demandaDialog, setDemandaDialog] = useState<{ eleitor: Eleitor; demandas: DemandaEleitor[] } | null>(null);
@@ -320,7 +321,7 @@ const Eleitores = () => {
       let q = supabase
         .from("eleitores")
         .select(
-          "id, nome, endereco, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, interesse, observacoes, latitude, longitude, data_nascimento, agente_ativo, status_eleitor",
+          "id, nome, endereco, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, email, interesse, observacoes, latitude, longitude, data_nascimento, agente_ativo, status_eleitor",
           { count: "exact" }
         )
         .order("nome", { ascending: true })
@@ -381,6 +382,7 @@ const Eleitores = () => {
           endereco: endereco || null,
           ...enderecoFields,
           telefone: payload.telefone || null,
+          email: payload.email || null,
           interesse: payload.interesse || null,
           status_eleitor: payload.status_eleitor || "possivel_eleitor",
           observacoes: payload.observacoes || null,
@@ -393,6 +395,7 @@ const Eleitores = () => {
           endereco: endereco || null,
           ...enderecoFields,
           telefone: payload.telefone || null,
+          email: payload.email || null,
           interesse: payload.interesse || null,
           status_eleitor: payload.status_eleitor || "possivel_eleitor",
           observacoes: payload.observacoes || null,
@@ -434,7 +437,7 @@ const Eleitores = () => {
       queryClient.invalidateQueries({ queryKey: ["demandas-por-eleitor-page"] });
       queryClient.invalidateQueries({ queryKey: ["demandas"] });
       toast({ title: editingId ? "Eleitor atualizado!" : "Eleitor adicionado!" });
-      setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "", demanda_origem: "", demanda_tipo: "", demanda_setor: "", demanda_localizacao: "", demanda_prazo: "" });
+      setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", email: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "", demanda_origem: "", demanda_tipo: "", demanda_setor: "", demanda_localizacao: "", demanda_prazo: "" });
       setEditingId(null);
       setDialogOpen(false);
     },
@@ -546,6 +549,7 @@ const Eleitores = () => {
       estado: eleitor.estado || parts[4] || "",
       cep: eleitor.cep || parts[5] || "",
       telefone: eleitor.telefone || "",
+      email: eleitor.email || "",
       interesse: eleitor.interesse || "",
       status_eleitor: normalizeStatusEleitor(eleitor.status_eleitor),
       observacoes: eleitor.observacoes || "",
@@ -620,7 +624,7 @@ const Eleitores = () => {
             ? (importProgress.total > 0 ? `Importando ${importProgress.done} de ${importProgress.total}` : "Importando...")
             : "Importar planilha"}
         </Button>
-        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingId(null); setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "", demanda_origem: "", demanda_tipo: "", demanda_setor: "", demanda_localizacao: "", demanda_prazo: "" }); } }}>
+        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingId(null); setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", email: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "", demanda_origem: "", demanda_tipo: "", demanda_setor: "", demanda_localizacao: "", demanda_prazo: "" }); } }}>
           <DialogTrigger asChild>
             <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
               <Plus className="h-4 w-4" /> Novo Eleitor
@@ -648,7 +652,10 @@ const Eleitores = () => {
                 <div className="w-1/2"><Label>CEP</Label><AddressAutocomplete apiKey={mapsApiKey} value={form.cep} onChange={(v) => setForm((prev) => ({ ...prev, cep: v }))} onAddressSelect={(c) => setForm((prev) => ({ ...prev, cep: c.cep || prev.cep, rua: c.rua || prev.rua, bairro: c.bairro || prev.bairro, cidade: c.cidade || prev.cidade, estado: c.estado || prev.estado }))} placeholder="00000-000" types={["(regions)"]} /></div>
               </div>
 
-              <div><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} placeholder="(00) 00000-0000" /></div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} placeholder="(00) 00000-0000" /></div>
+                <div><Label>E-mail</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="email@exemplo.com" /></div>
+              </div>
               <div>
                 <Label className="flex items-center gap-1.5"><Cake className="h-3.5 w-3.5 text-primary" /> Data de Nascimento</Label>
                 <Input type="date" value={form.data_nascimento} onChange={(e) => setForm({ ...form, data_nascimento: e.target.value })} />
