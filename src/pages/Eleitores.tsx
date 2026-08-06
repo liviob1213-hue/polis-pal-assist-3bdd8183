@@ -139,6 +139,36 @@ const Eleitores = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
+  const [geoProgress, setGeoProgress] = useState({ done: 0, total: 0 });
+
+  // Geocodifica em paralelo (5 por vez) uma lista de eleitores recém-importados
+  const geocodificarLote = async (itens: { id: string; endereco: string }[]) => {
+    const validos = itens.filter((i) => i.endereco && i.endereco.trim().length >= 3);
+    if (!validos.length) return { ok: 0, fail: 0 };
+    setGeoProgress({ done: 0, total: validos.length });
+    let ok = 0, fail = 0, done = 0;
+    const CONC = 5;
+    let cursor = 0;
+    const worker = async () => {
+      while (cursor < validos.length) {
+        const item = validos[cursor++];
+        try {
+          const { error } = await supabase.functions.invoke("geocode", {
+            body: { eleitor_id: item.id, endereco: item.endereco },
+          });
+          if (error) fail++; else ok++;
+        } catch {
+          fail++;
+        }
+        done++;
+        setGeoProgress({ done, total: validos.length });
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(CONC, validos.length) }, worker));
+    setGeoProgress({ done: 0, total: 0 });
+    return { ok, fail };
+  };
+
 
   const normHeader = (s: string) =>
     String(s ?? "")
@@ -296,14 +326,22 @@ const Eleitores = () => {
       let inserted = 0;
       let errors = 0;
       const errorMsgs: string[] = [];
+      const novos: { id: string; endereco: string }[] = [];
       for (let i = 0; i < payloads.length; i += BATCH) {
         const lote = payloads.slice(i, i + BATCH);
-        const { error } = await supabase.from("eleitores").insert(lote);
+        const { data: ins, error } = await supabase
+          .from("eleitores")
+          .insert(lote)
+          .select("id, cidade, endereco");
         if (error) {
           errors += lote.length;
           if (errorMsgs.length < 2) errorMsgs.push(error.message);
         } else {
           inserted += lote.length;
+          (ins || []).forEach((r: any) => {
+            const end = r.cidade || r.endereco;
+            if (end) novos.push({ id: r.id, endereco: end });
+          });
         }
         setImportProgress({ done: Math.min(i + BATCH, payloads.length), total: payloads.length });
       }
@@ -313,9 +351,21 @@ const Eleitores = () => {
 
       toast({
         title: "Importação concluída",
-        description: `${inserted} inseridos, ${skipped} sem nome pulados${errors ? `, ${errors} com erro: ${errorMsgs.join("; ")}` : ""}.`,
+        description: `${inserted} inseridos, ${skipped} sem nome pulados${errors ? `, ${errors} com erro: ${errorMsgs.join("; ")}` : ""}. Localizando no mapa...`,
         variant: errors ? "destructive" : "default",
       });
+
+      // Geocodificação automática dos importados com endereço
+      const geo = await geocodificarLote(novos);
+      queryClient.invalidateQueries({ queryKey: ["eleitores"] });
+      queryClient.invalidateQueries({ queryKey: ["eleitores-mapa"] });
+      if (geo.ok || geo.fail) {
+        toast({
+          title: "Mapa atualizado",
+          description: `${geo.ok} eleitores localizados no mapa${geo.fail ? `, ${geo.fail} sem coordenadas` : ""}.`,
+        });
+      }
+
     } catch (err: any) {
       console.error("[Import]", err);
       toast({ title: "Falha ao importar", description: err?.message || "Erro desconhecido", variant: "destructive" });
@@ -726,7 +776,11 @@ const Eleitores = () => {
         >
           {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
           {importing
-            ? (importProgress.total > 0 ? `Importando ${importProgress.done} de ${importProgress.total}` : "Importando...")
+            ? (geoProgress.total > 0
+                ? `Mapeando ${geoProgress.done} de ${geoProgress.total}`
+                : importProgress.total > 0
+                  ? `Importando ${importProgress.done} de ${importProgress.total}`
+                  : "Importando...")
             : "Importar planilha"}
         </Button>
         <Button variant="outline" className="gap-2" onClick={exportarCSV} disabled={exportando}>
