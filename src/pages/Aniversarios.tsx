@@ -103,6 +103,8 @@ export default function Aniversarios() {
   const [editando, setEditando] = useState<Eleitor | null>(null);
   const [formEdit, setFormEdit] = useState({ nome: "", telefone: "", data_nascimento: "", mensagem: "" });
   const [salvando, setSalvando] = useState(false);
+  const [msgPadraoOpen, setMsgPadraoOpen] = useState(false);
+  const [msgPadraoTexto, setMsgPadraoTexto] = useState("");
 
   const abrirEdicao = (e: Eleitor) => {
     setEditando(e);
