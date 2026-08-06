@@ -230,7 +230,7 @@ export default function Aniversarios() {
             Acompanhe os aniversários dos seus eleitores e envie mensagens personalizadas
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center flex-wrap">
           <Badge variant="secondary" className="text-sm py-1.5 px-3">
             <PartyPopper className="h-3.5 w-3.5 mr-1.5" />
             {aniversariantesHoje.length} hoje
@@ -238,6 +238,17 @@ export default function Aniversarios() {
           <Badge variant="outline" className="text-sm py-1.5 px-3">
             {totalMes} este mês
           </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => {
+              setMsgPadraoTexto(getMensagemPadrao(KEY_MSG_PADRAO_ANIVERSARIO, MSG_PADRAO_ANIVERSARIO_DEFAULT));
+              setMsgPadraoOpen(true);
+            }}
+          >
+            <MessageCircle className="h-4 w-4" /> Mensagem padrão
+          </Button>
         </div>
       </div>
 
