@@ -1351,6 +1351,28 @@ const Eleitores = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Mensagem padrão global */}
+      <Dialog open={msgPadraoOpen} onOpenChange={setMsgPadraoOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-success" /> Mensagem padrão do WhatsApp
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <p className="text-xs text-muted-foreground">
+              Esta mensagem será usada automaticamente para <strong>todos os eleitores</strong>. Use as chaves{" "}
+              <code>{"{nome}"}</code>, <code>{"{primeiro_nome}"}</code> e <code>{"{cidade}"}</code>.
+            </p>
+            <Textarea rows={6} value={msgPadraoTexto} onChange={(e) => setMsgPadraoTexto(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMsgPadraoTexto(MSG_PADRAO_WHATSAPP_DEFAULT)}>Restaurar</Button>
+            <Button className="gradient-primary text-primary-foreground" onClick={salvarMsgPadrao}>Salvar padrão</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 };
