@@ -1319,15 +1319,28 @@ const Eleitores = () => {
                 </div>
               )}
               <div>
-                <Label>Mensagem (opcional)</Label>
+                <Label>Mensagem</Label>
                 <Textarea value={whatsappMsg} onChange={(e) => setWhatsappMsg(e.target.value)} placeholder="Digite a mensagem ou selecione uma salva acima..." rows={4} className="mt-1" />
-                <div className="flex items-center justify-between mt-1">
-                  <p className="text-xs text-muted-foreground">A mensagem será pré-preenchida no WhatsApp.</p>
-                  {whatsappMsg.trim() && (
-                    <Button variant="ghost" size="sm" className="text-xs h-6 gap-1 text-muted-foreground hover:text-foreground" onClick={saveMessage}>
-                      <Save className="h-3 w-3" /> Salvar
+                <div className="flex items-center justify-between mt-1 gap-2 flex-wrap">
+                  <p className="text-xs text-muted-foreground">Padronizada para todos os eleitores. Chaves: {"{nome}"}, {"{primeiro_nome}"}, {"{cidade}"}.</p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-6 gap-1 text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        const padrao = getMensagemPadrao(KEY_MSG_PADRAO_WHATSAPP, MSG_PADRAO_WHATSAPP_DEFAULT);
+                        setWhatsappMsg(aplicarVariaveis(padrao, { nome: whatsappDialog!.nome, cidade: whatsappDialog!.cidade }));
+                      }}
+                    >
+                      <Star className="h-3 w-3" /> Usar padrão
                     </Button>
-                  )}
+                    {whatsappMsg.trim() && (
+                      <Button variant="ghost" size="sm" className="text-xs h-6 gap-1 text-muted-foreground hover:text-foreground" onClick={saveMessage}>
+                        <Save className="h-3 w-3" /> Salvar
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
               <Button onClick={sendWhatsapp} className="w-full bg-success hover:bg-success/90 text-success-foreground gap-2">
