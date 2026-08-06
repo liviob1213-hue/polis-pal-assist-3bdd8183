@@ -326,14 +326,22 @@ const Eleitores = () => {
       let inserted = 0;
       let errors = 0;
       const errorMsgs: string[] = [];
+      const novos: { id: string; endereco: string }[] = [];
       for (let i = 0; i < payloads.length; i += BATCH) {
         const lote = payloads.slice(i, i + BATCH);
-        const { error } = await supabase.from("eleitores").insert(lote);
+        const { data: ins, error } = await supabase
+          .from("eleitores")
+          .insert(lote)
+          .select("id, cidade, endereco");
         if (error) {
           errors += lote.length;
           if (errorMsgs.length < 2) errorMsgs.push(error.message);
         } else {
           inserted += lote.length;
+          (ins || []).forEach((r: any) => {
+            const end = r.cidade || r.endereco;
+            if (end) novos.push({ id: r.id, endereco: end });
+          });
         }
         setImportProgress({ done: Math.min(i + BATCH, payloads.length), total: payloads.length });
       }
@@ -343,9 +351,21 @@ const Eleitores = () => {
 
       toast({
         title: "Importação concluída",
-        description: `${inserted} inseridos, ${skipped} sem nome pulados${errors ? `, ${errors} com erro: ${errorMsgs.join("; ")}` : ""}.`,
+        description: `${inserted} inseridos, ${skipped} sem nome pulados${errors ? `, ${errors} com erro: ${errorMsgs.join("; ")}` : ""}. Localizando no mapa...`,
         variant: errors ? "destructive" : "default",
       });
+
+      // Geocodificação automática dos importados com endereço
+      const geo = await geocodificarLote(novos);
+      queryClient.invalidateQueries({ queryKey: ["eleitores"] });
+      queryClient.invalidateQueries({ queryKey: ["eleitores-mapa"] });
+      if (geo.ok || geo.fail) {
+        toast({
+          title: "Mapa atualizado",
+          description: `${geo.ok} eleitores localizados no mapa${geo.fail ? `, ${geo.fail} sem coordenadas` : ""}.`,
+        });
+      }
+
     } catch (err: any) {
       console.error("[Import]", err);
       toast({ title: "Falha ao importar", description: err?.message || "Erro desconhecido", variant: "destructive" });
