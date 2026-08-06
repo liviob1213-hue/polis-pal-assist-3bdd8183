@@ -77,13 +77,13 @@ function getMensagensCustom(): Record<string, string> {
 }
 
 function mensagemPadrao(nome: string): string {
-  const primeiroNome = nome.split(" ")[0];
-  return `🎉 Olá, ${primeiroNome}! Hoje é um dia muito especial — seu aniversário! 🎂\n\nDesejo a você muita saúde, paz, alegria e realizações. Que este novo ciclo seja repleto de conquistas e momentos felizes ao lado de quem você ama.\n\nUm forte abraço! 🥳🎁`;
+  const base = getMensagemPadrao(KEY_MSG_PADRAO_ANIVERSARIO, MSG_PADRAO_ANIVERSARIO_DEFAULT);
+  return aplicarVariaveis(base, { nome });
 }
 
 function mensagemAniversario(id: string, nome: string): string {
   const custom = getMensagensCustom()[id];
-  if (custom && custom.trim()) return custom.replace(/\{nome\}/g, nome.split(" ")[0]);
+  if (custom && custom.trim()) return aplicarVariaveis(custom, { nome });
   return mensagemPadrao(nome);
 }
 
