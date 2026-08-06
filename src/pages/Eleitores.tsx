@@ -621,7 +621,66 @@ const Eleitores = () => {
 
   const openWhatsapp = (eleitor: Eleitor) => {
     setWhatsappDialog(eleitor);
-    setWhatsappMsg("");
+    const padrao = getMensagemPadrao(KEY_MSG_PADRAO_WHATSAPP, MSG_PADRAO_WHATSAPP_DEFAULT);
+    setWhatsappMsg(aplicarVariaveis(padrao, { nome: eleitor.nome, cidade: eleitor.cidade }));
+  };
+
+  const abrirMsgPadrao = () => {
+    setMsgPadraoTexto(getMensagemPadrao(KEY_MSG_PADRAO_WHATSAPP, MSG_PADRAO_WHATSAPP_DEFAULT));
+    setMsgPadraoOpen(true);
+  };
+
+  const salvarMsgPadrao = () => {
+    setMensagemPadrao(KEY_MSG_PADRAO_WHATSAPP, msgPadraoTexto);
+    setMsgPadraoOpen(false);
+    toast({ title: "Mensagem padrão salva!", description: "Ela será usada para todos os eleitores." });
+  };
+
+  // Exporta os contatos conforme o filtro/busca atual
+  const exportarCSV = async () => {
+    setExportando(true);
+    try {
+      const linhas: any[] = [];
+      const CHUNK = 1000;
+      for (let from = 0; ; from += CHUNK) {
+        let q = supabase
+          .from("eleitores")
+          .select("nome, telefone, email, endereco, logradouro, numero, complemento, bairro, cidade, estado, cep, interesse, status_eleitor, data_nascimento, observacoes")
+          .order("nome", { ascending: true })
+          .range(from, from + CHUNK - 1);
+        if (debouncedSearch) {
+          const term = debouncedSearch.replace(/[%,]/g, "");
+          q = q.or(`nome.ilike.%${term}%,interesse.ilike.%${term}%`);
+        }
+        const { data, error } = await q;
+        if (error) throw error;
+        linhas.push(...(data || []));
+        if (!data || data.length < CHUNK) break;
+      }
+
+      const headers = ["Nome", "Telefone", "E-mail", "Endereço", "Rua", "Número", "Complemento", "Bairro", "Cidade", "Estado", "CEP", "Interesses", "Status", "Nascimento", "Observações"];
+      const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+      const csv = [
+        headers.join(";"),
+        ...linhas.map((e: any) => [
+          e.nome, e.telefone, e.email, e.endereco, e.logradouro, e.numero, e.complemento,
+          e.bairro, e.cidade, e.estado, e.cep, e.interesse, e.status_eleitor, e.data_nascimento, e.observacoes,
+        ].map(esc).join(";")),
+      ].join("\n");
+
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `eleitores_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Exportação concluída", description: `${linhas.length} contatos exportados.` });
+    } catch (err: any) {
+      toast({ title: "Erro ao exportar", description: err?.message, variant: "destructive" });
+    } finally {
+      setExportando(false);
+    }
   };
 
   const sendWhatsapp = () => {
