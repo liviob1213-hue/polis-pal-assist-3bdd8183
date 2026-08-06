@@ -466,6 +466,36 @@ export default function Aniversarios() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={msgPadraoOpen} onOpenChange={setMsgPadraoOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-success" /> Mensagem padrão de aniversário
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <p className="text-xs text-muted-foreground">
+              Usada para <strong>todos os aniversariantes</strong> (exceto quem tiver mensagem personalizada).
+              Chaves: <code>{"{nome}"}</code>, <code>{"{primeiro_nome}"}</code>, <code>{"{cidade}"}</code>.
+            </p>
+            <Textarea rows={7} value={msgPadraoTexto} onChange={(e) => setMsgPadraoTexto(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMsgPadraoTexto(MSG_PADRAO_ANIVERSARIO_DEFAULT)}>Restaurar</Button>
+            <Button
+              className="gradient-primary text-primary-foreground"
+              onClick={() => {
+                setMensagemPadrao(KEY_MSG_PADRAO_ANIVERSARIO, msgPadraoTexto);
+                setMsgPadraoOpen(false);
+                toast({ title: "Mensagem padrão salva!" });
+              }}
+            >
+              Salvar padrão
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
