@@ -885,6 +885,36 @@ const Eleitores = () => {
                       onChange={(e) => setForm({ ...form, demanda_prazo: e.target.value })}
                     />
                   </div>
+                  <div>
+                    <Label className="flex items-center gap-1.5"><Paperclip className="h-3.5 w-3.5" /> Anexos (JPEG, PNG, PDF...)</Label>
+                    <input
+                      ref={anexoInputRef}
+                      type="file"
+                      multiple
+                      accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        if (files.length) setDemandaAnexos((prev) => [...prev, ...files]);
+                        e.target.value = "";
+                      }}
+                    />
+                    <Button type="button" variant="outline" size="sm" className="mt-1 gap-2" onClick={() => anexoInputRef.current?.click()}>
+                      <Upload className="h-3.5 w-3.5" /> Adicionar anexos
+                    </Button>
+                    {demandaAnexos.length > 0 && (
+                      <ul className="mt-2 space-y-1">
+                        {demandaAnexos.map((f, i) => (
+                          <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-2 text-xs rounded border border-border bg-card/60 px-2 py-1">
+                            <span className="truncate">{f.name} <span className="text-muted-foreground">({Math.round(f.size / 1024)} KB)</span></span>
+                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => setDemandaAnexos((prev) => prev.filter((_, idx) => idx !== i))}>
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                   <div className="rounded-md bg-primary/10 border border-primary/20 px-3 py-2 text-xs text-primary">
                     👤 A demanda será vinculada automaticamente a <strong>este eleitor</strong> ({form.nome || "novo cadastro"}).
                   </div>
