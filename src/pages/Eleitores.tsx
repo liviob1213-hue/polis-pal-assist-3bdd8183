@@ -332,7 +332,7 @@ const Eleitores = () => {
       }
       const { data, error, count } = await q;
       if (error) throw error;
-      return { rows: (data || []) as Eleitor[], count: count ?? 0 };
+      return { rows: (data || []) as unknown as Eleitor[], count: count ?? 0 };
     },
     placeholderData: (prev) => prev,
   });
