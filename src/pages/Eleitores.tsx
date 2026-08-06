@@ -776,7 +776,11 @@ const Eleitores = () => {
         >
           {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
           {importing
-            ? (importProgress.total > 0 ? `Importando ${importProgress.done} de ${importProgress.total}` : "Importando...")
+            ? (geoProgress.total > 0
+                ? `Mapeando ${geoProgress.done} de ${geoProgress.total}`
+                : importProgress.total > 0
+                  ? `Importando ${importProgress.done} de ${importProgress.total}`
+                  : "Importando...")
             : "Importar planilha"}
         </Button>
         <Button variant="outline" className="gap-2" onClick={exportarCSV} disabled={exportando}>
