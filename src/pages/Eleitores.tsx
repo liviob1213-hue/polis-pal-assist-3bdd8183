@@ -121,6 +121,11 @@ const Eleitores = () => {
   const [demandaUnicaDialog, setDemandaUnicaDialog] = useState<{ eleitor: Eleitor; demanda: DemandaEleitor } | null>(null);
   const [novaDemandaDialog, setNovaDemandaDialog] = useState<Eleitor | null>(null);
   const [novaDemandaForm, setNovaDemandaForm] = useState({ titulo: "", descricao: "" });
+  const [demandaAnexos, setDemandaAnexos] = useState<File[]>([]);
+  const anexoInputRef = useRef<HTMLInputElement>(null);
+  const [exportando, setExportando] = useState(false);
+  const [msgPadraoOpen, setMsgPadraoOpen] = useState(false);
+  const [msgPadraoTexto, setMsgPadraoTexto] = useState("");
   const [savedMessages, setSavedMessages] = useState<{ id: string; label: string; text: string }[]>(() => {
     const stored = localStorage.getItem("whatsapp-templates");
     return stored ? JSON.parse(stored) : [
