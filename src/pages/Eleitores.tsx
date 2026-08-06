@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Search, Pencil, MessageCircle, Trash2, Send, Save, Star, Loader2, Cake, AlertCircle, Bot, Megaphone, ArrowRight, History, CheckCircle2, Clock, Upload } from "lucide-react";
+import { Plus, Search, Pencil, MessageCircle, Trash2, Send, Save, Star, Loader2, Cake, AlertCircle, Bot, Megaphone, ArrowRight, History, CheckCircle2, Clock, Upload, Download, Paperclip, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +21,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { useGoogleMapsKey } from "@/hooks/useGoogleMapsKey";
 import { STATUS_ELEITOR_LIST, getStatusEleitor, normalizeStatusEleitor, type StatusEleitor } from "@/lib/statusEleitor";
+import {
+  KEY_MSG_PADRAO_WHATSAPP,
+  MSG_PADRAO_WHATSAPP_DEFAULT,
+  getMensagemPadrao,
+  setMensagemPadrao,
+  aplicarVariaveis,
+} from "@/lib/mensagensPadrao";
 
 interface Eleitor {
   id: string;
@@ -114,6 +121,11 @@ const Eleitores = () => {
   const [demandaUnicaDialog, setDemandaUnicaDialog] = useState<{ eleitor: Eleitor; demanda: DemandaEleitor } | null>(null);
   const [novaDemandaDialog, setNovaDemandaDialog] = useState<Eleitor | null>(null);
   const [novaDemandaForm, setNovaDemandaForm] = useState({ titulo: "", descricao: "" });
+  const [demandaAnexos, setDemandaAnexos] = useState<File[]>([]);
+  const anexoInputRef = useRef<HTMLInputElement>(null);
+  const [exportando, setExportando] = useState(false);
+  const [msgPadraoOpen, setMsgPadraoOpen] = useState(false);
+  const [msgPadraoTexto, setMsgPadraoTexto] = useState("");
   const [savedMessages, setSavedMessages] = useState<{ id: string; label: string; text: string }[]>(() => {
     const stored = localStorage.getItem("whatsapp-templates");
     return stored ? JSON.parse(stored) : [
@@ -332,7 +344,7 @@ const Eleitores = () => {
       }
       const { data, error, count } = await q;
       if (error) throw error;
-      return { rows: (data || []) as Eleitor[], count: count ?? 0 };
+      return { rows: (data || []) as unknown as Eleitor[], count: count ?? 0 };
     },
     placeholderData: (prev) => prev,
   });
@@ -407,7 +419,7 @@ const Eleitores = () => {
 
       // Cria demanda inicial vinculada ao eleitor (se preenchida)
       if (eleitorId && payload.demanda_titulo.trim()) {
-        const { error: dErr } = await supabase.from("demandas").insert({
+        const { data: novaDemanda, error: dErr } = await supabase.from("demandas").insert({
           titulo: payload.demanda_titulo.trim(),
           descricao: payload.demanda_descricao.trim() || null,
           eleitor_id: eleitorId,
@@ -417,8 +429,41 @@ const Eleitores = () => {
           setor: payload.demanda_setor || null,
           localizacao: payload.demanda_localizacao.trim() || endereco || null,
           prazo: payload.demanda_prazo ? new Date(payload.demanda_prazo).toISOString() : null,
-        });
+        }).select("id").single();
         if (dErr) console.warn("Erro ao criar demanda do eleitor:", dErr);
+
+        // Envia os anexos da demanda (imagens, PDFs, etc.)
+        if (novaDemanda?.id && demandaAnexos.length > 0) {
+          const { data: { user } } = await supabase.auth.getUser();
+          let profile: any = null;
+          if (user) {
+            const { data } = await supabase.from("profiles").select("nome, role").eq("user_id", user.id).maybeSingle();
+            profile = data;
+          }
+          for (const file of demandaAnexos) {
+            try {
+              const safeName = file.name.replace(/[^\w.\-]/g, "_");
+              const path = `${novaDemanda.id}/${Date.now()}_${safeName}`;
+              const { error: upErr } = await supabase.storage.from("demanda-anexos").upload(path, file);
+              if (upErr) throw upErr;
+              const { error: anexoErr } = await supabase.from("demanda_anexos" as any).insert({
+                demanda_id: novaDemanda.id,
+                nome_arquivo: file.name,
+                storage_path: path,
+                caminho_storage: path,
+                mime_type: file.type || null,
+                file_type: file.type || null,
+                tamanho_bytes: file.size,
+                usuario_id: user?.id ?? null,
+                usuario_nome: profile?.nome || null,
+                usuario_role: profile?.role || null,
+              });
+              if (anexoErr) throw anexoErr;
+            } catch (anexoErr) {
+              console.warn("Erro ao enviar anexo:", anexoErr);
+            }
+          }
+        }
       }
 
       if (endereco && eleitorId) {
@@ -438,6 +483,7 @@ const Eleitores = () => {
       queryClient.invalidateQueries({ queryKey: ["demandas"] });
       toast({ title: editingId ? "Eleitor atualizado!" : "Eleitor adicionado!" });
       setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", email: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "", demanda_origem: "", demanda_tipo: "", demanda_setor: "", demanda_localizacao: "", demanda_prazo: "" });
+      setDemandaAnexos([]);
       setEditingId(null);
       setDialogOpen(false);
     },
@@ -575,7 +621,66 @@ const Eleitores = () => {
 
   const openWhatsapp = (eleitor: Eleitor) => {
     setWhatsappDialog(eleitor);
-    setWhatsappMsg("");
+    const padrao = getMensagemPadrao(KEY_MSG_PADRAO_WHATSAPP, MSG_PADRAO_WHATSAPP_DEFAULT);
+    setWhatsappMsg(aplicarVariaveis(padrao, { nome: eleitor.nome, cidade: eleitor.cidade }));
+  };
+
+  const abrirMsgPadrao = () => {
+    setMsgPadraoTexto(getMensagemPadrao(KEY_MSG_PADRAO_WHATSAPP, MSG_PADRAO_WHATSAPP_DEFAULT));
+    setMsgPadraoOpen(true);
+  };
+
+  const salvarMsgPadrao = () => {
+    setMensagemPadrao(KEY_MSG_PADRAO_WHATSAPP, msgPadraoTexto);
+    setMsgPadraoOpen(false);
+    toast({ title: "Mensagem padrão salva!", description: "Ela será usada para todos os eleitores." });
+  };
+
+  // Exporta os contatos conforme o filtro/busca atual
+  const exportarCSV = async () => {
+    setExportando(true);
+    try {
+      const linhas: any[] = [];
+      const CHUNK = 1000;
+      for (let from = 0; ; from += CHUNK) {
+        let q = supabase
+          .from("eleitores")
+          .select("nome, telefone, email, endereco, logradouro, numero, complemento, bairro, cidade, estado, cep, interesse, status_eleitor, data_nascimento, observacoes")
+          .order("nome", { ascending: true })
+          .range(from, from + CHUNK - 1);
+        if (debouncedSearch) {
+          const term = debouncedSearch.replace(/[%,]/g, "");
+          q = q.or(`nome.ilike.%${term}%,interesse.ilike.%${term}%`);
+        }
+        const { data, error } = await q;
+        if (error) throw error;
+        linhas.push(...(data || []));
+        if (!data || data.length < CHUNK) break;
+      }
+
+      const headers = ["Nome", "Telefone", "E-mail", "Endereço", "Rua", "Número", "Complemento", "Bairro", "Cidade", "Estado", "CEP", "Interesses", "Status", "Nascimento", "Observações"];
+      const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+      const csv = [
+        headers.join(";"),
+        ...linhas.map((e: any) => [
+          e.nome, e.telefone, e.email, e.endereco, e.logradouro, e.numero, e.complemento,
+          e.bairro, e.cidade, e.estado, e.cep, e.interesse, e.status_eleitor, e.data_nascimento, e.observacoes,
+        ].map(esc).join(";")),
+      ].join("\n");
+
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `eleitores_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Exportação concluída", description: `${linhas.length} contatos exportados.` });
+    } catch (err: any) {
+      toast({ title: "Erro ao exportar", description: err?.message, variant: "destructive" });
+    } finally {
+      setExportando(false);
+    }
   };
 
   const sendWhatsapp = () => {
@@ -623,6 +728,13 @@ const Eleitores = () => {
           {importing
             ? (importProgress.total > 0 ? `Importando ${importProgress.done} de ${importProgress.total}` : "Importando...")
             : "Importar planilha"}
+        </Button>
+        <Button variant="outline" className="gap-2" onClick={exportarCSV} disabled={exportando}>
+          {exportando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          {exportando ? "Exportando..." : "Exportar CSV"}
+        </Button>
+        <Button variant="outline" className="gap-2" onClick={abrirMsgPadrao}>
+          <MessageCircle className="h-4 w-4" /> Mensagem padrão
         </Button>
         <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingId(null); setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", email: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "", demanda_origem: "", demanda_tipo: "", demanda_setor: "", demanda_localizacao: "", demanda_prazo: "" }); } }}>
           <DialogTrigger asChild>
@@ -779,6 +891,36 @@ const Eleitores = () => {
                       value={form.demanda_prazo}
                       onChange={(e) => setForm({ ...form, demanda_prazo: e.target.value })}
                     />
+                  </div>
+                  <div>
+                    <Label className="flex items-center gap-1.5"><Paperclip className="h-3.5 w-3.5" /> Anexos (JPEG, PNG, PDF...)</Label>
+                    <input
+                      ref={anexoInputRef}
+                      type="file"
+                      multiple
+                      accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        if (files.length) setDemandaAnexos((prev) => [...prev, ...files]);
+                        e.target.value = "";
+                      }}
+                    />
+                    <Button type="button" variant="outline" size="sm" className="mt-1 gap-2" onClick={() => anexoInputRef.current?.click()}>
+                      <Upload className="h-3.5 w-3.5" /> Adicionar anexos
+                    </Button>
+                    {demandaAnexos.length > 0 && (
+                      <ul className="mt-2 space-y-1">
+                        {demandaAnexos.map((f, i) => (
+                          <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-2 text-xs rounded border border-border bg-card/60 px-2 py-1">
+                            <span className="truncate">{f.name} <span className="text-muted-foreground">({Math.round(f.size / 1024)} KB)</span></span>
+                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => setDemandaAnexos((prev) => prev.filter((_, idx) => idx !== i))}>
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                   <div className="rounded-md bg-primary/10 border border-primary/20 px-3 py-2 text-xs text-primary">
                     👤 A demanda será vinculada automaticamente a <strong>este eleitor</strong> ({form.nome || "novo cadastro"}).
@@ -1177,15 +1319,28 @@ const Eleitores = () => {
                 </div>
               )}
               <div>
-                <Label>Mensagem (opcional)</Label>
+                <Label>Mensagem</Label>
                 <Textarea value={whatsappMsg} onChange={(e) => setWhatsappMsg(e.target.value)} placeholder="Digite a mensagem ou selecione uma salva acima..." rows={4} className="mt-1" />
-                <div className="flex items-center justify-between mt-1">
-                  <p className="text-xs text-muted-foreground">A mensagem será pré-preenchida no WhatsApp.</p>
-                  {whatsappMsg.trim() && (
-                    <Button variant="ghost" size="sm" className="text-xs h-6 gap-1 text-muted-foreground hover:text-foreground" onClick={saveMessage}>
-                      <Save className="h-3 w-3" /> Salvar
+                <div className="flex items-center justify-between mt-1 gap-2 flex-wrap">
+                  <p className="text-xs text-muted-foreground">Padronizada para todos os eleitores. Chaves: {"{nome}"}, {"{primeiro_nome}"}, {"{cidade}"}.</p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-6 gap-1 text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        const padrao = getMensagemPadrao(KEY_MSG_PADRAO_WHATSAPP, MSG_PADRAO_WHATSAPP_DEFAULT);
+                        setWhatsappMsg(aplicarVariaveis(padrao, { nome: whatsappDialog!.nome, cidade: whatsappDialog!.cidade }));
+                      }}
+                    >
+                      <Star className="h-3 w-3" /> Usar padrão
                     </Button>
-                  )}
+                    {whatsappMsg.trim() && (
+                      <Button variant="ghost" size="sm" className="text-xs h-6 gap-1 text-muted-foreground hover:text-foreground" onClick={saveMessage}>
+                        <Save className="h-3 w-3" /> Salvar
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
               <Button onClick={sendWhatsapp} className="w-full bg-success hover:bg-success/90 text-success-foreground gap-2">
@@ -1194,6 +1349,28 @@ const Eleitores = () => {
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Mensagem padrão global */}
+      <Dialog open={msgPadraoOpen} onOpenChange={setMsgPadraoOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-success" /> Mensagem padrão do WhatsApp
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <p className="text-xs text-muted-foreground">
+              Esta mensagem será usada automaticamente para <strong>todos os eleitores</strong>. Use as chaves{" "}
+              <code>{"{nome}"}</code>, <code>{"{primeiro_nome}"}</code> e <code>{"{cidade}"}</code>.
+            </p>
+            <Textarea rows={6} value={msgPadraoTexto} onChange={(e) => setMsgPadraoTexto(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMsgPadraoTexto(MSG_PADRAO_WHATSAPP_DEFAULT)}>Restaurar</Button>
+            <Button className="gradient-primary text-primary-foreground" onClick={salvarMsgPadrao}>Salvar padrão</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </motion.div>

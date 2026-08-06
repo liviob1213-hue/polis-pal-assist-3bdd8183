@@ -21,6 +21,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Cake, Search, MessageCircle, Sparkles, PartyPopper, Phone, Pencil } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { getStatusEleitor } from "@/lib/statusEleitor";
+import {
+  KEY_MSG_PADRAO_ANIVERSARIO,
+  MSG_PADRAO_ANIVERSARIO_DEFAULT,
+  getMensagemPadrao,
+  setMensagemPadrao,
+  aplicarVariaveis,
+} from "@/lib/mensagensPadrao";
 
 
 interface Eleitor {
@@ -77,13 +84,13 @@ function getMensagensCustom(): Record<string, string> {
 }
 
 function mensagemPadrao(nome: string): string {
-  const primeiroNome = nome.split(" ")[0];
-  return `🎉 Olá, ${primeiroNome}! Hoje é um dia muito especial — seu aniversário! 🎂\n\nDesejo a você muita saúde, paz, alegria e realizações. Que este novo ciclo seja repleto de conquistas e momentos felizes ao lado de quem você ama.\n\nUm forte abraço! 🥳🎁`;
+  const base = getMensagemPadrao(KEY_MSG_PADRAO_ANIVERSARIO, MSG_PADRAO_ANIVERSARIO_DEFAULT);
+  return aplicarVariaveis(base, { nome });
 }
 
 function mensagemAniversario(id: string, nome: string): string {
   const custom = getMensagensCustom()[id];
-  if (custom && custom.trim()) return custom.replace(/\{nome\}/g, nome.split(" ")[0]);
+  if (custom && custom.trim()) return aplicarVariaveis(custom, { nome });
   return mensagemPadrao(nome);
 }
 
@@ -96,6 +103,8 @@ export default function Aniversarios() {
   const [editando, setEditando] = useState<Eleitor | null>(null);
   const [formEdit, setFormEdit] = useState({ nome: "", telefone: "", data_nascimento: "", mensagem: "" });
   const [salvando, setSalvando] = useState(false);
+  const [msgPadraoOpen, setMsgPadraoOpen] = useState(false);
+  const [msgPadraoTexto, setMsgPadraoTexto] = useState("");
 
   const abrirEdicao = (e: Eleitor) => {
     setEditando(e);
@@ -221,7 +230,7 @@ export default function Aniversarios() {
             Acompanhe os aniversários dos seus eleitores e envie mensagens personalizadas
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center flex-wrap">
           <Badge variant="secondary" className="text-sm py-1.5 px-3">
             <PartyPopper className="h-3.5 w-3.5 mr-1.5" />
             {aniversariantesHoje.length} hoje
@@ -229,6 +238,17 @@ export default function Aniversarios() {
           <Badge variant="outline" className="text-sm py-1.5 px-3">
             {totalMes} este mês
           </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => {
+              setMsgPadraoTexto(getMensagemPadrao(KEY_MSG_PADRAO_ANIVERSARIO, MSG_PADRAO_ANIVERSARIO_DEFAULT));
+              setMsgPadraoOpen(true);
+            }}
+          >
+            <MessageCircle className="h-4 w-4" /> Mensagem padrão
+          </Button>
         </div>
       </div>
 
@@ -442,6 +462,36 @@ export default function Aniversarios() {
             <Button variant="outline" onClick={() => setEditando(null)}>Cancelar</Button>
             <Button onClick={salvarEdicao} disabled={salvando} className="gradient-primary text-primary-foreground">
               {salvando ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={msgPadraoOpen} onOpenChange={setMsgPadraoOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-success" /> Mensagem padrão de aniversário
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <p className="text-xs text-muted-foreground">
+              Usada para <strong>todos os aniversariantes</strong> (exceto quem tiver mensagem personalizada).
+              Chaves: <code>{"{nome}"}</code>, <code>{"{primeiro_nome}"}</code>, <code>{"{cidade}"}</code>.
+            </p>
+            <Textarea rows={7} value={msgPadraoTexto} onChange={(e) => setMsgPadraoTexto(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMsgPadraoTexto(MSG_PADRAO_ANIVERSARIO_DEFAULT)}>Restaurar</Button>
+            <Button
+              className="gradient-primary text-primary-foreground"
+              onClick={() => {
+                setMensagemPadrao(KEY_MSG_PADRAO_ANIVERSARIO, msgPadraoTexto);
+                setMsgPadraoOpen(false);
+                toast({ title: "Mensagem padrão salva!" });
+              }}
+            >
+              Salvar padrão
             </Button>
           </DialogFooter>
         </DialogContent>
