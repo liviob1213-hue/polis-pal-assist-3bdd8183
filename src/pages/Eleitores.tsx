@@ -419,7 +419,7 @@ const Eleitores = () => {
 
       // Cria demanda inicial vinculada ao eleitor (se preenchida)
       if (eleitorId && payload.demanda_titulo.trim()) {
-        const { error: dErr } = await supabase.from("demandas").insert({
+        const { data: novaDemanda, error: dErr } = await supabase.from("demandas").insert({
           titulo: payload.demanda_titulo.trim(),
           descricao: payload.demanda_descricao.trim() || null,
           eleitor_id: eleitorId,
@@ -429,8 +429,41 @@ const Eleitores = () => {
           setor: payload.demanda_setor || null,
           localizacao: payload.demanda_localizacao.trim() || endereco || null,
           prazo: payload.demanda_prazo ? new Date(payload.demanda_prazo).toISOString() : null,
-        });
+        }).select("id").single();
         if (dErr) console.warn("Erro ao criar demanda do eleitor:", dErr);
+
+        // Envia os anexos da demanda (imagens, PDFs, etc.)
+        if (novaDemanda?.id && demandaAnexos.length > 0) {
+          const { data: { user } } = await supabase.auth.getUser();
+          let profile: any = null;
+          if (user) {
+            const { data } = await supabase.from("profiles").select("nome, role").eq("user_id", user.id).maybeSingle();
+            profile = data;
+          }
+          for (const file of demandaAnexos) {
+            try {
+              const safeName = file.name.replace(/[^\w.\-]/g, "_");
+              const path = `${novaDemanda.id}/${Date.now()}_${safeName}`;
+              const { error: upErr } = await supabase.storage.from("demanda-anexos").upload(path, file);
+              if (upErr) throw upErr;
+              const { error: anexoErr } = await supabase.from("demanda_anexos" as any).insert({
+                demanda_id: novaDemanda.id,
+                nome_arquivo: file.name,
+                storage_path: path,
+                caminho_storage: path,
+                mime_type: file.type || null,
+                file_type: file.type || null,
+                tamanho_bytes: file.size,
+                usuario_id: user?.id ?? null,
+                usuario_nome: profile?.nome || null,
+                usuario_role: profile?.role || null,
+              });
+              if (anexoErr) throw anexoErr;
+            } catch (anexoErr) {
+              console.warn("Erro ao enviar anexo:", anexoErr);
+            }
+          }
+        }
       }
 
       if (endereco && eleitorId) {
