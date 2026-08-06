@@ -21,6 +21,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Cake, Search, MessageCircle, Sparkles, PartyPopper, Phone, Pencil } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { getStatusEleitor } from "@/lib/statusEleitor";
+import {
+  KEY_MSG_PADRAO_ANIVERSARIO,
+  MSG_PADRAO_ANIVERSARIO_DEFAULT,
+  getMensagemPadrao,
+  setMensagemPadrao,
+  aplicarVariaveis,
+} from "@/lib/mensagensPadrao";
 
 
 interface Eleitor {
