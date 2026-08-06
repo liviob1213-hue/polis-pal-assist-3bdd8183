@@ -729,6 +729,13 @@ const Eleitores = () => {
             ? (importProgress.total > 0 ? `Importando ${importProgress.done} de ${importProgress.total}` : "Importando...")
             : "Importar planilha"}
         </Button>
+        <Button variant="outline" className="gap-2" onClick={exportarCSV} disabled={exportando}>
+          {exportando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          {exportando ? "Exportando..." : "Exportar CSV"}
+        </Button>
+        <Button variant="outline" className="gap-2" onClick={abrirMsgPadrao}>
+          <MessageCircle className="h-4 w-4" /> Mensagem padrão
+        </Button>
         <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingId(null); setForm({ nome: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "", telefone: "", email: "", interesse: "", status_eleitor: "possivel_eleitor" as StatusEleitor, observacoes: "", data_nascimento: "", demanda_titulo: "", demanda_descricao: "", demanda_origem: "", demanda_tipo: "", demanda_setor: "", demanda_localizacao: "", demanda_prazo: "" }); } }}>
           <DialogTrigger asChild>
             <Button className="gradient-primary text-primary-foreground gap-2 shadow-[var(--shadow-md)]">
