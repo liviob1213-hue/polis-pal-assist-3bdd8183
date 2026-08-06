@@ -21,6 +21,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { useGoogleMapsKey } from "@/hooks/useGoogleMapsKey";
 import { STATUS_ELEITOR_LIST, getStatusEleitor, normalizeStatusEleitor, type StatusEleitor } from "@/lib/statusEleitor";
+import {
+  KEY_MSG_PADRAO_WHATSAPP,
+  MSG_PADRAO_WHATSAPP_DEFAULT,
+  getMensagemPadrao,
+  setMensagemPadrao,
+  aplicarVariaveis,
+} from "@/lib/mensagensPadrao";
 
 interface Eleitor {
   id: string;
