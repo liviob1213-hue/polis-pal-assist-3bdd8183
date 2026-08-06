@@ -139,6 +139,36 @@ const Eleitores = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
+  const [geoProgress, setGeoProgress] = useState({ done: 0, total: 0 });
+
+  // Geocodifica em paralelo (5 por vez) uma lista de eleitores recém-importados
+  const geocodificarLote = async (itens: { id: string; endereco: string }[]) => {
+    const validos = itens.filter((i) => i.endereco && i.endereco.trim().length >= 3);
+    if (!validos.length) return { ok: 0, fail: 0 };
+    setGeoProgress({ done: 0, total: validos.length });
+    let ok = 0, fail = 0, done = 0;
+    const CONC = 5;
+    let cursor = 0;
+    const worker = async () => {
+      while (cursor < validos.length) {
+        const item = validos[cursor++];
+        try {
+          const { error } = await supabase.functions.invoke("geocode", {
+            body: { eleitor_id: item.id, endereco: item.endereco },
+          });
+          if (error) fail++; else ok++;
+        } catch {
+          fail++;
+        }
+        done++;
+        setGeoProgress({ done, total: validos.length });
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(CONC, validos.length) }, worker));
+    setGeoProgress({ done: 0, total: 0 });
+    return { ok, fail };
+  };
+
 
   const normHeader = (s: string) =>
     String(s ?? "")
