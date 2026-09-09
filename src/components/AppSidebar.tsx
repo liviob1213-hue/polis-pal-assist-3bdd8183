@@ -60,7 +60,7 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
-  const { user, signOut, role, permissions, plano } = useAuth();
+  const { user, signOut, role, permissions, plano, isLite } = useAuth();
   const userName = user?.user_metadata?.nome || "Usuário";
   const initials = userName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
 
@@ -68,12 +68,13 @@ export function AppSidebar() {
     ? politicoMenuItems.filter((i) => permissions[i.perm] === true)
     : [...politicoMenuItems, ...politicoOnlyItems];
 
-  // Plano bronze não acessa o Assistente Legislativo
-  const baseItems = plano === "bronze"
-    ? itemsForRole.filter((i: any) => i.perm !== "assistente")
-    : itemsForRole;
+  const menuItems = [...itemsForRole, ...commonFooterItems];
 
-  const menuItems = [...baseItems, ...commonFooterItems];
+  const isLocked = (item: any) => {
+    if (!isLite) return false;
+    const key = (item.perm || (item.url === "/assessores" ? "assessores" : "")) as LockableFeature;
+    return LOCKED_ON_LITE.includes(key);
+  };
 
   const roleLabel = role === "assessor" ? "Assessor" : "Político";
 
