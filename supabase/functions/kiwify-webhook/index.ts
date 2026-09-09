@@ -51,11 +51,33 @@ function verifySignature(rawBody: string, signature: string | null): boolean {
 
 function detectPlan(productName?: string, planName?: string): "bronze" | "prata" | "ouro" {
   const s = `${productName || ""} ${planName || ""}`.toLowerCase();
-  if (s.includes("bronze")) return "bronze";
+  if (s.includes("bronze") || s.includes("lite")) return "bronze";
   if (s.includes("prata") || s.includes("silver")) return "prata";
   if (s.includes("ouro") || s.includes("gold")) return "ouro";
   // Sem keyword reconhecida: assume plano mais alto (acesso completo)
   return "ouro";
+}
+
+// Produto de upgrade (o complemento de R$ 200 vendido pelo WhatsApp):
+// eleva o tier para "completo" SEM mexer na data de vencimento já paga.
+function isUpgradeProduct(productName?: string, planName?: string): boolean {
+  const s = `${productName || ""} ${planName || ""}`.toLowerCase();
+  return s.includes("upgrade") || s.includes("complemento") || s.includes("completo");
+}
+
+// Valor pago (em centavos, formato Kiwify) → tier
+function detectTierByValue(payload: any): "lite" | "completo" | null {
+  const raw =
+    payload?.Commissions?.charge_amount ??
+    payload?.commissions?.charge_amount ??
+    payload?.charge_amount ??
+    payload?.Product?.price ??
+    null;
+  const cents = Number(raw);
+  if (!Number.isFinite(cents) || cents <= 0) return null;
+  const reais = cents >= 1000 ? cents / 100 : cents;
+  if (reais <= 150) return "lite";
+  return "completo";
 }
 
 // Eventos da Kiwify que ATIVAM acesso
