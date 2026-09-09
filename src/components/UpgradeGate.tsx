@@ -48,11 +48,10 @@ export function UpgradeGate({ feature }: UpgradeGateProps) {
 
         <div className="mt-7 rounded-xl bg-secondary/60 p-4">
           <p className="text-sm text-muted-foreground">
-            Você já tem a versão Lite. Por mais
+            Você já tem a versão Lite.
           </p>
-          <p className="text-3xl font-bold text-primary">{UPGRADE_PRICE_LABEL}</p>
           <p className="text-sm text-muted-foreground">
-            você libera esta e todas as outras funções do sistema.
+            Libere esta e todas as outras funções do sistema.
           </p>
         </div>
 
