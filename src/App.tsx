@@ -152,7 +152,7 @@ const AnimatedRoutes = () => {
         <Route path="/agenda" element={<PermissionRoute permission="agenda"><AppLayout><PlanGate feature="agenda"><Agenda /></PlanGate></AppLayout></PermissionRoute>} />
         <Route path="/assistente" element={<PermissionRoute permission="assistente"><AppLayout><PlanGate feature="assistente"><Assistente /></PlanGate></AppLayout></PermissionRoute>} />
         <Route path="/aniversarios" element={<PermissionRoute permission="aniversarios"><AppLayout><Aniversarios /></AppLayout></PermissionRoute>} />
-        <Route path="/historico-conversas" element={<PermissionRoute permission="historico-conversas"><AppLayout><PlanGate feature="historico-conversas"><HistoricoConversas /></PlanGate></AppLayout></PermissionRoute>} />
+        <Route path="/tutoriais" element={<ProtectedRoute><AppLayout><Tutoriais /></AppLayout></ProtectedRoute>} />
         <Route path="/resumo-mensal" element={<PermissionRoute permission="resumo-mensal"><AppLayout><PlanGate feature="resumo-mensal"><ResumoMensal /></PlanGate></AppLayout></PermissionRoute>} />
         <Route path="/base-conhecimento" element={<PermissionRoute permission="base-conhecimento"><AppLayout><PlanGate feature="base-conhecimento"><BaseConhecimento /></PlanGate></AppLayout></PermissionRoute>} />
         <Route path="/configuracoes" element={<ProtectedRoute><AppLayout><Configuracoes /></AppLayout></ProtectedRoute>} />

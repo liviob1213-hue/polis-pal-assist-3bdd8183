@@ -9,7 +9,7 @@ import {
   Settings,
   LogOut,
   UserCheck,
-  MessageSquare,
+  GraduationCap,
   Cake,
   FileBarChart,
   BookOpen,
