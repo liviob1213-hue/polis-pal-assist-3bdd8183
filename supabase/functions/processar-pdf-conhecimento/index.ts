@@ -135,25 +135,29 @@ serve(async (req) => {
       buffer = await file.arrayBuffer();
     }
 
-    let paginas: { pagina: number; texto: string }[];
+    let totalPaginas = 0;
+    let paginas: { pagina: number; texto: string }[] = [];
     try {
-      paginas = await extrairTextoPDF(buffer);
+      const r = await extrairIntervalo(
+        buffer,
+        apenasInfo ? 1 : paginaInicio,
+        apenasInfo ? 0 : paginaFim || paginaInicio + 4,
+      );
+      totalPaginas = r.totalPaginas;
+      paginas = apenasInfo ? [] : r.paginas;
     } catch (e) {
       console.error("Erro extraindo PDF:", e);
       return json({ error: "Não foi possível ler este PDF. Ele pode estar protegido por senha ou corrompido." }, 400);
     }
-
-    const totalPaginas = paginas.length;
 
     if (apenasInfo) {
       return json({ sucesso: true, arquivo: nomeArquivo, total_paginas: totalPaginas });
     }
 
     const fim = paginaFim > 0 ? Math.min(paginaFim, totalPaginas) : totalPaginas;
-    const fatia = paginas.filter((p) => p.pagina >= paginaInicio && p.pagina <= fim);
 
     const registros: { conteudo: string; pagina: number }[] = [];
-    for (const pg of fatia) {
+    for (const pg of paginas) {
       for (const chunk of chunkText(pg.texto)) {
         registros.push({ conteudo: chunk, pagina: pg.pagina });
       }
