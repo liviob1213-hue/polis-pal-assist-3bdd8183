@@ -72,12 +72,15 @@ export default function BaseConhecimento() {
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.type !== "application/pdf") {
+    const ehPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    if (!ehPdf) {
       toast({ title: "Formato inválido", description: "Envie apenas arquivos PDF.", variant: "destructive" });
+      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
     if (file.size > 20 * 1024 * 1024) {
       toast({ title: "Arquivo muito grande", description: "Máximo 20MB.", variant: "destructive" });
+      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
