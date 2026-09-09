@@ -44,8 +44,8 @@ const politicoMenuItems = [
   { title: "Agenda Oficial", url: "/agenda", icon: CalendarDays, perm: "agenda" },
   { title: "Assistente Legislativo", url: "/assistente", icon: Bot, perm: "assistente" },
   { title: "Base de Conhecimento", url: "/base-conhecimento", icon: BookOpen, perm: "base-conhecimento" },
-  { title: "Histórico de Conversas", url: "/historico-conversas", icon: MessageSquare, perm: "historico-conversas" },
   { title: "Resumo Mensal", url: "/resumo-mensal", icon: FileBarChart, perm: "resumo-mensal" },
+  { title: "Tutoriais", url: "/tutoriais", icon: GraduationCap, perm: "tutoriais" },
 ];
 
 const politicoOnlyItems = [
