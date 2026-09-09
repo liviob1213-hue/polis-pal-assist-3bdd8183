@@ -13,7 +13,9 @@ import {
   Cake,
   FileBarChart,
   BookOpen,
+  Lock,
 } from "lucide-react";
+import { LOCKED_ON_LITE, LockableFeature } from "@/config/planFeatures";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
