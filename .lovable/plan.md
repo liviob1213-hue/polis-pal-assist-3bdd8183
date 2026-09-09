@@ -51,7 +51,8 @@ Cada função tem seu próprio texto (Agenda, Assistente, Tarefas, Base de Conhe
 
 ## Upgrade e cobrança
 
-- Quem assina o plano de R$ 97 entra como Lite automaticamente
+- **Todos os cadastros que já existem hoje ficam como Completa** — ninguém que já usa o sistema perde acesso
+- Só novos cadastros que assinarem o plano de R$ 97 entram como Lite
 - O botão de upgrade leva ao WhatsApp; após o pagamento do complemento, o plano vira Completo mantendo a data de vencimento já paga
 - A automação de pagamentos existente passa a reconhecer os dois planos e a não rebaixar quem já pagou o complemento antes do vencimento
 
