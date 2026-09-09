@@ -232,7 +232,7 @@ export default function BaseConhecimento() {
               <div>
                 <h3 className="text-lg font-semibold">Adicionar documento à base</h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  PDF até 20MB. O texto será dividido, vetorizado e indexado para busca semântica.
+                  PDF até 50MB. Documentos grandes são processados em partes automaticamente.
                 </p>
               </div>
               <input
