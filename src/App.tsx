@@ -63,6 +63,12 @@ function PoliticoRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function PlanGate({ children, feature }: { children: React.ReactNode; feature: LockableFeature }) {
+  const { isLite } = useAuth();
+  if (isLite) return <UpgradeGate feature={feature} />;
+  return <>{children}</>;
+}
+
 function PermissionRoute({ children, permission, requirePlan }: { children: React.ReactNode; permission: PermissionKey; requirePlan?: ("prata" | "ouro")[] }) {
   const { user, loading, role, permissions, permsLoaded, plano } = useAuth();
   const location = useLocation();
