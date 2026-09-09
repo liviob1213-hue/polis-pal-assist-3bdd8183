@@ -13,7 +13,9 @@ import {
   Cake,
   FileBarChart,
   BookOpen,
+  Lock,
 } from "lucide-react";
+import { LOCKED_ON_LITE, LockableFeature } from "@/config/planFeatures";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -58,7 +60,7 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
-  const { user, signOut, role, permissions, plano } = useAuth();
+  const { user, signOut, role, permissions, plano, isLite } = useAuth();
   const userName = user?.user_metadata?.nome || "Usuário";
   const initials = userName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
 
@@ -66,12 +68,13 @@ export function AppSidebar() {
     ? politicoMenuItems.filter((i) => permissions[i.perm] === true)
     : [...politicoMenuItems, ...politicoOnlyItems];
 
-  // Plano bronze não acessa o Assistente Legislativo
-  const baseItems = plano === "bronze"
-    ? itemsForRole.filter((i: any) => i.perm !== "assistente")
-    : itemsForRole;
+  const menuItems = [...itemsForRole, ...commonFooterItems];
 
-  const menuItems = [...baseItems, ...commonFooterItems];
+  const isLocked = (item: any) => {
+    if (!isLite) return false;
+    const key = (item.perm || (item.url === "/assessores" ? "assessores" : "")) as LockableFeature;
+    return LOCKED_ON_LITE.includes(key);
+  };
 
   const roleLabel = role === "assessor" ? "Assessor" : "Político";
 
@@ -99,7 +102,10 @@ export function AppSidebar() {
                       activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
                     >
                       <item.icon className="h-5 w-5 shrink-0" />
-                      {!collapsed && <span>{item.title}</span>}
+                      {!collapsed && <span className="flex-1">{item.title}</span>}
+                      {!collapsed && isLocked(item) && (
+                        <Lock className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                      )}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

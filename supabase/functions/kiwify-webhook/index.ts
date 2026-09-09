@@ -51,11 +51,33 @@ function verifySignature(rawBody: string, signature: string | null): boolean {
 
 function detectPlan(productName?: string, planName?: string): "bronze" | "prata" | "ouro" {
   const s = `${productName || ""} ${planName || ""}`.toLowerCase();
-  if (s.includes("bronze")) return "bronze";
+  if (s.includes("bronze") || s.includes("lite")) return "bronze";
   if (s.includes("prata") || s.includes("silver")) return "prata";
   if (s.includes("ouro") || s.includes("gold")) return "ouro";
   // Sem keyword reconhecida: assume plano mais alto (acesso completo)
   return "ouro";
+}
+
+// Produto de upgrade (o complemento de R$ 200 vendido pelo WhatsApp):
+// eleva o tier para "completo" SEM mexer na data de vencimento já paga.
+function isUpgradeProduct(productName?: string, planName?: string): boolean {
+  const s = `${productName || ""} ${planName || ""}`.toLowerCase();
+  return s.includes("upgrade") || s.includes("complemento") || s.includes("completo");
+}
+
+// Valor pago (em centavos, formato Kiwify) → tier
+function detectTierByValue(payload: any): "lite" | "completo" | null {
+  const raw =
+    payload?.Commissions?.charge_amount ??
+    payload?.commissions?.charge_amount ??
+    payload?.charge_amount ??
+    payload?.Product?.price ??
+    null;
+  const cents = Number(raw);
+  if (!Number.isFinite(cents) || cents <= 0) return null;
+  const reais = cents >= 1000 ? cents / 100 : cents;
+  if (reais <= 150) return "lite";
+  return "completo";
 }
 
 // Eventos da Kiwify que ATIVAM acesso
@@ -149,7 +171,7 @@ Deno.serve(async (req) => {
   const emailLower = customerEmail.toLowerCase();
   const { data: profile } = await supabase
     .from("profiles")
-    .select("user_id, email, role")
+    .select("user_id, email, role, tier")
     .or(`email.ilike.${emailLower},kiwify_customer_email.ilike.${emailLower}`)
     .maybeSingle();
 
@@ -162,13 +184,41 @@ Deno.serve(async (req) => {
   }
 
   const plano = detectPlan(productName, planName);
+  const upgradeProduct = isUpgradeProduct(productName, planName);
+  const currentTier: "lite" | "completo" =
+    (profile as any)?.tier === "lite" ? "lite" : "completo";
+
   let status: "ativa" | "cancelada" | "atrasada" = "ativa";
   let finalPlano = plano;
   let expiraEm: string | null = null;
+  let finalTier: "lite" | "completo" = currentTier;
+  let upgradePagoEm: string | null = null;
+
+  // ── Compra do complemento (upgrade de R$ 200 vendido pelo WhatsApp) ──
+  // Apenas eleva o tier; não mexe em plano nem na data de vencimento já paga.
+  if (upgradeProduct && ACTIVATING_EVENTS.has(eventType)) {
+    const { error: upgErr } = await supabase
+      .from("profiles")
+      .update({
+        tier: "completo",
+        plano: "ouro",
+        upgrade_pago_em: new Date().toISOString(),
+        kiwify_customer_email: customerEmail,
+      })
+      .eq("user_id", profile.user_id);
+    if (upgErr) {
+      await finishLog(profile.user_id, upgErr.message);
+      return json({ error: upgErr.message }, 500);
+    }
+    await finishLog(profile.user_id);
+    return json({ status: "ok", event: eventType, upgrade: true, tier: "completo" });
+  }
 
   if (DEACTIVATING_EVENTS.has(eventType)) {
-    // Cancelamento/refund/atraso → rebaixa para bronze (perde agente legislativo + WhatsApp)
+    // Cancelamento/refund/atraso → rebaixa para bronze/lite,
+    // mas preserva a data de vencimento já paga.
     finalPlano = "bronze";
+    finalTier = "lite";
     status =
       eventType === "subscription_late"
         ? "atrasada"
@@ -177,6 +227,12 @@ Deno.serve(async (req) => {
         : "cancelada";
   } else if (ACTIVATING_EVENTS.has(eventType)) {
     status = "ativa";
+    // Tier pela oferta comprada (nome do produto e, se não houver, valor pago)
+    const byValue = detectTierByValue(payload);
+    finalTier = plano === "bronze" ? "lite" : byValue ?? "completo";
+    // Quem já tem acesso completo (inclusive quem pagou o complemento) não é rebaixado na renovação
+    if (currentTier === "completo") finalTier = "completo";
+    upgradePagoEm = null;
     // Renovação: estende validade em ~31 dias
     const next = new Date();
     next.setDate(next.getDate() + 31);
@@ -190,10 +246,12 @@ Deno.serve(async (req) => {
   const updates: Record<string, unknown> = {
     plano: finalPlano,
     assinatura_status: status,
+    tier: finalTier,
     kiwify_customer_email: customerEmail,
   };
   if (subscriptionId) updates.kiwify_subscription_id = subscriptionId;
   if (expiraEm) updates.assinatura_expira_em = expiraEm;
+  if (upgradePagoEm) updates.upgrade_pago_em = upgradePagoEm;
 
   const { error: upErr } = await supabase
     .from("profiles")

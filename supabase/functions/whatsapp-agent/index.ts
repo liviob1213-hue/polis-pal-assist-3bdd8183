@@ -740,22 +740,6 @@ async function handleConsultarDemanda(params: any, senderProfile: any): Promise<
   return `📋 *${data.length} demanda(s) encontrada(s):*\n\n${lines.join("\n\n")}`;
 }
 
-  
-  if (params.status_filtro) {
-    const resolved = resolveStatusFilter(params.status_filtro);
-    query = query.in("status", resolved);
-  }
-  if (params.busca_texto) query = query.or(`titulo.ilike.%${params.busca_texto}%,descricao.ilike.%${params.busca_texto}%`);
-  const { data, error } = await query.limit(10);
-  if (error) throw new Error(`DB error: ${error.message}`);
-  if (!data || data.length === 0) return "📋 Nenhuma demanda encontrada com esse filtro.";
-  const lines = data.map((d: any, i: number) => {
-    const prazoInfo = d.prazo ? `\n   📅 Prazo: ${new Date(d.prazo).toLocaleDateString("pt-BR")}` : "";
-    return `${i + 1}. *${d.titulo}*\n   📍 ${d.localizacao || "Sem local"}\n   📌 Status: ${d.status}${prazoInfo}`;
-  });
-  return `📋 *${data.length} demanda(s) encontrada(s):*\n\n${lines.join("\n\n")}`;
-}
-
 async function handleConcluirDemanda(params: any, senderProfile: any): Promise<string> {
   const sb = supabaseAdmin();
   const busca = params.busca_texto || params.titulo || "";

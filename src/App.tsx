@@ -9,6 +9,8 @@ import { AnimatePresence } from "framer-motion";
 import { AppLayout } from "@/components/AppLayout";
 import { AuthProvider, useAuth, ROUTE_TO_PERMISSION, PermissionKey } from "@/hooks/useAuth";
 import { HeaderSearchProvider } from "@/contexts/HeaderSearchContext";
+import UpgradeGate from "@/components/UpgradeGate";
+import type { LockableFeature } from "@/config/planFeatures";
 import Dashboard from "./pages/Dashboard";
 import Eleitores from "./pages/Eleitores";
 import MapaEleitores from "./pages/MapaEleitores";
@@ -60,6 +62,12 @@ function PoliticoRoute({ children }: { children: React.ReactNode }) {
   if (!user) return <Navigate to={loginPath} replace state={{ from: location.pathname + location.search }} />;
   if (!role) return <Spinner />;
   if (role !== "politico") return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
+function PlanGate({ children, feature }: { children: React.ReactNode; feature: LockableFeature }) {
+  const { isLite } = useAuth();
+  if (isLite) return <UpgradeGate feature={feature} />;
   return <>{children}</>;
 }
 
@@ -134,18 +142,18 @@ const AnimatedRoutes = () => {
         <Route path="/cadastro-assessor" element={<Navigate to="/login-assessor" replace />} />
 
         <Route path="/admin" element={<PoliticoRoute><AppLayout><Admin /></AppLayout></PoliticoRoute>} />
-        <Route path="/assessores" element={<PoliticoRoute><AppLayout><Assessores /></AppLayout></PoliticoRoute>} />
+        <Route path="/assessores" element={<PoliticoRoute><AppLayout><PlanGate feature="assessores"><Assessores /></PlanGate></AppLayout></PoliticoRoute>} />
         <Route path="/painel" element={<ProtectedRoute><AppLayout><HomeRoute /></AppLayout></ProtectedRoute>} />
         <Route path="/eleitores" element={<PermissionRoute permission="eleitores"><AppLayout><Eleitores /></AppLayout></PermissionRoute>} />
         <Route path="/mapa-eleitores" element={<PermissionRoute permission="mapa-eleitores"><AppLayout><MapaEleitores /></AppLayout></PermissionRoute>} />
         <Route path="/demandas" element={<PermissionRoute permission="demandas"><AppLayout><Demandas /></AppLayout></PermissionRoute>} />
-        <Route path="/tarefas" element={<PermissionRoute permission="tarefas"><AppLayout><Tarefas /></AppLayout></PermissionRoute>} />
-        <Route path="/agenda" element={<PermissionRoute permission="agenda"><AppLayout><Agenda /></AppLayout></PermissionRoute>} />
-        <Route path="/assistente" element={<PermissionRoute permission="assistente" requirePlan={["prata","ouro"]}><AppLayout><Assistente /></AppLayout></PermissionRoute>} />
+        <Route path="/tarefas" element={<PermissionRoute permission="tarefas"><AppLayout><PlanGate feature="tarefas"><Tarefas /></PlanGate></AppLayout></PermissionRoute>} />
+        <Route path="/agenda" element={<PermissionRoute permission="agenda"><AppLayout><PlanGate feature="agenda"><Agenda /></PlanGate></AppLayout></PermissionRoute>} />
+        <Route path="/assistente" element={<PermissionRoute permission="assistente"><AppLayout><PlanGate feature="assistente"><Assistente /></PlanGate></AppLayout></PermissionRoute>} />
         <Route path="/aniversarios" element={<PermissionRoute permission="aniversarios"><AppLayout><Aniversarios /></AppLayout></PermissionRoute>} />
-        <Route path="/historico-conversas" element={<PermissionRoute permission="historico-conversas"><AppLayout><HistoricoConversas /></AppLayout></PermissionRoute>} />
-        <Route path="/resumo-mensal" element={<PermissionRoute permission="resumo-mensal"><AppLayout><ResumoMensal /></AppLayout></PermissionRoute>} />
-        <Route path="/base-conhecimento" element={<PermissionRoute permission="base-conhecimento"><AppLayout><BaseConhecimento /></AppLayout></PermissionRoute>} />
+        <Route path="/historico-conversas" element={<PermissionRoute permission="historico-conversas"><AppLayout><PlanGate feature="historico-conversas"><HistoricoConversas /></PlanGate></AppLayout></PermissionRoute>} />
+        <Route path="/resumo-mensal" element={<PermissionRoute permission="resumo-mensal"><AppLayout><PlanGate feature="resumo-mensal"><ResumoMensal /></PlanGate></AppLayout></PermissionRoute>} />
+        <Route path="/base-conhecimento" element={<PermissionRoute permission="base-conhecimento"><AppLayout><PlanGate feature="base-conhecimento"><BaseConhecimento /></PlanGate></AppLayout></PermissionRoute>} />
         <Route path="/configuracoes" element={<ProtectedRoute><AppLayout><Configuracoes /></AppLayout></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
