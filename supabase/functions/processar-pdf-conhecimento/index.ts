@@ -4,14 +4,25 @@ import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@0.12.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 const CHUNK_SIZE = 1000;
 const CHUNK_OVERLAP = 150;
+const EMBED_BATCH = 64; // embeddings por requisição na OpenAI
+const INSERT_BATCH = 100;
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
 function chunkText(text: string): string[] {
   const cleaned = text.replace(/\s+/g, " ").trim();
+  if (!cleaned) return [];
   if (cleaned.length <= CHUNK_SIZE) return [cleaned];
 
   const chunks: string[] = [];
@@ -24,8 +35,8 @@ function chunkText(text: string): string[] {
       if (lastPeriod > CHUNK_SIZE * 0.5) end = i + lastPeriod + 1;
     }
     chunks.push(cleaned.slice(i, end).trim());
-    i = end - CHUNK_OVERLAP;
-    if (i < 0) i = 0;
+    const next = end - CHUNK_OVERLAP;
+    i = next > i ? next : end;
   }
   return chunks.filter((c) => c.length > 50);
 }
@@ -33,100 +44,122 @@ function chunkText(text: string): string[] {
 async function extrairTextoPDF(buffer: ArrayBuffer): Promise<{ pagina: number; texto: string }[]> {
   const pdf = await getDocumentProxy(new Uint8Array(buffer));
   const { text } = await extractText(pdf, { mergePages: false });
-  // text é array (uma string por página) quando mergePages: false
   const arr = Array.isArray(text) ? text : [String(text)];
   return arr.map((t, i) => ({ pagina: i + 1, texto: t || "" }));
 }
 
-async function gerarEmbedding(texto: string, openaiKey: string): Promise<number[]> {
-  const r = await fetch("https://api.openai.com/v1/embeddings", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${openaiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "text-embedding-3-small",
-      input: texto,
-    }),
-  });
-  if (!r.ok) {
-    const t = await r.text();
-    throw new Error(`OpenAI embedding error ${r.status}: ${t}`);
+async function gerarEmbeddings(textos: string[], openaiKey: string): Promise<number[][]> {
+  let ultimaFalha = "";
+  for (let tentativa = 1; tentativa <= 3; tentativa++) {
+    const r = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${openaiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "text-embedding-3-small", input: textos }),
+    });
+    if (r.ok) {
+      const data = await r.json();
+      return data.data
+        .sort((a: any, b: any) => a.index - b.index)
+        .map((d: any) => d.embedding as number[]);
+    }
+    ultimaFalha = `${r.status}: ${(await r.text()).slice(0, 300)}`;
+    if (r.status === 401 || r.status === 403) break;
+    await new Promise((res) => setTimeout(res, 800 * tentativa));
   }
-  const data = await r.json();
-  return data.data[0].embedding;
+  throw new Error(`Falha ao gerar embeddings na OpenAI (${ultimaFalha})`);
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY não configurada");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!OPENAI_API_KEY) return json({ error: "OPENAI_API_KEY não configurada nas variáveis da função." }, 500);
+    if (!SUPABASE_URL || !SERVICE_KEY) return json({ error: "Credenciais do banco não configuradas na função." }, 500);
 
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    const formData = await req.formData();
+    let formData: FormData;
+    try {
+      formData = await req.formData();
+    } catch {
+      return json({ error: "Envio inválido: o arquivo não chegou ao servidor." }, 400);
+    }
+
     const file = formData.get("file") as File | null;
     const nomeArquivo = (formData.get("nome") as string) || file?.name || "documento.pdf";
-
-    if (!file) {
-      return new Response(JSON.stringify({ error: "Arquivo não enviado" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!file) return json({ error: "Arquivo não enviado" }, 400);
 
     console.log(`Processando ${nomeArquivo} (${file.size} bytes)`);
 
     const buffer = await file.arrayBuffer();
-    const paginas = await extrairTextoPDF(buffer);
-    console.log(`Extraídas ${paginas.length} páginas`);
 
-    let totalChunks = 0;
-    let totalInseridos = 0;
+    let paginas: { pagina: number; texto: string }[];
+    try {
+      paginas = await extrairTextoPDF(buffer);
+    } catch (e) {
+      console.error("Erro extraindo PDF:", e);
+      return json({ error: "Não foi possível ler este PDF. Ele pode estar protegido por senha ou corrompido." }, 400);
+    }
 
+    // monta todos os chunks com a respectiva página
+    const registros: { conteudo: string; pagina: number }[] = [];
     for (const pg of paginas) {
-      const chunks = chunkText(pg.texto);
-      totalChunks += chunks.length;
-
-      for (const chunk of chunks) {
-        try {
-          const embedding = await gerarEmbedding(chunk, OPENAI_API_KEY);
-          const { error } = await supabase.from("legislacao_conhecimento").insert({
-            conteudo: chunk,
-            metadados: {
-              arquivo: nomeArquivo,
-              pagina: pg.pagina,
-              total_paginas: paginas.length,
-            },
-            embedding,
-          });
-          if (error) console.error("Insert error:", error);
-          else totalInseridos++;
-        } catch (e) {
-          console.error("Chunk error:", e);
-        }
+      for (const chunk of chunkText(pg.texto)) {
+        registros.push({ conteudo: chunk, pagina: pg.pagina });
       }
     }
 
-    return new Response(
-      JSON.stringify({
-        sucesso: true,
-        arquivo: nomeArquivo,
-        paginas: paginas.length,
-        chunks_gerados: totalChunks,
-        chunks_inseridos: totalInseridos,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.log(`Páginas: ${paginas.length} | chunks: ${registros.length}`);
+
+    if (registros.length === 0) {
+      return json({
+        error: "Nenhum texto foi encontrado neste PDF. Se ele for digitalizado (imagem), é preciso um PDF com texto selecionável.",
+      }, 400);
+    }
+
+    let totalInseridos = 0;
+    let pendentes: any[] = [];
+
+    const gravar = async () => {
+      if (pendentes.length === 0) return;
+      const { error } = await supabase.from("legislacao_conhecimento").insert(pendentes);
+      if (error) {
+        console.error("Insert error:", error);
+        throw new Error(`Erro ao salvar na base: ${error.message}`);
+      }
+      totalInseridos += pendentes.length;
+      pendentes = [];
+    };
+
+    for (let i = 0; i < registros.length; i += EMBED_BATCH) {
+      const lote = registros.slice(i, i + EMBED_BATCH);
+      const embeddings = await gerarEmbeddings(lote.map((r) => r.conteudo), OPENAI_API_KEY);
+
+      lote.forEach((r, idx) => {
+        pendentes.push({
+          conteudo: r.conteudo,
+          metadados: { arquivo: nomeArquivo, pagina: r.pagina, total_paginas: paginas.length },
+          embedding: embeddings[idx],
+        });
+      });
+
+      if (pendentes.length >= INSERT_BATCH) await gravar();
+    }
+    await gravar();
+
+    return json({
+      sucesso: true,
+      arquivo: nomeArquivo,
+      paginas: paginas.length,
+      chunks_gerados: registros.length,
+      chunks_inseridos: totalInseridos,
+    });
   } catch (e) {
     console.error("processar-pdf-conhecimento error:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return json({ error: e instanceof Error ? e.message : "Erro desconhecido" }, 500);
   }
 });
