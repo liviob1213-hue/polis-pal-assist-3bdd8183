@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@0.12.1";
+import { getDocumentProxy } from "https://esm.sh/unpdf@0.12.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,8 +10,8 @@ const corsHeaders = {
 
 const CHUNK_SIZE = 1000;
 const CHUNK_OVERLAP = 150;
-const EMBED_BATCH = 64;
-const INSERT_BATCH = 100;
+const EMBED_BATCH = 24;
+const INSERT_BATCH = 40;
 const BUCKET = "conhecimento";
 
 function json(body: unknown, status = 200) {
@@ -42,11 +42,25 @@ function chunkText(text: string): string[] {
   return chunks.filter((c) => c.length > 50);
 }
 
-async function extrairTextoPDF(buffer: ArrayBuffer): Promise<{ pagina: number; texto: string }[]> {
+// Extrai apenas o intervalo pedido, uma página por vez, para não estourar a memória.
+async function extrairIntervalo(
+  buffer: ArrayBuffer,
+  inicio: number,
+  fim: number,
+): Promise<{ totalPaginas: number; paginas: { pagina: number; texto: string }[] }> {
   const pdf = await getDocumentProxy(new Uint8Array(buffer));
-  const { text } = await extractText(pdf, { mergePages: false });
-  const arr = Array.isArray(text) ? text : [String(text)];
-  return arr.map((t, i) => ({ pagina: i + 1, texto: t || "" }));
+  const totalPaginas = pdf.numPages;
+  const paginas: { pagina: number; texto: string }[] = [];
+
+  const ultima = fim > 0 ? Math.min(fim, totalPaginas) : totalPaginas;
+  for (let n = Math.max(1, inicio); n <= ultima; n++) {
+    const page = await pdf.getPage(n);
+    const content = await page.getTextContent();
+    const texto = (content.items as any[]).map((it) => it.str || "").join(" ");
+    paginas.push({ pagina: n, texto });
+    page.cleanup?.();
+  }
+  return { totalPaginas, paginas };
 }
 
 async function gerarEmbeddings(textos: string[], openaiKey: string): Promise<number[][]> {
