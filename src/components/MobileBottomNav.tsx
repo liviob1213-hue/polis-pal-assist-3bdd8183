@@ -1,15 +1,10 @@
-import { LayoutDashboard, Users, FileText, CheckSquare, MapPin } from "lucide-react";
+import { LayoutDashboard, Users, FileText, CheckSquare, MapPin, Cake } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 const leftItems = [
   { title: "Painel", url: "/painel", icon: LayoutDashboard },
   { title: "Eleitores", url: "/eleitores", icon: Users },
-];
-
-const rightItems = [
-  { title: "Tarefas", url: "/tarefas", icon: CheckSquare },
-  { title: "Mapa", url: "/mapa-eleitores", icon: MapPin },
 ];
 
 const centerItem = { title: "Demandas", url: "/demandas", icon: FileText };
@@ -19,7 +14,7 @@ function NavItem({ item }: { item: { title: string; url: string; icon: any } }) 
     <NavLink
       to={item.url}
       end={item.url === "/"}
-      className="flex flex-col items-center justify-center gap-0.5 py-1 px-1 rounded-lg text-muted-foreground transition-colors flex-1"
+      className="flex flex-col items-center justify-center gap-0.5 py-1 px-1 rounded-lg text-muted-foreground transition-colors flex-1 min-h-[44px]"
       activeClassName="text-primary"
     >
       <item.icon className="h-5 w-5" />
@@ -29,6 +24,19 @@ function NavItem({ item }: { item: { title: string; url: string; icon: any } }) 
 }
 
 export function MobileBottomNav() {
+  const { isLite } = useAuth();
+
+  // Na versão Lite, "Tarefas" está travada — mostramos Aniversários no lugar
+  const rightItems = isLite
+    ? [
+        { title: "Aniversários", url: "/aniversarios", icon: Cake },
+        { title: "Mapa", url: "/mapa-eleitores", icon: MapPin },
+      ]
+    : [
+        { title: "Tarefas", url: "/tarefas", icon: CheckSquare },
+        { title: "Mapa", url: "/mapa-eleitores", icon: MapPin },
+      ];
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-card border-t border-border safe-area-bottom">
       <div className="flex items-center h-16 px-2 relative">
