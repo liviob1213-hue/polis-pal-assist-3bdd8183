@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import {
   FEATURE_COPY,
   LockableFeature,
-  UPGRADE_PRICE_LABEL,
   upgradeWhatsAppLink,
 } from "@/config/planFeatures";
 

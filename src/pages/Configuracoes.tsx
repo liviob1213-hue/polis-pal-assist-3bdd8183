@@ -9,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { Bot, CalendarDays, ChevronRight, UserCheck, Cake, Lock, MessageCircle, CheckSquare, BookOpen, MessageSquare, FileBarChart, CalendarCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import GoogleCalendarConnect from "@/components/GoogleCalendarConnect";
-import { FEATURE_COPY, LockableFeature, UPGRADE_PRICE_LABEL, upgradeWhatsAppLink } from "@/config/planFeatures";
+import { FEATURE_COPY, LockableFeature, upgradeWhatsAppLink } from "@/config/planFeatures";
 
 const Configuracoes = () => {
   const { toast } = useToast();

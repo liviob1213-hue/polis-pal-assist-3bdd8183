@@ -134,7 +134,7 @@ export const FEATURE_COPY: Record<LockableFeature, FeatureSalesCopy> = {
 
 export function upgradeWhatsAppLink(featureName?: string) {
   const texto = featureName
-    ? `Olá! Quero liberar a versão completa do Democrat.IA (função ${featureName}) por mais ${UPGRADE_PRICE_LABEL}.`
-    : `Olá! Quero liberar a versão completa do Democrat.IA por mais ${UPGRADE_PRICE_LABEL}.`;
+    ? `Olá! Quero liberar a versão completa do Democrat.IA (função ${featureName}).`
+    : `Olá! Quero liberar a versão completa do Democrat.IA.`;
   return `https://wa.me/${UPGRADE_WHATSAPP}?text=${encodeURIComponent(texto)}`;
 }
