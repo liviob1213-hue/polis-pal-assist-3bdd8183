@@ -72,12 +72,15 @@ export default function BaseConhecimento() {
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.type !== "application/pdf") {
+    const ehPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    if (!ehPdf) {
       toast({ title: "Formato inválido", description: "Envie apenas arquivos PDF.", variant: "destructive" });
+      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
     if (file.size > 20 * 1024 * 1024) {
       toast({ title: "Arquivo muito grande", description: "Máximo 20MB.", variant: "destructive" });
+      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
@@ -98,6 +101,7 @@ export default function BaseConhecimento() {
       const r = await fetch(url, {
         method: "POST",
         headers: {
+          apikey: SUPABASE_PUBLISHABLE_KEY,
           Authorization: `Bearer ${session.session?.access_token || SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: formData,
@@ -106,8 +110,27 @@ export default function BaseConhecimento() {
       setProgresso(80);
       setStatusTexto("Salvando inteligência na base...");
 
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.error || "Erro ao processar");
+      const bruto = await r.text();
+      let data: any = null;
+      try {
+        data = bruto ? JSON.parse(bruto) : null;
+      } catch {
+        data = null;
+      }
+
+      if (!r.ok || !data?.sucesso) {
+        const detalhe =
+          data?.error ||
+          data?.msg ||
+          (r.status === 401 || r.status === 403
+            ? "Sem permissão para usar o processador de PDF (verifique se a função está publicada e liberada)."
+            : r.status === 404
+            ? "A função de processamento de PDF não está publicada no servidor."
+            : r.status === 546 || r.status === 504
+            ? "O PDF é grande demais e o processamento passou do tempo limite. Divida o arquivo em partes menores."
+            : bruto?.slice(0, 200) || `Falha inesperada (código ${r.status}).`);
+        throw new Error(detalhe);
+      }
 
       setProgresso(100);
       setStatusTexto("Concluído!");
