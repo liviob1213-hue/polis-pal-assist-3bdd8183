@@ -80,6 +80,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [permsLoaded, setPermsLoaded] = useState(false);
   const [plano, setPlano] = useState<"bronze" | "prata" | "ouro">("ouro");
   const [assinaturaStatus, setAssinaturaStatus] = useState<string>("ativa");
+  const [tier, setTier] = useState<Tier>("completo");
+
+  // Busca o tier (lite/completo) de forma tolerante: se a coluna ainda não existir
+  // no banco, assume "completo" para não travar ninguém indevidamente.
+  const fetchTier = async (ownerUserId: string): Promise<Tier> => {
+    try {
+      const { data, error } = await (supabase as any)
+        .from("profiles")
+        .select("tier")
+        .eq("user_id", ownerUserId)
+        .maybeSingle();
+      if (error) return "completo";
+      return (data?.tier as Tier) === "lite" ? "lite" : "completo";
+    } catch {
+      return "completo";
+    }
+  };
 
   const fetchRoleAndPerms = async (userId: string) => {
     setPermsLoaded(false);
@@ -92,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .maybeSingle(),
         supabase
           .from("politician_assessors")
-          .select("permissions")
+          .select("permissions, politician_id")
           .eq("assessor_id", userId)
           .maybeSingle(),
       ]);
@@ -103,6 +120,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // If user is linked as an assessor, they are an assessor — regardless of profile.role
       const isAssessor = !!link;
+
+      // Assessor herda o tier do político responsável
+      const tierOwner = (isAssessor && (link as any)?.politician_id) || userId;
+      setTier(await fetchTier(tierOwner));
       const r: UserRole = isAssessor
         ? "assessor"
         : (((profile?.role as UserRole) || "politico") as UserRole);
