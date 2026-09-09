@@ -139,7 +139,7 @@ export default function BaseConhecimento() {
       const totalPaginas = info.total_paginas || 0;
       if (!totalPaginas) throw new Error("Nenhuma página legível encontrada neste PDF.");
 
-      const PASSO = 15; // páginas por chamada, evita estourar o tempo limite
+      const PASSO = 5; // páginas por chamada, evita estourar memória/tempo limite
       let inseridos = 0;
 
       for (let inicio = 1; inicio <= totalPaginas; inicio += PASSO) {
