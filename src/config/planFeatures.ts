@@ -1,7 +1,6 @@
 // Definição das funções liberadas na versão Lite e o conteúdo das telas de venda.
 
 export const UPGRADE_WHATSAPP = "5531984752052";
-export const UPGRADE_PRICE_LABEL = "R$ 200,00";
 
 // Chaves de função usadas nas rotas travadas
 export type LockableFeature =
