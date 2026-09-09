@@ -54,19 +54,30 @@ Deno.serve(async (req) => {
     });
     if (createErr || !created?.user) {
       const msg = (createErr?.message || "").toLowerCase();
-      const alreadyExists = msg.includes("already") || msg.includes("registered") || msg.includes("exists");
+      const alreadyExists =
+        msg.includes("already") || msg.includes("registered") || msg.includes("exists") ||
+        msg.includes("duplicate") || (createErr as any)?.code === "email_exists";
       if (!alreadyExists) {
         return new Response(JSON.stringify({ error: createErr?.message || "Erro ao criar usuário" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       // Busca usuário existente por email e atualiza senha/metadata
       let existing: any = null;
-      let page = 1;
-      while (page <= 20 && !existing) {
+      // 1) tenta pela tabela profiles (mais rápido e confiável)
+      const { data: prof } = await admin
+        .from("profiles")
+        .select("user_id")
+        .ilike("email", email)
+        .maybeSingle();
+      if (prof?.user_id) {
+        const { data: byId } = await admin.auth.admin.getUserById(prof.user_id);
+        existing = byId?.user ?? null;
+      }
+      // 2) fallback: varre a lista de usuários
+      for (let page = 1; page <= 50 && !existing; page++) {
         const { data: list, error: listErr } = await admin.auth.admin.listUsers({ page, perPage: 200 });
         if (listErr) break;
-        existing = list.users.find((u) => (u.email || "").toLowerCase() === email.toLowerCase());
-        if (!list.users.length || list.users.length < 200) break;
-        page++;
+        existing = list.users.find((u) => (u.email || "").toLowerCase() === email.toLowerCase()) ?? null;
+        if (list.users.length < 200) break;
       }
       if (!existing) {
         return new Response(JSON.stringify({ error: "Email já cadastrado mas não foi possível localizar o usuário" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
