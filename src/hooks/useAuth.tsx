@@ -41,6 +41,8 @@ const allTrue = (): Permissions =>
 const allFalse = (): Permissions =>
   PERMISSION_KEYS.reduce((acc, k) => ({ ...acc, [k]: false }), {} as Permissions);
 
+export type Tier = "lite" | "completo";
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -50,6 +52,8 @@ interface AuthContextType {
   permsLoaded: boolean;
   plano: "bronze" | "prata" | "ouro";
   assinaturaStatus: string;
+  tier: Tier;
+  isLite: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -62,6 +66,8 @@ const AuthContext = createContext<AuthContextType>({
   permsLoaded: false,
   plano: "ouro",
   assinaturaStatus: "ativa",
+  tier: "completo",
+  isLite: false,
   signOut: async () => {},
 });
 
