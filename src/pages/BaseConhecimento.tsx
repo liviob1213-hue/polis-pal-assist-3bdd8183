@@ -78,8 +78,8 @@ export default function BaseConhecimento() {
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
-    if (file.size > 20 * 1024 * 1024) {
-      toast({ title: "Arquivo muito grande", description: "Máximo 20MB.", variant: "destructive" });
+    if (file.size > 50 * 1024 * 1024) {
+      toast({ title: "Arquivo muito grande", description: "Máximo 50MB.", variant: "destructive" });
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
