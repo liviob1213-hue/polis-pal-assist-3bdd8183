@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
   const emailLower = customerEmail.toLowerCase();
   const { data: profile } = await supabase
     .from("profiles")
-    .select("user_id, email, role")
+    .select("user_id, email, role, tier")
     .or(`email.ilike.${emailLower},kiwify_customer_email.ilike.${emailLower}`)
     .maybeSingle();
 
