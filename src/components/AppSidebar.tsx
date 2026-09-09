@@ -102,7 +102,10 @@ export function AppSidebar() {
                       activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
                     >
                       <item.icon className="h-5 w-5 shrink-0" />
-                      {!collapsed && <span>{item.title}</span>}
+                      {!collapsed && <span className="flex-1">{item.title}</span>}
+                      {!collapsed && isLocked(item) && (
+                        <Lock className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                      )}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
