@@ -142,7 +142,7 @@ serve(async (req) => {
       const r = await extrairIntervalo(
         buffer,
         apenasInfo ? 1 : paginaInicio,
-        apenasInfo ? 0 : paginaFim || paginaInicio + 4,
+        apenasInfo ? -1 : paginaFim || paginaInicio + 4,
       );
       totalPaginas = r.totalPaginas;
       paginas = apenasInfo ? [] : r.paginas;
