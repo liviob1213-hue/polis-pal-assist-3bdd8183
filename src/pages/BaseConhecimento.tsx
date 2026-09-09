@@ -78,58 +78,81 @@ export default function BaseConhecimento() {
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
-    if (file.size > 20 * 1024 * 1024) {
-      toast({ title: "Arquivo muito grande", description: "Máximo 20MB.", variant: "destructive" });
+    if (file.size > 50 * 1024 * 1024) {
+      toast({ title: "Arquivo muito grande", description: "Máximo 50MB.", variant: "destructive" });
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
     setProcessando(true);
-    setProgresso(10);
-    setStatusTexto("Enviando PDF para processamento...");
+    setProgresso(5);
+    setStatusTexto("Enviando PDF...");
+
+    const caminho = `pdfs/${Date.now()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("nome", file.name);
-
-      setProgresso(30);
-      setStatusTexto("Extraindo texto e gerando embeddings...");
+      const { error: erroUpload } = await supabase.storage
+        .from("conhecimento")
+        .upload(caminho, file, { contentType: "application/pdf", upsert: true });
+      if (erroUpload) {
+        throw new Error(
+          `Não foi possível enviar o arquivo (${erroUpload.message}). Verifique se o armazenamento "conhecimento" existe.`
+        );
+      }
 
       const url = `${SUPABASE_URL}/functions/v1/processar-pdf-conhecimento`;
       const { data: session } = await supabase.auth.getSession();
-      const r = await fetch(url, {
-        method: "POST",
-        headers: {
-          apikey: SUPABASE_PUBLISHABLE_KEY,
-          Authorization: `Bearer ${session.session?.access_token || SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: formData,
-      });
+      const headers = {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${session.session?.access_token || SUPABASE_PUBLISHABLE_KEY}`,
+        "Content-Type": "application/json",
+      };
 
-      setProgresso(80);
-      setStatusTexto("Salvando inteligência na base...");
+      const chamar = async (body: any) => {
+        const r = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+        const bruto = await r.text();
+        let data: any = null;
+        try {
+          data = bruto ? JSON.parse(bruto) : null;
+        } catch {
+          data = null;
+        }
+        if (!r.ok || !data?.sucesso) {
+          const detalhe =
+            data?.error ||
+            data?.msg ||
+            (r.status === 401 || r.status === 403
+              ? "Sem permissão para usar o processador de PDF (verifique se a função está publicada e liberada)."
+              : r.status === 404
+              ? "A função de processamento de PDF não está publicada no servidor."
+              : r.status === 546 || r.status === 504
+              ? "Este trecho do PDF passou do tempo limite. Tente novamente."
+              : bruto?.slice(0, 200) || `Falha inesperada (código ${r.status}).`);
+          throw new Error(detalhe);
+        }
+        return data;
+      };
 
-      const bruto = await r.text();
-      let data: any = null;
-      try {
-        data = bruto ? JSON.parse(bruto) : null;
-      } catch {
-        data = null;
-      }
+      setProgresso(12);
+      setStatusTexto("Lendo o documento...");
+      const info = await chamar({ storage_path: caminho, nome: file.name, apenas_info: true });
+      const totalPaginas = info.total_paginas || 0;
+      if (!totalPaginas) throw new Error("Nenhuma página legível encontrada neste PDF.");
 
-      if (!r.ok || !data?.sucesso) {
-        const detalhe =
-          data?.error ||
-          data?.msg ||
-          (r.status === 401 || r.status === 403
-            ? "Sem permissão para usar o processador de PDF (verifique se a função está publicada e liberada)."
-            : r.status === 404
-            ? "A função de processamento de PDF não está publicada no servidor."
-            : r.status === 546 || r.status === 504
-            ? "O PDF é grande demais e o processamento passou do tempo limite. Divida o arquivo em partes menores."
-            : bruto?.slice(0, 200) || `Falha inesperada (código ${r.status}).`);
-        throw new Error(detalhe);
+      const PASSO = 15; // páginas por chamada, evita estourar o tempo limite
+      let inseridos = 0;
+
+      for (let inicio = 1; inicio <= totalPaginas; inicio += PASSO) {
+        const fim = Math.min(inicio + PASSO - 1, totalPaginas);
+        setStatusTexto(`Processando páginas ${inicio}–${fim} de ${totalPaginas}...`);
+        const parte = await chamar({
+          storage_path: caminho,
+          nome: file.name,
+          pagina_inicio: inicio,
+          pagina_fim: fim,
+        });
+        inseridos += parte.chunks_inseridos || 0;
+        setProgresso(12 + Math.round((fim / totalPaginas) * 85));
       }
 
       setProgresso(100);
@@ -137,8 +160,9 @@ export default function BaseConhecimento() {
 
       toast({
         title: "✅ Base atualizada",
-        description: `${data.chunks_inseridos} trechos de "${data.arquivo}" foram processados (${data.paginas} páginas).`,
+        description: `${inseridos} trechos de "${file.name}" foram processados (${totalPaginas} páginas).`,
       });
+      await supabase.storage.from("conhecimento").remove([caminho]);
       await carregarArquivos();
     } catch (err: any) {
       toast({ title: "Erro no processamento", description: err.message, variant: "destructive" });
@@ -208,7 +232,7 @@ export default function BaseConhecimento() {
               <div>
                 <h3 className="text-lg font-semibold">Adicionar documento à base</h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  PDF até 20MB. O texto será dividido, vetorizado e indexado para busca semântica.
+                  PDF até 50MB. Documentos grandes são processados em partes automaticamente.
                 </p>
               </div>
               <input

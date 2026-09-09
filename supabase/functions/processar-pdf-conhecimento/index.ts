@@ -10,8 +10,9 @@ const corsHeaders = {
 
 const CHUNK_SIZE = 1000;
 const CHUNK_OVERLAP = 150;
-const EMBED_BATCH = 64; // embeddings por requisição na OpenAI
+const EMBED_BATCH = 64;
 const INSERT_BATCH = 100;
+const BUCKET = "conhecimento";
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -82,20 +83,43 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    let formData: FormData;
-    try {
-      formData = await req.formData();
-    } catch {
-      return json({ error: "Envio inválido: o arquivo não chegou ao servidor." }, 400);
+    let buffer: ArrayBuffer;
+    let nomeArquivo = "documento.pdf";
+    let paginaInicio = 1;
+    let paginaFim = 0; // 0 = todas
+    let apenasInfo = false;
+    let storagePath: string | null = null;
+
+    const contentType = req.headers.get("content-type") || "";
+
+    if (contentType.includes("application/json")) {
+      const body = await req.json().catch(() => null);
+      if (!body?.storage_path) return json({ error: "storage_path não informado." }, 400);
+      storagePath = String(body.storage_path);
+      nomeArquivo = body.nome || storagePath.split("/").pop() || "documento.pdf";
+      paginaInicio = Number(body.pagina_inicio) || 1;
+      paginaFim = Number(body.pagina_fim) || 0;
+      apenasInfo = !!body.apenas_info;
+
+      const { data: baixado, error: erroDownload } = await supabase.storage.from(BUCKET).download(storagePath);
+      if (erroDownload || !baixado) {
+        return json({ error: `Não foi possível baixar o PDF do armazenamento: ${erroDownload?.message || "arquivo não encontrado"}` }, 400);
+      }
+      buffer = await baixado.arrayBuffer();
+    } else {
+      let formData: FormData;
+      try {
+        formData = await req.formData();
+      } catch {
+        return json({ error: "Envio inválido: o arquivo não chegou ao servidor." }, 400);
+      }
+      const file = formData.get("file") as File | null;
+      if (!file) return json({ error: "Arquivo não enviado" }, 400);
+      nomeArquivo = (formData.get("nome") as string) || file.name || "documento.pdf";
+      paginaInicio = Number(formData.get("pagina_inicio")) || 1;
+      paginaFim = Number(formData.get("pagina_fim")) || 0;
+      buffer = await file.arrayBuffer();
     }
-
-    const file = formData.get("file") as File | null;
-    const nomeArquivo = (formData.get("nome") as string) || file?.name || "documento.pdf";
-    if (!file) return json({ error: "Arquivo não enviado" }, 400);
-
-    console.log(`Processando ${nomeArquivo} (${file.size} bytes)`);
-
-    const buffer = await file.arrayBuffer();
 
     let paginas: { pagina: number; texto: string }[];
     try {
@@ -105,20 +129,35 @@ serve(async (req) => {
       return json({ error: "Não foi possível ler este PDF. Ele pode estar protegido por senha ou corrompido." }, 400);
     }
 
-    // monta todos os chunks com a respectiva página
+    const totalPaginas = paginas.length;
+
+    if (apenasInfo) {
+      return json({ sucesso: true, arquivo: nomeArquivo, total_paginas: totalPaginas });
+    }
+
+    const fim = paginaFim > 0 ? Math.min(paginaFim, totalPaginas) : totalPaginas;
+    const fatia = paginas.filter((p) => p.pagina >= paginaInicio && p.pagina <= fim);
+
     const registros: { conteudo: string; pagina: number }[] = [];
-    for (const pg of paginas) {
+    for (const pg of fatia) {
       for (const chunk of chunkText(pg.texto)) {
         registros.push({ conteudo: chunk, pagina: pg.pagina });
       }
     }
 
-    console.log(`Páginas: ${paginas.length} | chunks: ${registros.length}`);
+    console.log(`${nomeArquivo}: páginas ${paginaInicio}-${fim} de ${totalPaginas} | chunks: ${registros.length}`);
 
     if (registros.length === 0) {
       return json({
-        error: "Nenhum texto foi encontrado neste PDF. Se ele for digitalizado (imagem), é preciso um PDF com texto selecionável.",
-      }, 400);
+        sucesso: true,
+        arquivo: nomeArquivo,
+        total_paginas: totalPaginas,
+        pagina_inicio: paginaInicio,
+        pagina_fim: fim,
+        chunks_gerados: 0,
+        chunks_inseridos: 0,
+        aviso: "Nenhum texto selecionável encontrado neste trecho.",
+      });
     }
 
     let totalInseridos = 0;
@@ -142,7 +181,7 @@ serve(async (req) => {
       lote.forEach((r, idx) => {
         pendentes.push({
           conteudo: r.conteudo,
-          metadados: { arquivo: nomeArquivo, pagina: r.pagina, total_paginas: paginas.length },
+          metadados: { arquivo: nomeArquivo, pagina: r.pagina, total_paginas: totalPaginas },
           embedding: embeddings[idx],
         });
       });
@@ -154,7 +193,10 @@ serve(async (req) => {
     return json({
       sucesso: true,
       arquivo: nomeArquivo,
-      paginas: paginas.length,
+      paginas: totalPaginas,
+      total_paginas: totalPaginas,
+      pagina_inicio: paginaInicio,
+      pagina_fim: fim,
       chunks_gerados: registros.length,
       chunks_inseridos: totalInseridos,
     });
