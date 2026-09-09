@@ -214,8 +214,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const memoizedPermissions = useMemo(() => permissions, [permissions]);
   const value = useMemo(
-    () => ({ user, session, loading, role, permissions: memoizedPermissions, permsLoaded, plano, assinaturaStatus, signOut }),
-    [user, session, loading, role, memoizedPermissions, permsLoaded, plano, assinaturaStatus]
+    () => ({ user, session, loading, role, permissions: memoizedPermissions, permsLoaded, plano, assinaturaStatus, tier, isLite: tier === "lite", signOut }),
+    [user, session, loading, role, memoizedPermissions, permsLoaded, plano, assinaturaStatus, tier]
   );
 
   return (
