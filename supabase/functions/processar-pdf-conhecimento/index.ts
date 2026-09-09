@@ -52,6 +52,7 @@ async function extrairIntervalo(
   const totalPaginas = pdf.numPages;
   const paginas: { pagina: number; texto: string }[] = [];
 
+  if (fim < 0) return { totalPaginas, paginas }; // só contagem
   const ultima = fim > 0 ? Math.min(fim, totalPaginas) : totalPaginas;
   for (let n = Math.max(1, inicio); n <= ultima; n++) {
     const page = await pdf.getPage(n);
