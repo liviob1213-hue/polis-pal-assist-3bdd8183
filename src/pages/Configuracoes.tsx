@@ -9,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { Bot, CalendarDays, ChevronRight, UserCheck, Cake, Lock, MessageCircle, CheckSquare, BookOpen, MessageSquare, FileBarChart, CalendarCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import GoogleCalendarConnect from "@/components/GoogleCalendarConnect";
-import { FEATURE_COPY, LockableFeature, UPGRADE_PRICE_LABEL, upgradeWhatsAppLink } from "@/config/planFeatures";
+import { FEATURE_COPY, LockableFeature, upgradeWhatsAppLink } from "@/config/planFeatures";
 
 const Configuracoes = () => {
   const { toast } = useToast();
@@ -125,7 +125,7 @@ const Configuracoes = () => {
             >
               <a href={upgradeWhatsAppLink("Google Agenda")} target="_blank" rel="noopener noreferrer">
                 <MessageCircle className="mr-2 h-5 w-5" />
-                Liberar por mais {UPGRADE_PRICE_LABEL}
+                Liberar agora no WhatsApp
               </a>
             </Button>
           </CardContent>
@@ -179,9 +179,9 @@ const Configuracoes = () => {
             </ul>
 
             <div className="rounded-xl bg-secondary/60 p-4 text-center">
-              <p className="text-sm text-muted-foreground">Por mais</p>
-              <p className="text-3xl font-bold text-primary">{UPGRADE_PRICE_LABEL}</p>
-              <p className="text-sm text-muted-foreground">você libera todas elas de uma vez.</p>
+              <p className="text-sm text-muted-foreground">
+                Libere todas elas de uma vez.
+              </p>
             </div>
 
             <Button

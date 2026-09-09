@@ -1,7 +1,6 @@
 // Definição das funções liberadas na versão Lite e o conteúdo das telas de venda.
 
 export const UPGRADE_WHATSAPP = "5531984752052";
-export const UPGRADE_PRICE_LABEL = "R$ 200,00";
 
 // Chaves de função usadas nas rotas travadas
 export type LockableFeature =
@@ -135,7 +134,7 @@ export const FEATURE_COPY: Record<LockableFeature, FeatureSalesCopy> = {
 
 export function upgradeWhatsAppLink(featureName?: string) {
   const texto = featureName
-    ? `Olá! Quero liberar a versão completa do Democrat.IA (função ${featureName}) por mais ${UPGRADE_PRICE_LABEL}.`
-    : `Olá! Quero liberar a versão completa do Democrat.IA por mais ${UPGRADE_PRICE_LABEL}.`;
+    ? `Olá! Quero liberar a versão completa do Democrat.IA (função ${featureName}).`
+    : `Olá! Quero liberar a versão completa do Democrat.IA.`;
   return `https://wa.me/${UPGRADE_WHATSAPP}?text=${encodeURIComponent(texto)}`;
 }
