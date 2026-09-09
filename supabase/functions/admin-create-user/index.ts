@@ -92,8 +92,8 @@ Deno.serve(async (req) => {
       newId = created.user.id;
     }
 
-    // Profile
-    await admin.from("profiles").upsert({
+    // Profile — contas novas nascem na versão Lite (plano de R$ 97)
+    const profilePayload: Record<string, unknown> = {
       user_id: newId,
       nome,
       email,
@@ -102,7 +102,17 @@ Deno.serve(async (req) => {
       status: "aprovado",
       is_authorized: true,
       whatsapp_verified: false,
-    }, { onConflict: "user_id" });
+    };
+    if (created?.user) {
+      profilePayload.tier = "lite";
+      profilePayload.plano = "bronze";
+    }
+    const { error: profErr } = await admin.from("profiles").upsert(profilePayload, { onConflict: "user_id" });
+    if (profErr && /tier|plano/i.test(profErr.message || "")) {
+      delete profilePayload.tier;
+      delete profilePayload.plano;
+      await admin.from("profiles").upsert(profilePayload, { onConflict: "user_id" });
+    }
 
     // user_roles
     await admin.from("user_roles").upsert({ user_id: newId, role }, { onConflict: "user_id,role" });
