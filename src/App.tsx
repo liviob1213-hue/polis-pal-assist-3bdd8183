@@ -21,7 +21,6 @@ import Assistente from "./pages/Assistente";
 import Configuracoes from "./pages/Configuracoes";
 import Aniversarios from "./pages/Aniversarios";
 import Assessores from "./pages/Assessores";
-import HistoricoConversas from "./pages/HistoricoConversas";
 import Tutoriais from "./pages/Tutoriais";
 import ResumoMensal from "./pages/ResumoMensal";
 import BaseConhecimento from "./pages/BaseConhecimento";
