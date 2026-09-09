@@ -82,18 +82,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [assinaturaStatus, setAssinaturaStatus] = useState<string>("ativa");
   const [tier, setTier] = useState<Tier>("completo");
 
-  // Busca o tier (lite/completo) de forma tolerante: se a coluna ainda não existir
-  // no banco, assume "completo" para não travar ninguém indevidamente.
+  // Busca o tier (lite/completo). Tolerante a linhas duplicadas de profile:
+  // usa a primeira linha encontrada em vez de falhar com maybeSingle().
   const fetchTier = async (ownerUserId: string): Promise<Tier> => {
     try {
       const { data, error } = await (supabase as any)
         .from("profiles")
-        .select("tier")
+        .select("tier, created_at")
         .eq("user_id", ownerUserId)
-        .maybeSingle();
-      if (error) return "completo";
-      return (data?.tier as Tier) === "lite" ? "lite" : "completo";
-    } catch {
+        .order("created_at", { ascending: true })
+        .limit(1);
+      if (error) {
+        console.warn("[useAuth] fetchTier error:", error.message);
+        return "completo";
+      }
+      const row = Array.isArray(data) ? data[0] : data;
+      const t = (row?.tier as Tier) === "lite" ? "lite" : "completo";
+      console.log("[useAuth] tier:", t, "(raw:", row?.tier, ")");
+      return t;
+    } catch (e) {
+      console.warn("[useAuth] fetchTier exception:", e);
       return "completo";
     }
   };
