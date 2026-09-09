@@ -230,8 +230,8 @@ Deno.serve(async (req) => {
     // Tier pela oferta comprada (nome do produto e, se não houver, valor pago)
     const byValue = detectTierByValue(payload);
     finalTier = plano === "bronze" ? "lite" : byValue ?? "completo";
-    // Quem já pagou o complemento continua completo na renovação
-    if (currentTier === "completo" && plano !== "bronze") finalTier = "completo";
+    // Quem já tem acesso completo (inclusive quem pagou o complemento) não é rebaixado na renovação
+    if (currentTier === "completo") finalTier = "completo";
     upgradePagoEm = null;
     // Renovação: estende validade em ~31 dias
     const next = new Date();
