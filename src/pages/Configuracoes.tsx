@@ -48,6 +48,7 @@ const Configuracoes = () => {
   };
 
   const toolItems: { title: string; description: string; icon: any; url: string; feature?: LockableFeature }[] = [
+    { title: "Tutoriais", description: "Vídeos e guias de uso da ferramenta", icon: GraduationCap, url: "/tutoriais" },
     { title: "Agenda Oficial", description: "Gerencie compromissos e eventos", icon: CalendarDays, url: "/agenda", feature: "agenda" },
     { title: "Assistente Legislativo", description: "IA para projetos de lei e consultas", icon: Bot, url: "/assistente", feature: "assistente" },
     { title: "Aniversários", description: "Gestão de aniversários dos eleitores", icon: Cake, url: "/aniversarios" },
