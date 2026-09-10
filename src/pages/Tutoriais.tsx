@@ -87,39 +87,19 @@ export default function Tutoriais() {
         return;
       }
 
-      let lista: Tutorial[] = (data as any[]).map((r) => ({
-        id: r.id,
-        titulo: r.titulo,
-        embedUrl: r.embed_url,
-      }));
+      // Remove qualquer resquício de vídeos salvos no navegador (causavam repetição)
+      try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
 
-      // Migração automática: envia vídeos antigos do navegador que ainda não estão no banco
-      const locais = loadLocal();
-      const pendentes = locais.filter(
-        (local) => !lista.some(
-          (salvo) => salvo.embedUrl === local.embedUrl && salvo.titulo === local.titulo
-        )
-      );
-      if (pendentes.length > 0) {
-        const { data: inseridos, error: erroMigracao } = await supabase
-          .from("tutoriais" as any)
-          .insert(
-            pendentes.map((t) => ({ politician_id: owner, titulo: t.titulo, embed_url: t.embedUrl }))
-          )
-          .select("id, titulo, embed_url");
-        if (inseridos) {
-          const migrados = (inseridos as any[]).map((r) => ({
-            id: r.id,
-            titulo: r.titulo,
-            embedUrl: r.embed_url,
-          }));
-          lista = [...lista, ...migrados];
-          toast.success("Seus vídeos salvos no navegador foram enviados para o banco de dados.");
-        } else if (erroMigracao) {
-          console.warn("[Tutoriais] não foi possível migrar vídeos locais:", erroMigracao.message);
-          toast.error("Os vídeos deste aparelho ainda não foram enviados ao banco. Verifique as permissões da tabela.");
-        }
-      }
+      // Lista do banco, sem repetições (mesmo título + mesmo link)
+      const vistos = new Set<string>();
+      const lista: Tutorial[] = (data as any[])
+        .map((r) => ({ id: r.id, titulo: r.titulo, embedUrl: r.embed_url }))
+        .filter((t) => {
+          const chave = `${t.titulo}|${t.embedUrl}`;
+          if (vistos.has(chave)) return false;
+          vistos.add(chave);
+          return true;
+        });
 
       setTutoriais(lista);
       setLoading(false);
