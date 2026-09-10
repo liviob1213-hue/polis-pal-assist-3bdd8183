@@ -108,43 +108,6 @@ export default function Tutoriais() {
     return () => { ativo = false; };
   }, [user]);
 
-  const adicionar = async () => {
-    const videoId = parseYoutubeId(link);
-    if (!titulo.trim()) {
-      toast.error("Informe um título para o tutorial.");
-      return;
-    }
-    if (!videoId) {
-      toast.error("Link do YouTube inválido. Cole o link ou o código de incorporação (iframe).");
-      return;
-    }
-    const embedUrl = `https://www.youtube.com/embed/${videoId}`;
-
-    if (!dbOk || !ownerId) {
-      const lista = [...tutoriais, { id: crypto.randomUUID(), titulo: titulo.trim(), embedUrl }];
-      setTutoriais(lista);
-      saveLocal(lista);
-    } else {
-      const { data, error } = await supabase
-        .from("tutoriais" as any)
-        .insert({ politician_id: ownerId, titulo: titulo.trim(), embed_url: embedUrl })
-        .select("id, titulo, embed_url")
-        .single();
-      if (error) {
-        toast.error("Não foi possível salvar o vídeo: " + error.message);
-        return;
-      }
-      const novo = { id: (data as any).id, titulo: (data as any).titulo, embedUrl: (data as any).embed_url };
-      const lista = [...tutoriais, novo];
-      setTutoriais(lista);
-      saveLocal(lista);
-    }
-
-    setTitulo("");
-    setLink("");
-    toast.success("Tutorial adicionado!");
-  };
-
   const remover = async (id: string) => {
     if (dbOk && ownerId) {
       const { error } = await supabase.from("tutoriais" as any).delete().eq("id", id);
