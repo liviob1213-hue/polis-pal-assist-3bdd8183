@@ -195,6 +195,41 @@ export default function Tutoriais() {
         </div>
       </div>
 
+      {isPolitico && (
+        <Card>
+          <CardContent className="pt-5 space-y-4">
+            <div className="flex items-center gap-2 font-medium">
+              <Youtube className="h-5 w-5 text-primary" />
+              Adicionar novo vídeo
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="titulo-video">Título</Label>
+                <Input
+                  id="titulo-video"
+                  placeholder="Ex: Como cadastrar uma demanda"
+                  value={titulo}
+                  onChange={(e) => setTitulo(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="link-video">Link do YouTube ou iframe</Label>
+                <Input
+                  id="link-video"
+                  placeholder="https://www.youtube.com/watch?v=... ou o iframe"
+                  value={link}
+                  onChange={(e) => setLink(e.target.value)}
+                />
+              </div>
+            </div>
+            <Button onClick={adicionar} disabled={salvando} className="gap-2">
+              {salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Adicionar vídeo
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
           <Loader2 className="h-5 w-5 animate-spin" /> Carregando tutoriais...
