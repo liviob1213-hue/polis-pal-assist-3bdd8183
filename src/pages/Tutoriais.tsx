@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { GraduationCap, Trash2, Loader2, Plus, Youtube } from "lucide-react";
+import { GraduationCap, Trash2, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -14,22 +12,7 @@ interface Tutorial {
   embedUrl: string;
 }
 
-// Converte qualquer link do YouTube (watch, youtu.be, shorts, embed) para URL de embed
-function paraEmbedUrl(link: string): string | null {
-  const bruto = link.trim();
-  if (!bruto) return null;
-  // Se já veio um iframe completo, extrai o src
-  const matchIframe = bruto.match(/src=["']([^"']+)["']/i);
-  const url = matchIframe ? matchIframe[1] : bruto;
-  const match = url.match(
-    /(?:youtube\.com\/(?:watch\?.*v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/
-  );
-  if (!match) return null;
-  return `https://www.youtube.com/embed/${match[1]}`;
-}
-
 const STORAGE_KEY = "tutoriais_youtube";
-
 
 function loadLocal(): Tutorial[] {
   try {
@@ -52,16 +35,12 @@ export default function Tutoriais() {
   const [loading, setLoading] = useState(true);
   const [ownerId, setOwnerId] = useState<string | null>(null);
   const [dbOk, setDbOk] = useState(true);
-  const [titulo, setTitulo] = useState("");
-  const [link, setLink] = useState("");
-  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     let ativo = true;
     (async () => {
       if (!user) return;
       setLoading(true);
-      // Assessor vê os tutoriais do político responsável
       const { data: link } = await supabase
         .from("politician_assessors")
         .select("politician_id")
@@ -71,7 +50,6 @@ export default function Tutoriais() {
       if (!ativo) return;
       setOwnerId(owner);
 
-      // Tutoriais são compartilhados com todos os usuários do sistema
       const { data, error } = await supabase
         .from("tutoriais" as any)
         .select("id, titulo, embed_url")
@@ -88,10 +66,8 @@ export default function Tutoriais() {
         return;
       }
 
-      // Remove qualquer resquício de vídeos salvos no navegador (causavam repetição)
       try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
 
-      // Lista do banco, sem vídeos repetidos (mesmo link = mesmo vídeo, mesmo com título diferente)
       const vistos = new Set<string>();
       const lista: Tutorial[] = (data as any[])
         .map((r) => ({ id: r.id, titulo: r.titulo, embedUrl: r.embed_url }))
@@ -106,46 +82,6 @@ export default function Tutoriais() {
     })();
     return () => { ativo = false; };
   }, [user]);
-
-  const adicionar = async () => {
-    const embedUrl = paraEmbedUrl(link);
-    if (!titulo.trim()) {
-      toast.error("Informe um título para o vídeo.");
-      return;
-    }
-    if (!embedUrl) {
-      toast.error("Link do YouTube inválido. Cole o link do vídeo ou o iframe de incorporação.");
-      return;
-    }
-    // Evita duplicado (mesmo link = mesmo vídeo)
-    if (tutoriais.some((t) => t.embedUrl === embedUrl)) {
-      toast.error("Este vídeo já está cadastrado.");
-      return;
-    }
-    setSalvando(true);
-    if (dbOk && ownerId) {
-      const { data, error } = await supabase
-        .from("tutoriais" as any)
-        .insert({ politician_id: ownerId, titulo: titulo.trim(), embed_url: embedUrl })
-        .select("id, titulo, embed_url");
-      if (error || !data || (data as any[]).length === 0) {
-        toast.error("Não foi possível salvar no banco: " + (error?.message || "sem retorno"));
-        setSalvando(false);
-        return;
-      }
-      const r = (data as any[])[0];
-      setTutoriais((lista) => [...lista, { id: r.id, titulo: r.titulo, embedUrl: r.embed_url }]);
-    } else {
-      const novo: Tutorial = { id: crypto.randomUUID(), titulo: titulo.trim(), embedUrl };
-      const lista = [...tutoriais, novo];
-      setTutoriais(lista);
-      saveLocal(lista);
-    }
-    setTitulo("");
-    setLink("");
-    setSalvando(false);
-    toast.success("Tutorial adicionado!");
-  };
 
   const remover = async (id: string) => {
     if (dbOk && ownerId) {
@@ -174,41 +110,6 @@ export default function Tutoriais() {
           </p>
         </div>
       </div>
-
-      {isPolitico && (
-        <Card>
-          <CardContent className="pt-5 space-y-4">
-            <div className="flex items-center gap-2 font-medium">
-              <Youtube className="h-5 w-5 text-primary" />
-              Adicionar novo vídeo
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="titulo-video">Título</Label>
-                <Input
-                  id="titulo-video"
-                  placeholder="Ex: Como cadastrar uma demanda"
-                  value={titulo}
-                  onChange={(e) => setTitulo(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="link-video">Link do YouTube ou iframe</Label>
-                <Input
-                  id="link-video"
-                  placeholder="https://www.youtube.com/watch?v=... ou o iframe"
-                  value={link}
-                  onChange={(e) => setLink(e.target.value)}
-                />
-              </div>
-            </div>
-            <Button onClick={adicionar} disabled={salvando} className="gap-2">
-              {salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Adicionar vídeo
-            </Button>
-          </CardContent>
-        </Card>
-      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
