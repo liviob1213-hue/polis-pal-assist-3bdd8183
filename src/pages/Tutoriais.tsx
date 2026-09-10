@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, Plus, Trash2, Loader2 } from "lucide-react";
+import { GraduationCap, Trash2, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -15,17 +14,6 @@ interface Tutorial {
 
 const STORAGE_KEY = "tutoriais_youtube";
 
-// Extrai o ID do vídeo de várias formas de link do YouTube
-function parseYoutubeId(input: string): string | null {
-  const embedMatch = input.match(/youtube(?:-nocookie)?\.com\/embed\/([\w-]{6,})/);
-  if (embedMatch) return embedMatch[1];
-  const watchMatch = input.match(/[?&]v=([\w-]{6,})/);
-  if (watchMatch) return watchMatch[1];
-  const shortMatch = input.match(/youtu\.be\/([\w-]{6,})/);
-  if (shortMatch) return shortMatch[1];
-  if (/^[\w-]{11}$/.test(input.trim())) return input.trim();
-  return null;
-}
 
 function loadLocal(): Tutorial[] {
   try {
@@ -45,8 +33,6 @@ export default function Tutoriais() {
   const { role, user } = useAuth();
   const isPolitico = role === "politico";
   const [tutoriais, setTutoriais] = useState<Tutorial[]>([]);
-  const [titulo, setTitulo] = useState("");
-  const [link, setLink] = useState("");
   const [loading, setLoading] = useState(true);
   const [ownerId, setOwnerId] = useState<string | null>(null);
   const [dbOk, setDbOk] = useState(true);
@@ -122,43 +108,6 @@ export default function Tutoriais() {
     return () => { ativo = false; };
   }, [user]);
 
-  const adicionar = async () => {
-    const videoId = parseYoutubeId(link);
-    if (!titulo.trim()) {
-      toast.error("Informe um título para o tutorial.");
-      return;
-    }
-    if (!videoId) {
-      toast.error("Link do YouTube inválido. Cole o link ou o código de incorporação (iframe).");
-      return;
-    }
-    const embedUrl = `https://www.youtube.com/embed/${videoId}`;
-
-    if (!dbOk || !ownerId) {
-      const lista = [...tutoriais, { id: crypto.randomUUID(), titulo: titulo.trim(), embedUrl }];
-      setTutoriais(lista);
-      saveLocal(lista);
-    } else {
-      const { data, error } = await supabase
-        .from("tutoriais" as any)
-        .insert({ politician_id: ownerId, titulo: titulo.trim(), embed_url: embedUrl })
-        .select("id, titulo, embed_url")
-        .single();
-      if (error) {
-        toast.error("Não foi possível salvar o vídeo: " + error.message);
-        return;
-      }
-      const novo = { id: (data as any).id, titulo: (data as any).titulo, embedUrl: (data as any).embed_url };
-      const lista = [...tutoriais, novo];
-      setTutoriais(lista);
-      saveLocal(lista);
-    }
-
-    setTitulo("");
-    setLink("");
-    toast.success("Tutorial adicionado!");
-  };
-
   const remover = async (id: string) => {
     if (dbOk && ownerId) {
       const { error } = await supabase.from("tutoriais" as any).delete().eq("id", id);
@@ -186,31 +135,6 @@ export default function Tutoriais() {
           </p>
         </div>
       </div>
-
-      {isPolitico && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Adicionar novo vídeo</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col sm:flex-row gap-3">
-            <Input
-              placeholder="Título do tutorial"
-              value={titulo}
-              onChange={(e) => setTitulo(e.target.value)}
-              className="sm:flex-1"
-            />
-            <Input
-              placeholder="Link do YouTube ou código do iframe"
-              value={link}
-              onChange={(e) => setLink(e.target.value)}
-              className="sm:flex-[2]"
-            />
-            <Button onClick={adicionar} className="gap-2">
-              <Plus className="h-4 w-4" /> Adicionar
-            </Button>
-          </CardContent>
-        </Card>
-      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
