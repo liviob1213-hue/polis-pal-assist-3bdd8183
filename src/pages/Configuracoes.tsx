@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Bot, CalendarDays, ChevronRight, UserCheck, Cake, Lock, MessageCircle, CheckSquare, BookOpen, MessageSquare, FileBarChart, CalendarCheck } from "lucide-react";
+import { Bot, CalendarDays, ChevronRight, UserCheck, Cake, Lock, MessageCircle, CheckSquare, BookOpen, MessageSquare, FileBarChart, CalendarCheck, GraduationCap } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import GoogleCalendarConnect from "@/components/GoogleCalendarConnect";
 import { FEATURE_COPY, LockableFeature, upgradeWhatsAppLink } from "@/config/planFeatures";
