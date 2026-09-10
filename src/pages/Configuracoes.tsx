@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Bot, CalendarDays, ChevronRight, UserCheck, Cake, Lock, MessageCircle, CheckSquare, BookOpen, MessageSquare, FileBarChart, CalendarCheck } from "lucide-react";
+import { Bot, CalendarDays, ChevronRight, UserCheck, Cake, Lock, MessageCircle, CheckSquare, BookOpen, MessageSquare, FileBarChart, CalendarCheck, GraduationCap } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import GoogleCalendarConnect from "@/components/GoogleCalendarConnect";
 import { FEATURE_COPY, LockableFeature, upgradeWhatsAppLink } from "@/config/planFeatures";
@@ -48,6 +48,7 @@ const Configuracoes = () => {
   };
 
   const toolItems: { title: string; description: string; icon: any; url: string; feature?: LockableFeature }[] = [
+    { title: "Tutoriais", description: "Vídeos e guias de uso da ferramenta", icon: GraduationCap, url: "/tutoriais" },
     { title: "Agenda Oficial", description: "Gerencie compromissos e eventos", icon: CalendarDays, url: "/agenda", feature: "agenda" },
     { title: "Assistente Legislativo", description: "IA para projetos de lei e consultas", icon: Bot, url: "/assistente", feature: "assistente" },
     { title: "Aniversários", description: "Gestão de aniversários dos eleitores", icon: Cake, url: "/aniversarios" },
