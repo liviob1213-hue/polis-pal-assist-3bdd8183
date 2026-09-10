@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, Plus, Trash2 } from "lucide-react";
+import { GraduationCap, Plus, Trash2, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface Tutorial {
@@ -26,30 +27,89 @@ function parseYoutubeId(input: string): string | null {
   return null;
 }
 
-function loadTutoriais(): Tutorial[] {
+function loadLocal(): Tutorial[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
   } catch { /* ignore */ }
-  // Tutoriais padrão exibidos na primeira visita
-  return [
-    { id: "1", titulo: "Bem-vindo ao Democrat.IA", embedUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ" },
-  ];
+  return [];
+}
+
+function saveLocal(lista: Tutorial[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(lista));
+  } catch { /* ignore */ }
 }
 
 export default function Tutoriais() {
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const isPolitico = role === "politico";
-  const [tutoriais, setTutoriais] = useState<Tutorial[]>(loadTutoriais);
+  const [tutoriais, setTutoriais] = useState<Tutorial[]>([]);
   const [titulo, setTitulo] = useState("");
   const [link, setLink] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [ownerId, setOwnerId] = useState<string | null>(null);
+  const [dbOk, setDbOk] = useState(true);
 
-  const salvar = (lista: Tutorial[]) => {
-    setTutoriais(lista);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(lista));
-  };
+  useEffect(() => {
+    let ativo = true;
+    (async () => {
+      if (!user) return;
+      setLoading(true);
+      // Assessor vê os tutoriais do político responsável
+      const { data: link } = await supabase
+        .from("politician_assessors")
+        .select("politician_id")
+        .eq("assessor_id", user.id)
+        .maybeSingle();
+      const owner = ((link as any)?.politician_id as string) || user.id;
+      if (!ativo) return;
+      setOwnerId(owner);
 
-  const adicionar = () => {
+      const { data, error } = await supabase
+        .from("tutoriais" as any)
+        .select("id, titulo, embed_url")
+        .eq("politician_id", owner)
+        .order("created_at", { ascending: true });
+
+      if (!ativo) return;
+
+      if (error) {
+        console.warn("[Tutoriais] tabela indisponível, usando armazenamento local:", error.message);
+        setDbOk(false);
+        setTutoriais(loadLocal());
+        setLoading(false);
+        return;
+      }
+
+      let lista: Tutorial[] = (data as any[]).map((r) => ({
+        id: r.id,
+        titulo: r.titulo,
+        embedUrl: r.embed_url,
+      }));
+
+      // Migração automática: se o banco está vazio e existem vídeos salvos no navegador
+      const locais = loadLocal();
+      if (lista.length === 0 && locais.length > 0) {
+        const { data: inseridos } = await supabase
+          .from("tutoriais" as any)
+          .insert(
+            locais.map((t) => ({ politician_id: owner, titulo: t.titulo, embed_url: t.embedUrl }))
+          )
+          .select("id, titulo, embed_url");
+        if (inseridos) {
+          lista = (inseridos as any[]).map((r) => ({ id: r.id, titulo: r.titulo, embedUrl: r.embed_url }));
+          toast.success("Seus vídeos salvos no navegador foram enviados para o banco de dados.");
+        }
+      }
+
+      setTutoriais(lista);
+      setLoading(false);
+    })();
+    return () => { ativo = false; };
+  }, [user]);
+
+  const adicionar = async () => {
     const videoId = parseYoutubeId(link);
     if (!titulo.trim()) {
       toast.error("Informe um título para o tutorial.");
@@ -59,17 +119,44 @@ export default function Tutoriais() {
       toast.error("Link do YouTube inválido. Cole o link ou o código de incorporação (iframe).");
       return;
     }
-    salvar([
-      ...tutoriais,
-      { id: crypto.randomUUID(), titulo: titulo.trim(), embedUrl: `https://www.youtube.com/embed/${videoId}` },
-    ]);
+    const embedUrl = `https://www.youtube.com/embed/${videoId}`;
+
+    if (!dbOk || !ownerId) {
+      const lista = [...tutoriais, { id: crypto.randomUUID(), titulo: titulo.trim(), embedUrl }];
+      setTutoriais(lista);
+      saveLocal(lista);
+    } else {
+      const { data, error } = await supabase
+        .from("tutoriais" as any)
+        .insert({ politician_id: ownerId, titulo: titulo.trim(), embed_url: embedUrl })
+        .select("id, titulo, embed_url")
+        .single();
+      if (error) {
+        toast.error("Não foi possível salvar o vídeo: " + error.message);
+        return;
+      }
+      const novo = { id: (data as any).id, titulo: (data as any).titulo, embedUrl: (data as any).embed_url };
+      const lista = [...tutoriais, novo];
+      setTutoriais(lista);
+      saveLocal(lista);
+    }
+
     setTitulo("");
     setLink("");
     toast.success("Tutorial adicionado!");
   };
 
-  const remover = (id: string) => {
-    salvar(tutoriais.filter((t) => t.id !== id));
+  const remover = async (id: string) => {
+    if (dbOk && ownerId) {
+      const { error } = await supabase.from("tutoriais" as any).delete().eq("id", id);
+      if (error) {
+        toast.error("Não foi possível remover: " + error.message);
+        return;
+      }
+    }
+    const lista = tutoriais.filter((t) => t.id !== id);
+    setTutoriais(lista);
+    saveLocal(lista);
     toast.success("Tutorial removido.");
   };
 
@@ -112,7 +199,11 @@ export default function Tutoriais() {
         </Card>
       )}
 
-      {tutoriais.length === 0 ? (
+      {loading ? (
+        <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+          <Loader2 className="h-5 w-5 animate-spin" /> Carregando tutoriais...
+        </div>
+      ) : tutoriais.length === 0 ? (
         <div className="text-center text-muted-foreground py-16">
           Nenhum tutorial cadastrado ainda.
         </div>
