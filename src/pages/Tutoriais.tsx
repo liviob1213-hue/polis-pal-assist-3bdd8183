@@ -33,8 +33,6 @@ export default function Tutoriais() {
   const { role, user } = useAuth();
   const isPolitico = role === "politico";
   const [tutoriais, setTutoriais] = useState<Tutorial[]>([]);
-  const [titulo, setTitulo] = useState("");
-  const [link, setLink] = useState("");
   const [loading, setLoading] = useState(true);
   const [ownerId, setOwnerId] = useState<string | null>(null);
   const [dbOk, setDbOk] = useState(true);
