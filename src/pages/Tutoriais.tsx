@@ -66,10 +66,10 @@ export default function Tutoriais() {
       if (!ativo) return;
       setOwnerId(owner);
 
+      // Tutoriais são compartilhados com todos os usuários do sistema
       const { data, error } = await supabase
         .from("tutoriais" as any)
         .select("id, titulo, embed_url")
-        .eq("politician_id", owner)
         .order("created_at", { ascending: true });
 
       if (!ativo) return;
