@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, Plus, Trash2, Loader2 } from "lucide-react";
+import { GraduationCap, Trash2, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -15,17 +14,6 @@ interface Tutorial {
 
 const STORAGE_KEY = "tutoriais_youtube";
 
-// Extrai o ID do vídeo de várias formas de link do YouTube
-function parseYoutubeId(input: string): string | null {
-  const embedMatch = input.match(/youtube(?:-nocookie)?\.com\/embed\/([\w-]{6,})/);
-  if (embedMatch) return embedMatch[1];
-  const watchMatch = input.match(/[?&]v=([\w-]{6,})/);
-  if (watchMatch) return watchMatch[1];
-  const shortMatch = input.match(/youtu\.be\/([\w-]{6,})/);
-  if (shortMatch) return shortMatch[1];
-  if (/^[\w-]{11}$/.test(input.trim())) return input.trim();
-  return null;
-}
 
 function loadLocal(): Tutorial[] {
   try {
