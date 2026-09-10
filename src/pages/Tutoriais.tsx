@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, Trash2, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { GraduationCap, Trash2, Loader2, Plus, Youtube } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -10,6 +12,20 @@ interface Tutorial {
   id: string;
   titulo: string;
   embedUrl: string;
+}
+
+// Converte qualquer link do YouTube (watch, youtu.be, shorts, embed) para URL de embed
+function paraEmbedUrl(link: string): string | null {
+  const bruto = link.trim();
+  if (!bruto) return null;
+  // Se já veio um iframe completo, extrai o src
+  const matchIframe = bruto.match(/src=["']([^"']+)["']/i);
+  const url = matchIframe ? matchIframe[1] : bruto;
+  const match = url.match(
+    /(?:youtube\.com\/(?:watch\?.*v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/
+  );
+  if (!match) return null;
+  return `https://www.youtube.com/embed/${match[1]}`;
 }
 
 const STORAGE_KEY = "tutoriais_youtube";
