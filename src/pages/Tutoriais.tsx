@@ -88,18 +88,31 @@ export default function Tutoriais() {
         embedUrl: r.embed_url,
       }));
 
-      // Migração automática: se o banco está vazio e existem vídeos salvos no navegador
+      // Migração automática: envia vídeos antigos do navegador que ainda não estão no banco
       const locais = loadLocal();
-      if (lista.length === 0 && locais.length > 0) {
-        const { data: inseridos } = await supabase
+      const pendentes = locais.filter(
+        (local) => !lista.some(
+          (salvo) => salvo.embedUrl === local.embedUrl && salvo.titulo === local.titulo
+        )
+      );
+      if (pendentes.length > 0) {
+        const { data: inseridos, error: erroMigracao } = await supabase
           .from("tutoriais" as any)
           .insert(
-            locais.map((t) => ({ politician_id: owner, titulo: t.titulo, embed_url: t.embedUrl }))
+            pendentes.map((t) => ({ politician_id: owner, titulo: t.titulo, embed_url: t.embedUrl }))
           )
           .select("id, titulo, embed_url");
         if (inseridos) {
-          lista = (inseridos as any[]).map((r) => ({ id: r.id, titulo: r.titulo, embedUrl: r.embed_url }));
+          const migrados = (inseridos as any[]).map((r) => ({
+            id: r.id,
+            titulo: r.titulo,
+            embedUrl: r.embed_url,
+          }));
+          lista = [...lista, ...migrados];
           toast.success("Seus vídeos salvos no navegador foram enviados para o banco de dados.");
+        } else if (erroMigracao) {
+          console.warn("[Tutoriais] não foi possível migrar vídeos locais:", erroMigracao.message);
+          toast.error("Os vídeos deste aparelho ainda não foram enviados ao banco. Verifique as permissões da tabela.");
         }
       }
 
