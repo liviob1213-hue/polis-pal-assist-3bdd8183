@@ -127,6 +127,46 @@ export default function Tutoriais() {
     return () => { ativo = false; };
   }, [user]);
 
+  const adicionar = async () => {
+    const embedUrl = paraEmbedUrl(link);
+    if (!titulo.trim()) {
+      toast.error("Informe um título para o vídeo.");
+      return;
+    }
+    if (!embedUrl) {
+      toast.error("Link do YouTube inválido. Cole o link do vídeo ou o iframe de incorporação.");
+      return;
+    }
+    // Evita duplicado (mesmo título + mesmo link)
+    if (tutoriais.some((t) => t.embedUrl === embedUrl && t.titulo === titulo.trim())) {
+      toast.error("Este vídeo já está cadastrado.");
+      return;
+    }
+    setSalvando(true);
+    if (dbOk && ownerId) {
+      const { data, error } = await supabase
+        .from("tutoriais" as any)
+        .insert({ politician_id: ownerId, titulo: titulo.trim(), embed_url: embedUrl })
+        .select("id, titulo, embed_url");
+      if (error || !data || (data as any[]).length === 0) {
+        toast.error("Não foi possível salvar no banco: " + (error?.message || "sem retorno"));
+        setSalvando(false);
+        return;
+      }
+      const r = (data as any[])[0];
+      setTutoriais((lista) => [...lista, { id: r.id, titulo: r.titulo, embedUrl: r.embed_url }]);
+    } else {
+      const novo: Tutorial = { id: crypto.randomUUID(), titulo: titulo.trim(), embedUrl };
+      const lista = [...tutoriais, novo];
+      setTutoriais(lista);
+      saveLocal(lista);
+    }
+    setTitulo("");
+    setLink("");
+    setSalvando(false);
+    toast.success("Tutorial adicionado!");
+  };
+
   const remover = async (id: string) => {
     if (dbOk && ownerId) {
       const { error } = await supabase.from("tutoriais" as any).delete().eq("id", id);
