@@ -75,7 +75,8 @@ export default function Tutoriais() {
       const { data, error } = await supabase
         .from("tutoriais" as any)
         .select("id, titulo, embed_url")
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true });
 
       if (!ativo) return;
 
@@ -90,14 +91,13 @@ export default function Tutoriais() {
       // Remove qualquer resquício de vídeos salvos no navegador (causavam repetição)
       try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
 
-      // Lista do banco, sem repetições (mesmo título + mesmo link)
+      // Lista do banco, sem vídeos repetidos (mesmo link = mesmo vídeo, mesmo com título diferente)
       const vistos = new Set<string>();
       const lista: Tutorial[] = (data as any[])
         .map((r) => ({ id: r.id, titulo: r.titulo, embedUrl: r.embed_url }))
         .filter((t) => {
-          const chave = `${t.titulo}|${t.embedUrl}`;
-          if (vistos.has(chave)) return false;
-          vistos.add(chave);
+          if (vistos.has(t.embedUrl)) return false;
+          vistos.add(t.embedUrl);
           return true;
         });
 
@@ -117,8 +117,8 @@ export default function Tutoriais() {
       toast.error("Link do YouTube inválido. Cole o link do vídeo ou o iframe de incorporação.");
       return;
     }
-    // Evita duplicado (mesmo título + mesmo link)
-    if (tutoriais.some((t) => t.embedUrl === embedUrl && t.titulo === titulo.trim())) {
+    // Evita duplicado (mesmo link = mesmo vídeo)
+    if (tutoriais.some((t) => t.embedUrl === embedUrl)) {
       toast.error("Este vídeo já está cadastrado.");
       return;
     }
