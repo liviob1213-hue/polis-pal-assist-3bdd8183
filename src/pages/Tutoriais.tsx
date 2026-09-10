@@ -136,31 +136,6 @@ export default function Tutoriais() {
         </div>
       </div>
 
-      {isPolitico && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Adicionar novo vídeo</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col sm:flex-row gap-3">
-            <Input
-              placeholder="Título do tutorial"
-              value={titulo}
-              onChange={(e) => setTitulo(e.target.value)}
-              className="sm:flex-1"
-            />
-            <Input
-              placeholder="Link do YouTube ou código do iframe"
-              value={link}
-              onChange={(e) => setLink(e.target.value)}
-              className="sm:flex-[2]"
-            />
-            <Button onClick={adicionar} className="gap-2">
-              <Plus className="h-4 w-4" /> Adicionar
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
       {loading ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
           <Loader2 className="h-5 w-5 animate-spin" /> Carregando tutoriais...
