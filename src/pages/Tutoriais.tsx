@@ -52,6 +52,9 @@ export default function Tutoriais() {
   const [loading, setLoading] = useState(true);
   const [ownerId, setOwnerId] = useState<string | null>(null);
   const [dbOk, setDbOk] = useState(true);
+  const [titulo, setTitulo] = useState("");
+  const [link, setLink] = useState("");
+  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     let ativo = true;
