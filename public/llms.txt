@@ -1,0 +1,36 @@
+# DEMOCRAT.AI
+
+> Plataforma brasileira de gestão política com IA: CRM eleitoral, mapa interativo de eleitores, agente de atendimento no WhatsApp e assistente legislativo.
+
+## O que é
+
+DEMOCRAT.AI é um SaaS para mandatos políticos (vereadores, deputados, prefeitos e pré-candidatos) organizarem toda a operação do gabinete em um só lugar, pelo computador ou pelo celular.
+
+## Principais benefícios
+
+- Base eleitoral organizada: cadastro de eleitores com endereço, telefone, e-mail, anexos e importação de contatos.
+- Mapa interativo: visualização geográfica dos eleitores por região e por tema de interesse.
+- Demandas e tarefas: registro, prazos, delegação para assessores e acompanhamento em quadro Kanban.
+- Agenda oficial com sincronização com o Google Agenda.
+- Agente de IA no WhatsApp: atende mensagens (texto e áudio), registra demandas e envia lembretes diários.
+- Assistente legislativo: apoio na redação de projetos de lei, requerimentos e indicações.
+- Aniversários e disparos de mensagens padronizadas no WhatsApp.
+
+## Público-alvo
+
+Vereadores, deputados estaduais e federais, prefeitos, pré-candidatos, chefes de gabinete e assessores parlamentares no Brasil.
+
+## Planos
+
+- Bronze (Lite): base eleitoral, aniversários, demandas, mapa e configurações.
+- Prata (Completo): tudo do Bronze mais agenda, tarefas, assistente legislativo, agente no WhatsApp, base de conhecimento e resumo mensal.
+
+## Links
+
+- Site: https://polis-pal-assist.lovable.app/
+- Blog: https://polis-pal-assist.lovable.app/blog
+- Política de privacidade: https://polis-pal-assist.lovable.app/politica-privacidade
+
+## Contato
+
+Negociação de planos e upgrades é feita via WhatsApp pelo site.
