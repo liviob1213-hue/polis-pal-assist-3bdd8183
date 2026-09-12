@@ -1,14 +1,25 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
 User-agent: *
 Allow: /
+Allow: /blog
+Allow: /politica-privacidade
+
+Disallow: /painel
+Disallow: /admin
+Disallow: /login
+Disallow: /login-assessor
+Disallow: /cadastro
+Disallow: /eleitores
+Disallow: /mapa-eleitores
+Disallow: /demandas
+Disallow: /tarefas
+Disallow: /agenda
+Disallow: /assistente
+Disallow: /aniversarios
+Disallow: /tutoriais
+Disallow: /resumo-mensal
+Disallow: /base-conhecimento
+Disallow: /configuracoes
+Disallow: /assessores
+Disallow: /api
+
+Sitemap: https://polis-pal-assist.lovable.app/sitemap.xml
