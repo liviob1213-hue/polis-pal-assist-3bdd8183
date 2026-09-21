@@ -222,6 +222,39 @@ const Configuracoes = () => {
           </CardContent>
         </Card>
       )}
+
+      <Card className="glass-card border-destructive/40">
+        <CardHeader>
+          <CardTitle className="text-lg text-destructive">Excluir minha conta</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Esta ação é definitiva: sua conta e seus dados de acesso são apagados e não há como recuperar.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" className="w-full h-12" disabled={excluindo}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                {excluindo ? "Excluindo..." : "Excluir conta"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir a conta {user?.email}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Sua conta será removida do sistema e você perderá o acesso imediatamente. Não é possível desfazer.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={excluirConta} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Sim, excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </CardContent>
+      </Card>
     </motion.div>
   );
 };
