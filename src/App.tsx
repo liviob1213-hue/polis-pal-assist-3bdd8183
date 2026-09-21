@@ -143,7 +143,7 @@ const AnimatedRoutes = () => {
         <Route path="/cadastro-assessor" element={<Navigate to="/login-assessor" replace />} />
 
         <Route path="/admin" element={<PoliticoRoute><AppLayout><Admin /></AppLayout></PoliticoRoute>} />
-        <Route path="/acesso-webhook" element={<PoliticoRoute><AppLayout><AcessoWebhook /></AppLayout></PoliticoRoute>} />
+        <Route path="/acesso-webhook" element={<PoliticoRoute><AcessoWebhook /></PoliticoRoute>} />
         <Route path="/assessores" element={<PoliticoRoute><AppLayout><PlanGate feature="assessores"><Assessores /></PlanGate></AppLayout></PoliticoRoute>} />
         <Route path="/painel" element={<ProtectedRoute><AppLayout><HomeRoute /></AppLayout></ProtectedRoute>} />
         <Route path="/eleitores" element={<PermissionRoute permission="eleitores"><AppLayout><Eleitores /></AppLayout></PermissionRoute>} />

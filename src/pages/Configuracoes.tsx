@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Bot, CalendarDays, ChevronRight, UserCheck, Cake, Lock, MessageCircle, CheckSquare, BookOpen, MessageSquare, FileBarChart, CalendarCheck, GraduationCap, Trash2, Webhook } from "lucide-react";
+import { Bot, CalendarDays, ChevronRight, UserCheck, Cake, Lock, MessageCircle, CheckSquare, BookOpen, MessageSquare, FileBarChart, CalendarCheck, GraduationCap, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import GoogleCalendarConnect from "@/components/GoogleCalendarConnect";
@@ -77,7 +77,6 @@ const Configuracoes = () => {
     ...(role === "politico"
       ? [
           { title: "Assessores", description: "Gerencie seus assessores", icon: UserCheck, url: "/assessores", feature: "assessores" as LockableFeature },
-          { title: "Acesso Webhook", description: "Liberar acesso mensal por e-mail", icon: Webhook, url: "/acesso-webhook" },
         ]
       : []),
   ];
