@@ -28,6 +28,7 @@ import PainelAssessor from "./pages/PainelAssessor";
 import Login from "./pages/Login";
 import Cadastro from "./pages/Cadastro";
 import Admin from "./pages/Admin";
+import AcessoWebhook from "./pages/AcessoWebhook";
 import LoginAssessor from "./pages/LoginAssessor";
 import CadastroAssessor from "./pages/CadastroAssessor";
 import Landing from "./pages/Landing";
@@ -142,6 +143,7 @@ const AnimatedRoutes = () => {
         <Route path="/cadastro-assessor" element={<Navigate to="/login-assessor" replace />} />
 
         <Route path="/admin" element={<PoliticoRoute><AppLayout><Admin /></AppLayout></PoliticoRoute>} />
+        <Route path="/acesso-webhook" element={<PoliticoRoute><AppLayout><AcessoWebhook /></AppLayout></PoliticoRoute>} />
         <Route path="/assessores" element={<PoliticoRoute><AppLayout><PlanGate feature="assessores"><Assessores /></PlanGate></AppLayout></PoliticoRoute>} />
         <Route path="/painel" element={<ProtectedRoute><AppLayout><HomeRoute /></AppLayout></ProtectedRoute>} />
         <Route path="/eleitores" element={<PermissionRoute permission="eleitores"><AppLayout><Eleitores /></AppLayout></PermissionRoute>} />
