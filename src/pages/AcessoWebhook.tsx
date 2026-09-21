@@ -84,7 +84,8 @@ export default function AcessoWebhook() {
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-2xl">
+    <div className="min-h-screen bg-gradient-to-br from-[hsl(var(--sidebar-background))] to-[hsl(var(--background))] p-4 sm:p-8">
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-2xl mx-auto">
       <Card className="glass-card">
         <CardHeader>
           <div className="flex items-center gap-3">
@@ -157,5 +158,6 @@ export default function AcessoWebhook() {
         </CardContent>
       </Card>
     </motion.div>
+    </div>
   );
 }
