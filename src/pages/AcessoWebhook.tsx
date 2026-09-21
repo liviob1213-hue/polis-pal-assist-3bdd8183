@@ -158,6 +158,10 @@ export default function AcessoWebhook() {
     }
   };
 
+  if (sessionEmail === undefined) return null;
+  if (sessionEmail !== ADMIN_EMAIL) return <AcessoLogin />;
+
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[hsl(var(--sidebar-background))] to-[hsl(var(--background))] p-4 sm:p-8">
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-2xl mx-auto">
