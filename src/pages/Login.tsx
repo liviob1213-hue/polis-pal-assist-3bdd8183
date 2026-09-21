@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ export default function Login() {
   const [enviado, setEnviado] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
   const location = useLocation();
   const redirectParam = new URLSearchParams(location.search).get("redirect");
   const stateFrom = (location.state as { from?: string } | null)?.from;
@@ -21,6 +22,20 @@ export default function Login() {
     redirectParam?.startsWith("/") && !redirectParam.startsWith("//")
       ? redirectParam
       : stateFrom || "/painel";
+
+  // Se o usuário já tem sessão salva, entra direto sem mostrar a caixa de e-mail
+  useEffect(() => {
+    let mounted = true;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (mounted && session?.user) {
+        navigate(redirectTo, { replace: true });
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const enviarLink = async () => {
     if (!email.trim()) {
