@@ -22,6 +22,23 @@ const Configuracoes = () => {
   const { role, user, isLite } = useAuth();
 
   const storageKey = user ? `perfil_parlamentar_${user.id}` : null;
+  const [excluindo, setExcluindo] = useState(false);
+
+  const excluirConta = async () => {
+    setExcluindo(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("delete-account");
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      await supabase.auth.signOut();
+      toast({ title: "Conta excluída", description: "Todos os seus dados foram removidos." });
+      navigate("/", { replace: true });
+    } catch (e: any) {
+      toast({ title: "Erro ao excluir conta", description: e.message, variant: "destructive" });
+    } finally {
+      setExcluindo(false);
+    }
+  };
 
   const [form, setForm] = useState({ nome: "", partido: "", email: "" });
 
@@ -58,7 +75,10 @@ const Configuracoes = () => {
     { title: "Assistente Legislativo", description: "IA para projetos de lei e consultas", icon: Bot, url: "/assistente", feature: "assistente" },
     { title: "Aniversários", description: "Gestão de aniversários dos eleitores", icon: Cake, url: "/aniversarios" },
     ...(role === "politico"
-      ? [{ title: "Assessores", description: "Gerencie seus assessores", icon: UserCheck, url: "/assessores", feature: "assessores" as LockableFeature }]
+      ? [
+          { title: "Assessores", description: "Gerencie seus assessores", icon: UserCheck, url: "/assessores", feature: "assessores" as LockableFeature },
+          { title: "Acesso Webhook", description: "Liberar acesso mensal por e-mail", icon: Webhook, url: "/acesso-webhook" },
+        ]
       : []),
   ];
 
