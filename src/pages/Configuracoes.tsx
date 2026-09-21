@@ -4,10 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Bot, CalendarDays, ChevronRight, UserCheck, Cake, Lock, MessageCircle, CheckSquare, BookOpen, MessageSquare, FileBarChart, CalendarCheck, GraduationCap } from "lucide-react";
+import { Bot, CalendarDays, ChevronRight, UserCheck, Cake, Lock, MessageCircle, CheckSquare, BookOpen, MessageSquare, FileBarChart, CalendarCheck, GraduationCap, Trash2, Webhook } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import GoogleCalendarConnect from "@/components/GoogleCalendarConnect";
 import { FEATURE_COPY, LockableFeature, upgradeWhatsAppLink } from "@/config/planFeatures";
 
@@ -17,6 +22,23 @@ const Configuracoes = () => {
   const { role, user, isLite } = useAuth();
 
   const storageKey = user ? `perfil_parlamentar_${user.id}` : null;
+  const [excluindo, setExcluindo] = useState(false);
+
+  const excluirConta = async () => {
+    setExcluindo(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("delete-account");
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      await supabase.auth.signOut();
+      toast({ title: "Conta excluída", description: "Todos os seus dados foram removidos." });
+      navigate("/", { replace: true });
+    } catch (e: any) {
+      toast({ title: "Erro ao excluir conta", description: e.message, variant: "destructive" });
+    } finally {
+      setExcluindo(false);
+    }
+  };
 
   const [form, setForm] = useState({ nome: "", partido: "", email: "" });
 
@@ -53,7 +75,10 @@ const Configuracoes = () => {
     { title: "Assistente Legislativo", description: "IA para projetos de lei e consultas", icon: Bot, url: "/assistente", feature: "assistente" },
     { title: "Aniversários", description: "Gestão de aniversários dos eleitores", icon: Cake, url: "/aniversarios" },
     ...(role === "politico"
-      ? [{ title: "Assessores", description: "Gerencie seus assessores", icon: UserCheck, url: "/assessores", feature: "assessores" as LockableFeature }]
+      ? [
+          { title: "Assessores", description: "Gerencie seus assessores", icon: UserCheck, url: "/assessores", feature: "assessores" as LockableFeature },
+          { title: "Acesso Webhook", description: "Liberar acesso mensal por e-mail", icon: Webhook, url: "/acesso-webhook" },
+        ]
       : []),
   ];
 
@@ -197,6 +222,39 @@ const Configuracoes = () => {
           </CardContent>
         </Card>
       )}
+
+      <Card className="glass-card border-destructive/40">
+        <CardHeader>
+          <CardTitle className="text-lg text-destructive">Excluir minha conta</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Esta ação é definitiva: sua conta e seus dados de acesso são apagados e não há como recuperar.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" className="w-full h-12" disabled={excluindo}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                {excluindo ? "Excluindo..." : "Excluir conta"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir a conta {user?.email}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Sua conta será removida do sistema e você perderá o acesso imediatamente. Não é possível desfazer.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={excluirConta} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Sim, excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </CardContent>
+      </Card>
     </motion.div>
   );
 };
