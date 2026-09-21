@@ -25,12 +25,87 @@ type Registro = {
   assinatura_expira_em: string | null;
 };
 
+const ADMIN_EMAIL = "victor.faridoff@gmail.com";
+
+function AcessoLogin() {
+  const { toast } = useToast();
+  const [mail, setMail] = useState("");
+  const [enviado, setEnviado] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const enviar = async () => {
+    const alvo = mail.trim().toLowerCase();
+    if (alvo !== ADMIN_EMAIL) {
+      toast({ title: "E-mail sem autorização", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: alvo,
+        options: {
+          shouldCreateUser: false,
+          emailRedirectTo: `${window.location.origin}/acesso-webhook`,
+        },
+      });
+      if (error) throw error;
+      setEnviado(true);
+    } catch (e: any) {
+      toast({ title: "Não foi possível enviar", description: e.message, variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[hsl(var(--sidebar-background))] to-[hsl(var(--background))] p-4">
+      <Card className="w-full max-w-md glass-card">
+        <CardHeader>
+          <CardTitle>Acesso Webhook</CardTitle>
+          <CardDescription>
+            {enviado ? `Link enviado para ${mail}` : "Área restrita. Entre com o e-mail autorizado."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!enviado && (
+            <>
+              <div>
+                <Label>E-mail</Label>
+                <Input type="email" value={mail} onChange={(e) => setMail(e.target.value)} placeholder="seu@email.com" />
+              </div>
+              <Button onClick={enviar} disabled={busy} className="w-full" size="lg">
+                {busy ? "Enviando..." : "Receber link de acesso"}
+              </Button>
+            </>
+          )}
+          {enviado && (
+            <p className="text-sm text-muted-foreground">
+              Abra seu e-mail e clique no link para entrar. Verifique também o spam.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function AcessoWebhook() {
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [dias, setDias] = useState("30");
   const [loading, setLoading] = useState(false);
   const [lista, setLista] = useState<Registro[]>([]);
+  const [sessionEmail, setSessionEmail] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
+      setSessionEmail(s?.user?.email?.toLowerCase() ?? null);
+    });
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSessionEmail(session?.user?.email?.toLowerCase() ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const carregar = async () => {
     const { data } = await (supabase as any)
@@ -43,8 +118,8 @@ export default function AcessoWebhook() {
   };
 
   useEffect(() => {
-    void carregar();
-  }, []);
+    if (sessionEmail === ADMIN_EMAIL) void carregar();
+  }, [sessionEmail]);
 
   const conceder = async () => {
     if (!email.trim()) {
