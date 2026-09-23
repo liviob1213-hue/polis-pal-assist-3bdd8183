@@ -20,6 +20,8 @@ Disallow: /resumo-mensal
 Disallow: /base-conhecimento
 Disallow: /configuracoes
 Disallow: /assessores
+Disallow: /martamurta
+Disallow: /acesso-webhook
 Disallow: /api
 
 Sitemap: https://polis-pal-assist.lovable.app/sitemap.xml
