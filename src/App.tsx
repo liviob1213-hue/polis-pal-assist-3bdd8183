@@ -31,6 +31,7 @@ import Admin from "./pages/Admin";
 import AcessoWebhook from "./pages/AcessoWebhook";
 import LoginAssessor from "./pages/LoginAssessor";
 import CadastroAssessor from "./pages/CadastroAssessor";
+import MartaMurta from "./pages/MartaMurta";
 import Landing from "./pages/Landing";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
@@ -141,6 +142,7 @@ const AnimatedRoutes = () => {
         <Route path="/cadastro" element={<PublicRoute><Cadastro /></PublicRoute>} />
         <Route path="/login-assessor" element={<PublicRoute><LoginAssessor /></PublicRoute>} />
         <Route path="/cadastro-assessor" element={<Navigate to="/login-assessor" replace />} />
+        <Route path="/martamurta" element={<MartaMurta />} />
 
         <Route path="/admin" element={<PoliticoRoute><AppLayout><Admin /></AppLayout></PoliticoRoute>} />
         <Route path="/acesso-webhook" element={<AcessoWebhook />} />
