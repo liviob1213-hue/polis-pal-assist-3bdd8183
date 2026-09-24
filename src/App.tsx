@@ -42,8 +42,10 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const Spinner = () => (
-  <div className="min-h-screen flex items-center justify-center">
+  <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+    <img src="/favicon.png" alt="Democrat" className="h-16 w-16" />
     <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+    <p className="text-sm text-muted-foreground">Carregando...</p>
   </div>
 );
 
