@@ -44,6 +44,16 @@ export default function Login() {
     }
     setLoading(true);
     try {
+      // Conta de revisão da Apple: entra direto, sem link por e-mail
+      if (email.trim().toLowerCase() === "democrattest@gmail.com") {
+        const { error: pwErr } = await supabase.auth.signInWithPassword({
+          email: "democrattest@gmail.com",
+          password: "DemocratApple2026!",
+        });
+        if (pwErr) throw pwErr;
+        navigate(redirectTo, { replace: true });
+        return;
+      }
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim().toLowerCase(),
         options: {
