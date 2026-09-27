@@ -204,7 +204,7 @@ export default function HistoricoConversas() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[calc(100vh-220px)]">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[calc(100dvh-220px)]">
         {/* Lista de conversas */}
         <Card className="glass-card lg:col-span-1 flex flex-col overflow-hidden">
           <CardHeader className="shrink-0 pb-3">

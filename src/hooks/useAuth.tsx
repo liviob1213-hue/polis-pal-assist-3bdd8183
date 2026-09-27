@@ -165,6 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const safety = setTimeout(() => {
       if (mounted) {
         console.warn("[useAuth] Safety timeout — forçando loading=false");
+        setPermsLoaded(true); if (!role) setRole("politico");
         setLoading(false);
       }
     }, 4000);

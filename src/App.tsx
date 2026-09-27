@@ -37,13 +37,11 @@ import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import PoliticaPrivacidade from "./pages/PoliticaPrivacidade";
 
-import NotFound from "./pages/NotFound";
-
 const queryClient = new QueryClient();
 
 const Spinner = () => (
-  <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-    <img src="/favicon.png" alt="Democrat" className="h-16 w-16" />
+  <div className="min-h-dvh safe-area-screen flex flex-col items-center justify-center gap-4 bg-background text-foreground">
+    <img src="/favicon.png" alt="Democrat" className="h-16 w-16" onError={(e) => (e.currentTarget.style.display = "none")} />
     <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
     <p className="text-sm text-muted-foreground">Carregando...</p>
   </div>
@@ -64,7 +62,7 @@ function PoliticoRoute({ children }: { children: React.ReactNode }) {
   const loginPath = `/login?redirect=${encodeURIComponent(location.pathname + location.search)}`;
   if (loading) return <Spinner />;
   if (!user) return <Navigate to={loginPath} replace state={{ from: location.pathname + location.search }} />;
-  if (!role) return <Spinner />;
+  if (!role && user) return <Spinner />;
   if (role !== "politico") return <Navigate to="/" replace />;
   return <>{children}</>;
 }
@@ -94,7 +92,7 @@ function PermissionRoute({ children, permission, requirePlan }: { children: Reac
 
   if (loading || !permsLoaded) return <Spinner />;
   if (!user) return <Navigate to={loginPath} replace state={{ from: location.pathname + location.search }} />;
-  if (!role) return <Spinner />;
+  if (!role && user) return <Spinner />;
 
   const allowed = role === "politico" || (role === "assessor" && permissions[permission] === true);
   if (!allowed) return <Navigate to="/" replace />;
@@ -104,8 +102,9 @@ function PermissionRoute({ children, permission, requirePlan }: { children: Reac
 }
 
 function HomeRoute() {
-  const { role, loading, permissions, permsLoaded } = useAuth();
-  if (loading || !permsLoaded || !role) return <Spinner />;
+  const { user, role, loading, permissions, permsLoaded } = useAuth();
+  if (loading || !permsLoaded || !role && user) return <Spinner />;
+  if (!role) return <Navigate to="/login" replace />;
   if (role === "assessor" && !permissions["painel"]) {
     // Sem permissão para painel: tenta primeira rota liberada
     const first = Object.entries(ROUTE_TO_PERMISSION).find(([, k]) => k !== "painel" && permissions[k]);
@@ -161,7 +160,7 @@ const AnimatedRoutes = () => {
         <Route path="/resumo-mensal" element={<PermissionRoute permission="resumo-mensal"><AppLayout><PlanGate feature="resumo-mensal"><ResumoMensal /></PlanGate></AppLayout></PermissionRoute>} />
         <Route path="/base-conhecimento" element={<PermissionRoute permission="base-conhecimento"><AppLayout><PlanGate feature="base-conhecimento"><BaseConhecimento /></PlanGate></AppLayout></PermissionRoute>} />
         <Route path="/configuracoes" element={<ProtectedRoute><AppLayout><Configuracoes /></AppLayout></ProtectedRoute>} />
-        <Route path="*" element={<NotFound />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </AnimatePresence>
   );
