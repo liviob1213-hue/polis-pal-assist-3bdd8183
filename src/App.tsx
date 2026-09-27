@@ -43,7 +43,7 @@ const queryClient = new QueryClient();
 
 const Spinner = () => (
   <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-    <img src="/favicon.png" alt="Democrat" className="h-16 w-16" />
+    <img src="/favicon.png" alt="Democrat" className="h-16 w-16" onError={(e) => (e.currentTarget.style.display = "none")} />
     <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
     <p className="text-sm text-muted-foreground">Carregando...</p>
   </div>
@@ -104,8 +104,9 @@ function PermissionRoute({ children, permission, requirePlan }: { children: Reac
 }
 
 function HomeRoute() {
-  const { role, loading, permissions, permsLoaded } = useAuth();
-  if (loading || !permsLoaded || !role) return <Spinner />;
+  const { user, role, loading, permissions, permsLoaded } = useAuth();
+  if (loading || !permsLoaded || !role && user) return <Spinner />;
+  if (!role) return <Navigate to="/login" replace />;
   if (role === "assessor" && !permissions["painel"]) {
     // Sem permissão para painel: tenta primeira rota liberada
     const first = Object.entries(ROUTE_TO_PERMISSION).find(([, k]) => k !== "painel" && permissions[k]);
