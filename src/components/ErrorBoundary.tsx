@@ -7,7 +7,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
   }
   componentDidCatch(error: Error) {
     console.error("App error:", error);
-    if (window.reportError) window.reportError(error);
+    if ((window as any).reportError) (window as any).reportError(error);
   }
   render() {
     if (!this.state.error) return this.props.children;

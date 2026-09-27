@@ -64,7 +64,7 @@ function PoliticoRoute({ children }: { children: React.ReactNode }) {
   const loginPath = `/login?redirect=${encodeURIComponent(location.pathname + location.search)}`;
   if (loading) return <Spinner />;
   if (!user) return <Navigate to={loginPath} replace state={{ from: location.pathname + location.search }} />;
-  if (!role) return <Spinner />;
+  if (!role && user) return <Spinner />;
   if (role !== "politico") return <Navigate to="/" replace />;
   return <>{children}</>;
 }
@@ -94,7 +94,7 @@ function PermissionRoute({ children, permission, requirePlan }: { children: Reac
 
   if (loading || !permsLoaded) return <Spinner />;
   if (!user) return <Navigate to={loginPath} replace state={{ from: location.pathname + location.search }} />;
-  if (!role) return <Spinner />;
+  if (!role && user) return <Spinner />;
 
   const allowed = role === "politico" || (role === "assessor" && permissions[permission] === true);
   if (!allowed) return <Navigate to="/" replace />;
