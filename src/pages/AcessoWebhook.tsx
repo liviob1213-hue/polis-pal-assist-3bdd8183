@@ -101,9 +101,14 @@ export default function AcessoWebhook() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
       setSessionEmail(s?.user?.email?.toLowerCase() ?? null);
     });
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSessionEmail(session?.user?.email?.toLowerCase() ?? null);
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setSessionEmail(session?.user?.email?.toLowerCase() ?? null);
+      })
+      .catch((error) => {
+        console.error("[AcessoWebhook] getSession error:", error);
+        setSessionEmail(null);
+      });
     return () => subscription.unsubscribe();
   }, []);
 

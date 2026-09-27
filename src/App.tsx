@@ -37,8 +37,6 @@ import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import PoliticaPrivacidade from "./pages/PoliticaPrivacidade";
 
-import NotFound from "./pages/NotFound";
-
 const queryClient = new QueryClient();
 
 const Spinner = () => (
