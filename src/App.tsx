@@ -42,7 +42,7 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const Spinner = () => (
-  <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+  <div className="min-h-dvh safe-area-screen flex flex-col items-center justify-center gap-4 bg-background text-foreground">
     <img src="/favicon.png" alt="Democrat" className="h-16 w-16" onError={(e) => (e.currentTarget.style.display = "none")} />
     <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
     <p className="text-sm text-muted-foreground">Carregando...</p>
@@ -162,7 +162,7 @@ const AnimatedRoutes = () => {
         <Route path="/resumo-mensal" element={<PermissionRoute permission="resumo-mensal"><AppLayout><PlanGate feature="resumo-mensal"><ResumoMensal /></PlanGate></AppLayout></PermissionRoute>} />
         <Route path="/base-conhecimento" element={<PermissionRoute permission="base-conhecimento"><AppLayout><PlanGate feature="base-conhecimento"><BaseConhecimento /></PlanGate></AppLayout></PermissionRoute>} />
         <Route path="/configuracoes" element={<ProtectedRoute><AppLayout><Configuracoes /></AppLayout></ProtectedRoute>} />
-        <Route path="*" element={<NotFound />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </AnimatePresence>
   );

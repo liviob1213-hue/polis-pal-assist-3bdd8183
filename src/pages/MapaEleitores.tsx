@@ -336,7 +336,7 @@ const MapaEleitores = () => {
         {/* Map */}
         <Card className="glass-card overflow-hidden lg:col-span-3">
           <CardContent className="p-0">
-            <div className="h-[calc(100vh-280px)] min-h-[400px]">
+            <div className="h-[calc(100dvh-280px)] min-h-[400px]">
               <APIProvider apiKey={mapsApiKey}>
                 <Map
                   defaultCenter={{ lat: -15.78, lng: -47.93 }}

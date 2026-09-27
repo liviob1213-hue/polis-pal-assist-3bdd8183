@@ -58,7 +58,7 @@ function AcessoLogin() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[hsl(var(--sidebar-background))] to-[hsl(var(--background))] p-4">
+    <div className="min-h-dvh safe-area-screen flex items-center justify-center bg-gradient-to-br from-[hsl(var(--sidebar-background))] to-[hsl(var(--background))] p-4">
       <Card className="w-full max-w-md glass-card">
         <CardHeader>
           <CardTitle>Acesso Webhook</CardTitle>
@@ -158,12 +158,19 @@ export default function AcessoWebhook() {
     }
   };
 
-  if (sessionEmail === undefined) return null;
+  if (sessionEmail === undefined) {
+    return (
+      <div className="min-h-dvh safe-area-screen flex flex-col items-center justify-center gap-4 bg-background text-foreground">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <p className="text-sm text-muted-foreground">Carregando...</p>
+      </div>
+    );
+  }
   if (sessionEmail !== ADMIN_EMAIL) return <AcessoLogin />;
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[hsl(var(--sidebar-background))] to-[hsl(var(--background))] p-4 sm:p-8">
+    <div className="min-h-dvh safe-area-screen bg-gradient-to-br from-[hsl(var(--sidebar-background))] to-[hsl(var(--background))] p-4 sm:p-8">
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-2xl mx-auto">
       <Card className="glass-card">
         <CardHeader>

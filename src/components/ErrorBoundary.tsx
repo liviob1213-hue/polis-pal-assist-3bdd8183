@@ -1,4 +1,5 @@
 import { Component, ReactNode } from "react";
+import { Button } from "@/components/ui/button";
 
 export class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
@@ -12,15 +13,15 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
   render() {
     if (!this.state.error) return this.props.children;
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center bg-background text-foreground">
+      <div className="min-h-dvh safe-area-screen flex flex-col items-center justify-center gap-4 p-6 text-center bg-background text-foreground">
         <img src="/favicon.png" alt="Democrat" className="h-16 w-16" />
         <p className="text-lg font-semibold">Ocorreu um erro ao carregar.</p>
-        <button
+        <Button
           onClick={() => window.location.reload()}
-          className="rounded-lg bg-primary px-6 py-3 text-primary-foreground font-medium"
+          size="lg"
         >
-          Toque para tentar novamente
-        </button>
+          Tentar novamente
+        </Button>
       </div>
     );
   }

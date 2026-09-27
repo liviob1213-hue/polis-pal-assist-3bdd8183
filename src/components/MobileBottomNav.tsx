@@ -38,7 +38,7 @@ export function MobileBottomNav() {
       ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-card border-t border-border safe-area-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-card border-t border-border safe-area-bottom">
       <div className="flex items-center h-16 px-2 relative">
         {/* Left side */}
         <div className="flex items-center flex-1 justify-evenly">

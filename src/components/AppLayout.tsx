@@ -29,17 +29,17 @@ export function AppLayout({ children }: AppLayoutProps) {
   const showSearch = !HIDE_SEARCH_ROUTES.some((r) => location.pathname.startsWith(r));
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <div className="hidden md:block">
+    <SidebarProvider defaultOpen={false}>
+      <div className="h-dvh min-h-dvh flex w-full min-w-0 overflow-hidden">
+        <div className="hidden lg:block shrink-0">
           <AppSidebar />
         </div>
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
           <header className="h-14 md:h-16 flex items-center justify-between border-b border-border bg-card px-4 lg:px-6 shrink-0">
             <div className="flex items-center gap-3">
-              <SidebarTrigger className="text-muted-foreground hover:text-foreground hidden md:flex" />
+              <SidebarTrigger className="text-muted-foreground hover:text-foreground hidden lg:flex" />
               {showSearch && (
-                <div className="relative hidden md:block">
+                <div className="relative hidden lg:block">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Pesquisar..."
@@ -49,7 +49,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                   />
                 </div>
               )}
-              <h1 className="text-sm font-semibold md:hidden">Democrat.IA</h1>
+              <h1 className="text-sm font-semibold lg:hidden">Democrat.IA</h1>
             </div>
             <div className="flex items-center gap-1">
               <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
@@ -59,14 +59,14 @@ export function AppLayout({ children }: AppLayoutProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-muted-foreground hover:text-foreground md:hidden"
+                className="text-muted-foreground hover:text-foreground lg:hidden"
                 onClick={() => navigate("/configuracoes")}
               >
                 <Settings className="h-5 w-5" />
               </Button>
             </div>
           </header>
-          <main className="flex-1 overflow-auto p-3 sm:p-4 lg:p-6 pb-20 md:pb-6">
+          <main className="flex-1 min-h-0 min-w-0 overflow-auto p-3 sm:p-4 lg:p-6 pb-20 lg:pb-6">
             {children}
           </main>
         </div>

@@ -396,7 +396,7 @@ const Assistente = () => {
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-3 sm:space-y-4 h-[calc(100vh-6.5rem)] sm:h-[calc(100vh-8rem)] flex flex-col"
+      className="space-y-3 sm:space-y-4 h-[calc(100dvh-6.5rem)] sm:h-[calc(100dvh-8rem)] flex flex-col"
     >
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>

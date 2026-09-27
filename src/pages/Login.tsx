@@ -82,11 +82,11 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[hsl(var(--sidebar-background))] to-[hsl(var(--background))] p-4">
+    <div className="min-h-dvh safe-area-screen flex items-center justify-center overflow-y-auto bg-gradient-to-br from-[hsl(var(--sidebar-background))] to-[hsl(var(--background))] p-4 sm:p-6">
       <Card className="w-full max-w-md shadow-2xl border-0">
         <CardHeader className="text-center pb-2">
           <div className="flex justify-center mb-4">
-            <img src={logoDemocrat} alt="Democrat.AI" className="h-56 md:h-64 object-contain" />
+            <img src={logoDemocrat} alt="Democrat.AI" className="h-40 sm:h-48 md:h-56 max-h-[32dvh] object-contain" />
           </div>
           <CardTitle className="text-2xl font-bold">Entrar Agora</CardTitle>
           <CardDescription>

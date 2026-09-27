@@ -41,7 +41,7 @@
     <style>
       html,body{background:#fff;margin:0}
       body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
-      #boot-shell{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;font-family:system-ui,sans-serif;color:#449895}
+      #boot-shell{min-height:100dvh;box-sizing:border-box;padding:max(env(safe-area-inset-top),24px) max(env(safe-area-inset-right),24px) max(env(safe-area-inset-bottom),24px) max(env(safe-area-inset-left),24px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;font-family:system-ui,sans-serif;color:#449895;background:#fff}
       #boot-shell .sp{width:32px;height:32px;border:4px solid #449895;border-top-color:transparent;border-radius:50%;animation:bs 1s linear infinite}
       @keyframes bs{to{transform:rotate(360deg)}}
     </style>
