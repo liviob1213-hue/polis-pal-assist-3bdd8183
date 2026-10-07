@@ -160,37 +160,52 @@ ${context ? `Contexto adicional do gabinete: ${context}` : ''}`;
       .filter((m: any) => m.role === "user" || m.role === "assistant")
       .map((m: any) => ({ role: m.role, content: m.content }));
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5",
-        max_tokens: 8192,
-        system: systemPrompt,
-        messages: anthropicMessages,
-        stream: true,
-      }),
-    });
+    // Tenta modelos em ordem: se um modelo for descontinuado (404/400 not_found), usa o próximo
+    const MODELOS = [
+      Deno.env.get("ANTHROPIC_MODEL"),
+      "claude-sonnet-4-5",
+      "claude-sonnet-4-5-20250929",
+      "claude-sonnet-4-0",
+      "claude-3-5-haiku-latest",
+    ].filter(Boolean) as string[];
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Limite de requisições do Claude excedido. Tente novamente em alguns instantes." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    let response: Response | null = null;
+    let ultimoErro = "";
+    for (const modelo of MODELOS) {
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: modelo,
+          max_tokens: 8192,
+          system: systemPrompt,
+          messages: anthropicMessages,
+          stream: true,
+        }),
+      });
+      if (r.ok) { response = r; console.log("Modelo usado:", modelo); break; }
+      const t = await r.text();
+      ultimoErro = `${r.status}: ${t}`;
+      console.error("Anthropic error", modelo, ultimoErro);
+      const modeloInexistente = r.status === 404 || /not_found|model/i.test(t) && r.status === 400;
+      if (!modeloInexistente) {
+        let msg = "Erro no serviço da Anthropic";
+        try { msg = JSON.parse(t)?.error?.message || msg; } catch { /* */ }
+        if (r.status === 401) msg = "Chave da Anthropic inválida. Verifique a configuração.";
+        if (r.status === 429) msg = "Limite de requisições do Claude excedido. Tente novamente em alguns instantes.";
+        return new Response(JSON.stringify({ error: msg }), {
+          status: r.status >= 500 ? 502 : r.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (response.status === 401) {
-        return new Response(JSON.stringify({ error: "Chave da Anthropic inválida. Verifique a configuração." }), {
-          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const t = await response.text();
-      console.error("Anthropic error:", response.status, t);
-      return new Response(JSON.stringify({ error: "Erro no serviço da Anthropic" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    }
+    if (!response) {
+      return new Response(JSON.stringify({ error: "Nenhum modelo do Claude disponível: " + ultimoErro.slice(0, 300) }), {
+        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
