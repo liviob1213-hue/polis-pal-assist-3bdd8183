@@ -368,7 +368,7 @@ const Assistente = () => {
       if (!assistantSoFar) {
         setMessages((prev) => [
           ...prev,
-          { id: "err-" + Date.now(), role: "assistant", content: "Desculpe, ocorreu um erro. Tente novamente." },
+          { id: "err-" + Date.now(), role: "assistant", content: `Desculpe, ocorreu um erro: ${e?.message || "tente novamente"}.` },
         ]);
       }
     } finally {
