@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion, MotionConfig, type Variants } from "framer-motion";
 import {
   Users,
   MapPin,
@@ -13,6 +13,8 @@ import {
   FileBarChart,
   UserCheck,
   Bot,
+  Check,
+  X,
   ArrowRight,
   ShieldCheck,
   Zap,
@@ -20,78 +22,176 @@ import {
   Star,
   Menu,
   Smartphone,
-  Loader2,
-  Send,
+  Lock,
+  Inbox,
+  MapPinOff,
+  Clock,
+  UserX,
+  Rocket,
+  Upload,
+  Quote,
+  CheckCircle2,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import logo from "@/assets/landing/logo-mark.webp";
 import { supabase } from "@/integrations/supabase/client";
-import logo from "@/assets/logo-democrat-icon.png";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  HeroDashboard,
+  FloatingWhatsApp,
+  FloatingBirthday,
+  MapMock,
+  WhatsAppMock,
+  KanbanMock,
+  LegislativoMock,
+  AniversariosMock,
+  EleitoresMock,
+  AssessoresMock,
+} from "@/components/landing/mockups";
 
-import f47 from "@/assets/landing/feature-47.png.asset.json";
-import f48 from "@/assets/landing/feature-48.png.asset.json";
-import f49 from "@/assets/landing/feature-49.png.asset.json";
-import f50 from "@/assets/landing/feature-50.png.asset.json";
-import f51 from "@/assets/landing/feature-51.png.asset.json";
-import f52 from "@/assets/landing/feature-52.png.asset.json";
-import f53 from "@/assets/landing/feature-53.png.asset.json";
+// Fundo escuro da marca (teal profundo), usado no hero e no CTA final
+const DARK = "bg-[hsl(178,45%,9%)]";
+const EASE = [0.22, 1, 0.36, 1] as const;
 
-import a1 from "@/assets/landing/avatar-1.jpg.asset.json";
-import a2 from "@/assets/landing/avatar-2.jpg.asset.json";
-import a3 from "@/assets/landing/avatar-3.jpg.asset.json";
+/* ------------------------------------------------------------------ dados */
 
-const features = [
+const pains = [
   {
-    icon: MapPin,
-    title: "Mapa de Eleitores",
-    desc: "Visualize geograficamente sua base com pins por status (eleitor, multiplicador, voluntário) e densidade por bairro.",
-    img: f47.url,
+    icon: MessageSquare,
+    title: "WhatsApp lotado",
+    desc: "Centenas de mensagens sem resposta no celular do gabinete. Cada uma é um eleitor esperando — e reparando.",
+  },
+  {
+    icon: Inbox,
+    title: "Demandas que somem",
+    desc: "Pedidos anotados no papel, numa planilha ou na memória do assessor. Quando o eleitor cobra, ninguém sabe em que pé está.",
+  },
+  {
+    icon: MapPinOff,
+    title: "Base no escuro",
+    desc: "Você não sabe com precisão quais bairros te apoiam — nem onde está perdendo força.",
   },
   {
     icon: Cake,
-    title: "Gestão de Aniversários",
-    desc: "Nunca perca uma data. Envie mensagens personalizadas no WhatsApp para fortalecer o relacionamento.",
-    img: f48.url,
+    title: "Datas esquecidas",
+    desc: "O aniversário da liderança passou e ninguém do gabinete lembrou. Ela lembrou.",
   },
   {
-    icon: FileText,
-    title: "Gestão de Demandas",
-    desc: "Kanban completo com filtros por origem, status, responsável, tipo, setor e prioridade.",
-    img: f49.url,
+    icon: Clock,
+    title: "Horas no Word",
+    desc: "Indicações, requerimentos e ofícios escritos do zero, toda semana, tirando tempo da rua.",
   },
   {
-    icon: CheckSquare,
-    title: "Gestão de Tarefas",
-    desc: "Organize as atividades do gabinete em colunas: pendente, em andamento e concluído.",
-    img: f50.url,
+    icon: UserX,
+    title: "Equipe sem controle",
+    desc: "Você não sabe o que cada assessor fez hoje, nem o que ficou parado esperando alguém.",
+  },
+];
+
+type Feature = {
+  icon: typeof MapPin;
+  kicker: string;
+  title: string;
+  desc: string;
+  visual: ReactNode;
+  span: string;
+  visualH: string;
+  premium?: boolean;
+};
+
+const features: Feature[] = [
+  {
+    icon: MapPin,
+    kicker: "Mapa de Eleitores",
+    title: "Saiba onde está sua força — e onde você está perdendo voto",
+    desc: "Cada eleitor vira um ponto no mapa, colorido por status. Descubra os bairros que te apoiam e os que precisam da sua presença.",
+    visual: <MapMock />,
+    span: "md:col-span-2",
+    visualH: "h-60 sm:h-80",
   },
   {
-    icon: Sparkles,
-    title: "Assistente Legislativo IA",
-    desc: "Redação de projetos de lei, discursos, indicações, requerimentos e ofícios — tudo com IA e exportação em PDF.",
-    img: f51.url,
+    icon: Bot,
+    kicker: "Agente IA no WhatsApp",
+    title: "Seu gabinete atendendo às 3 da manhã",
+    desc: "A IA responde o eleitor, registra a demanda e encaminha para o assessor certo — sem ninguém digitar nada.",
+    visual: <WhatsAppMock />,
+    span: "",
+    visualH: "h-60 sm:h-80",
     premium: true,
   },
   {
+    icon: FileText,
+    kicker: "Gestão de Demandas",
+    title: "Nenhum pedido esquecido",
+    desc: "Kanban com origem, setor, responsável e prioridade. Você vê o que está parado e cobra quem precisa.",
+    visual: <KanbanMock />,
+    span: "",
+    visualH: "h-52",
+  },
+  {
+    icon: Sparkles,
+    kicker: "Assistente Legislativo IA",
+    title: "Do rascunho ao PDF em minutos",
+    desc: "IA especializada em redação parlamentar: projetos de lei, indicações, requerimentos, ofícios e discursos.",
+    visual: <LegislativoMock />,
+    span: "",
+    visualH: "h-52",
+    premium: true,
+  },
+  {
+    icon: Cake,
+    kicker: "Gestão de Aniversários",
+    title: "Lembrado no dia certo",
+    desc: "Lista diária de aniversariantes com mensagem pronta para enviar no WhatsApp em um clique.",
+    visual: <AniversariosMock />,
+    span: "",
+    visualH: "h-52",
+  },
+  {
     icon: Users,
-    title: "Base de Eleitores",
-    desc: "CRM completo com classificação por status, interesses, contatos e histórico de interações.",
-    img: f52.url,
+    kicker: "Base de Eleitores",
+    title: "Sua base inteira, organizada e pesquisável",
+    desc: "CRM com status (eleitor, multiplicador, voluntário), interesses, contatos e histórico. Importe sua planilha em segundos.",
+    visual: <EleitoresMock />,
+    span: "lg:col-span-2",
+    visualH: "h-56",
   },
   {
     icon: UserCheck,
-    title: "Gestão de Assessores",
-    desc: "Cadastre sua equipe, defina permissões por módulo e acompanhe o desempenho de cada assessor.",
-    img: f53.url,
+    kicker: "Gestão de Assessores",
+    title: "Equipe produzindo, você no controle",
+    desc: "Acesso individual com permissão por módulo. Você vê tudo; cada assessor vê só o que precisa.",
+    visual: <AssessoresMock />,
+    span: "",
+    visualH: "h-56",
   },
 ];
 
 const extraFeatures = [
-  { icon: Bot, title: "Agente WhatsApp IA", desc: "Atendimento 24h com IA, registro automático de demandas e roteamento para o assessor certo.", premium: true },
-  { icon: CalendarDays, title: "Agenda Oficial", desc: "Centralize compromissos, audiências e eventos do mandato em um único lugar." },
-  { icon: BookOpen, title: "Base de Conhecimento", desc: "Carregue PDFs e documentos para alimentar a IA com o contexto do seu mandato." },
-  { icon: MessageSquare, title: "Histórico de Conversas", desc: "Todas as interações registradas e pesquisáveis." },
-  { icon: FileBarChart, title: "Resumo Mensal", desc: "Relatórios automáticos com indicadores de desempenho do mandato." },
-  { icon: TrendingUp, title: "Dashboard em Tempo Real", desc: "Métricas ao vivo: eleitores, demandas, tarefas, conversões." },
+  { icon: CheckSquare, title: "Gestão de Tarefas", desc: "Quadro por assessor, com prazo e status." },
+  { icon: CalendarDays, title: "Agenda Oficial", desc: "Compromissos do mandato sincronizados com o Google Agenda." },
+  { icon: BookOpen, title: "Base de Conhecimento", desc: "Suba leis e regimentos e pergunte em linguagem natural." },
+  { icon: MessageSquare, title: "Histórico de Conversas", desc: "Todo atendimento registrado e ligado ao eleitor." },
+  { icon: FileBarChart, title: "Resumo Mensal", desc: "Prestação de contas pronta, com números reais." },
+  { icon: TrendingUp, title: "Painel em Tempo Real", desc: "Eleitores, demandas e tarefas num só lugar." },
+];
+
+const steps = [
+  {
+    icon: Rocket,
+    title: "Escolha seu plano",
+    desc: "O acesso é liberado assim que o pagamento é confirmado. Sem instalação, sem contrato.",
+  },
+  {
+    icon: Upload,
+    title: "Traga sua base e sua equipe",
+    desc: "Importe a planilha de eleitores (Excel ou CSV) e crie o acesso de cada assessor.",
+  },
+  {
+    icon: Bot,
+    title: "Deixe o sistema trabalhar",
+    desc: "Demandas organizadas, aniversários em dia e — no Prata — a IA atendendo o WhatsApp 24h.",
+  },
 ];
 
 const testimonials = [
@@ -99,504 +199,775 @@ const testimonials = [
     name: "Vereador R. Souza",
     role: "Câmara Municipal — interior de SP",
     text: "Triplicamos a velocidade de resposta às demandas dos eleitores. O agente de WhatsApp mudou nosso gabinete.",
-    avatar: a1.url,
   },
   {
     name: "Deputada A. Lima",
     role: "Assembleia Legislativa",
     text: "O Assistente Legislativo me economiza horas por semana na redação de projetos e discursos.",
-    avatar: a2.url,
   },
   {
     name: "Chefe de Gabinete M. Costa",
     role: "Câmara Federal",
     text: "Pela primeira vez temos visão real do mandato em tempo real. Organização completa.",
-    avatar: a3.url,
   },
 ];
 
+const faqs = [
+  {
+    q: "Preciso instalar alguma coisa?",
+    a: "Não. O DEMOCRAT.AI funciona direto no navegador, no computador e no celular. Você entra com seu login e já começa a usar.",
+  },
+  {
+    q: "Já tenho meus eleitores numa planilha. Perco esse trabalho?",
+    a: "Não. Você importa sua planilha (Excel ou CSV) para a Base de Eleitores e todos os contatos passam a aparecer no CRM, no mapa e na lista de aniversários.",
+  },
+  {
+    q: "Minha equipe consegue usar?",
+    a: "Sim. Você cria o acesso de cada assessor e escolhe, módulo por módulo, o que cada um pode ver e fazer.",
+  },
+  {
+    q: "Como funciona o agente de IA no WhatsApp?",
+    a: "Disponível no plano Prata. O agente responde os eleitores no WhatsApp do gabinete, registra cada pedido como demanda e encaminha para o responsável. Todas as conversas ficam salvas no histórico.",
+  },
+  {
+    q: "Qual a diferença entre o Bronze e o Prata?",
+    a: "O Bronze traz toda a gestão do mandato: eleitores, mapa, demandas, tarefas, agenda, aniversários e equipe. O Prata adiciona a inteligência artificial: o Assistente Legislativo e o Agente de WhatsApp 24h.",
+  },
+  {
+    q: "Posso cancelar quando quiser?",
+    a: "Pode. Não há fidelidade nem multa. E você tem 7 dias de garantia: se não fizer sentido para o seu gabinete, pede o reembolso integral.",
+  },
+];
+
+/* ------------------------------------------------------------- animações */
+
+const fadeUp: Variants = {
+  hidden: { opacity: 0, y: 28 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE } },
+};
+
+const stagger: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.09, delayChildren: 0.05 } },
+};
+
+function Reveal({ children, className = "", delay = 0 }: { children: ReactNode; className?: string; delay?: number }) {
+  return (
+    <motion.div
+      initial="hidden"
+      whileInView="show"
+      viewport={{ once: true, margin: "-60px" }}
+      variants={fadeUp}
+      transition={{ delay }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function SectionHeader({ eyebrow, title, sub, dark = false }: { eyebrow: string; title: ReactNode; sub?: ReactNode; dark?: boolean }) {
+  return (
+    <Reveal className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
+      <span
+        className={`inline-block text-xs font-bold uppercase tracking-[0.18em] ${dark ? "text-[hsl(178,50%,65%)]" : "text-primary"}`}
+      >
+        {eyebrow}
+      </span>
+      <h2 className="mt-3 text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.1] text-balance">{title}</h2>
+      {sub && <p className={`mt-4 text-base sm:text-lg ${dark ? "text-white/70" : "text-muted-foreground"}`}>{sub}</p>}
+    </Reveal>
+  );
+}
+
+function PrimaryCTA({ children, href = "#cadastro", className = "" }: { children: ReactNode; href?: string; className?: string }) {
+  return (
+    <a
+      href={href}
+      className={`group inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-7 py-4 font-bold text-accent-foreground shadow-[0_12px_40px_-12px_hsl(346,70%,49%)] transition hover:bg-[hsl(346,70%,44%)] hover:shadow-[0_16px_48px_-12px_hsl(346,70%,49%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ${className}`}
+    >
+      {children}
+      <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+    </a>
+  );
+}
+
+/* ----------------------------------------------------------------- página */
+
 const Landing = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [showStickyCta, setShowStickyCta] = useState(false);
+  const cadastroRef = useRef<HTMLElement>(null);
+  const cadastroVisible = useRef(false);
+
+  // Formulário de captura de leads (grava na tabela `leads` do Supabase)
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [telefone, setTelefone] = useState("");
   const [status, setStatus] = useState<"idle" | "enviando" | "sucesso" | "erro">("idle");
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setStatus("enviando");
-
-    const { error } = await supabase.from("leads").insert({
-      nome,
-      email,
-      telefone,
-    });
-
+    const { error } = await supabase.from("leads").insert({ nome, email, telefone });
     if (error) {
       setStatus("erro");
       return;
     }
-
     setNome("");
     setEmail("");
     setTelefone("");
     setStatus("sucesso");
   };
 
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY;
+      setScrolled(y > 24);
+      setShowStickyCta(y > window.innerHeight * 0.9 && !cadastroVisible.current);
+    };
+    const io = new IntersectionObserver(([e]) => {
+      cadastroVisible.current = e.isIntersecting;
+      onScroll();
+    });
+    if (cadastroRef.current) io.observe(cadastroRef.current);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      io.disconnect();
+    };
+  }, []);
+
+  const headerSolid = scrolled || mobileOpen;
+
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
-      {/* HEADER */}
-      <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-lg">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <a href="#top" className="flex items-center gap-2">
-            <img src={logo} alt="DEMOCRAT.AI" className="h-9 w-9" />
-            <span className="font-bold tracking-tight text-lg">DEMOCRAT<span className="text-accent">.AI</span></span>
-          </a>
-
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-            <a href="#funcionalidades" className="text-foreground/70 hover:text-foreground transition">Funcionalidades</a>
-            <a href="#cadastro" className="text-foreground/70 hover:text-foreground transition">Cadastro</a>
-            <a href="#depoimentos" className="text-foreground/70 hover:text-foreground transition">Depoimentos</a>
-            <Link to="/blog" className="text-foreground/70 hover:text-foreground transition">Blog</Link>
-          </nav>
-
-          <div className="hidden md:flex items-center gap-3">
-            <Link to="/login" className="text-sm font-medium text-foreground/80 hover:text-foreground">Entrar</Link>
-            <a
-              href="#cadastro"
-              className="px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-sm font-semibold shadow-[var(--shadow-md)] hover:shadow-[var(--shadow-lg)] transition"
-            >
-              Começar agora
+    <MotionConfig reducedMotion="user">
+      <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
+        {/* HEADER */}
+        <header
+          className={`fixed top-0 inset-x-0 z-50 transition-colors duration-300 ${
+            headerSolid ? "bg-background/90 backdrop-blur-lg border-b border-border text-foreground" : "bg-transparent text-white"
+          }`}
+        >
+          <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <a href="#top" className="flex items-center gap-2.5">
+              <img src={logo} alt="" width={36} height={36} className="h-9 w-9" />
+              <span className="font-extrabold tracking-tight text-lg">
+                DEMOCRAT<span className="text-accent">.AI</span>
+              </span>
             </a>
-          </div>
 
-          <button
-            className="md:hidden p-2 -mr-2"
-            onClick={() => setMobileOpen((v) => !v)}
-            aria-label="Abrir menu"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-        </div>
+            <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
+              {[
+                ["#funcionalidades", "Funcionalidades"],
+                ["#como-funciona", "Como funciona"],
+                ["#cadastro", "Começar"],
+                ["#faq", "Dúvidas"],
+              ].map(([href, label]) => (
+                <a key={href} href={href} className="opacity-75 hover:opacity-100 transition">
+                  {label}
+                </a>
+              ))}
+            </nav>
 
-        {mobileOpen && (
-          <div className="md:hidden border-t border-border bg-background/95">
-            <div className="px-4 py-3 flex flex-col gap-3 text-sm">
-              <a href="#funcionalidades" onClick={() => setMobileOpen(false)}>Funcionalidades</a>
-              <a href="#cadastro" onClick={() => setMobileOpen(false)}>Cadastro</a>
-              <a href="#depoimentos" onClick={() => setMobileOpen(false)}>Depoimentos</a>
-              <Link to="/blog" onClick={() => setMobileOpen(false)}>Blog</Link>
-              <Link to="/login" onClick={() => setMobileOpen(false)}>Entrar</Link>
+            <div className="hidden md:flex items-center gap-4">
+              <Link to="/login" className="text-sm font-semibold opacity-80 hover:opacity-100 transition">
+                Entrar
+              </Link>
               <a
                 href="#cadastro"
-                onClick={() => setMobileOpen(false)}
-                className="px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-center font-semibold"
+                className="px-4 py-2 rounded-lg bg-accent text-accent-foreground text-sm font-bold hover:bg-[hsl(346,70%,44%)] transition"
               >
                 Começar agora
               </a>
             </div>
+
+            <button className="md:hidden p-2 -mr-2" onClick={() => setMobileOpen((v) => !v)} aria-label="Abrir menu" aria-expanded={mobileOpen}>
+              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
-        )}
-      </header>
 
-      {/* HERO */}
-      <section id="top" className="relative">
-        <div className="absolute inset-0 -z-10 overflow-hidden">
-          <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[900px] h-[900px] rounded-full bg-primary/20 blur-3xl" />
-          <div className="absolute top-1/3 -right-32 w-[500px] h-[500px] rounded-full bg-accent/10 blur-3xl" />
-        </div>
-
-        <div className="max-w-7xl mx-auto px-4 pt-12 pb-16 sm:pt-20 sm:pb-24 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/5 text-primary text-xs font-medium mb-6"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            A plataforma de gestão política nº 1 do Brasil
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.1 }}
-            className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05]"
-          >
-            Transforme seu mandato com{" "}
-            <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              inteligência artificial
-            </span>
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-            className="mt-6 text-base sm:text-xl text-muted-foreground max-w-2xl mx-auto"
-          >
-            CRM eleitoral, mapa interativo, gestão de demandas, agente IA no WhatsApp e assistente
-            legislativo — tudo em uma plataforma feita para políticos brasileiros.
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.3 }}
-            className="mt-8 flex flex-col sm:flex-row gap-3 justify-center items-center"
-          >
-            <a
-              href="#cadastro"
-              className="w-full sm:w-auto px-8 py-4 rounded-xl gradient-primary text-primary-foreground font-semibold shadow-[var(--shadow-lg)] hover:scale-105 transition inline-flex items-center justify-center gap-2"
-            >
-              Quero transformar meu mandato <ArrowRight className="h-5 w-5" />
-            </a>
-            <a
-              href="#funcionalidades"
-              className="w-full sm:w-auto px-8 py-4 rounded-xl border border-border bg-card hover:bg-secondary transition font-semibold"
-            >
-              Ver funcionalidades
-            </a>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground"
-          >
-            <span className="flex items-center gap-1"><ShieldCheck className="h-4 w-4 text-primary" /> LGPD-compliant</span>
-            <span className="flex items-center gap-1"><Zap className="h-4 w-4 text-primary" /> Setup em 5 minutos</span>
-            <span className="flex items-center gap-1"><Smartphone className="h-4 w-4 text-primary" /> 100% mobile</span>
-          </motion.div>
-
-          {/* Hero preview */}
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="mt-12 sm:mt-16 mx-auto max-w-5xl"
-          >
-            <div className="rounded-2xl overflow-hidden border border-border shadow-[var(--shadow-lg)] bg-card">
-              <img src={f47.url} alt="Mapa de Eleitores DEMOCRAT.AI" className="w-full h-auto" />
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* STATS */}
-      <section className="border-y border-border bg-card/40">
-        <div className="max-w-6xl mx-auto px-4 py-10 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-          {[
-            { n: "+10mil", l: "Eleitores gerenciados" },
-            { n: "+500", l: "Mandatos atendidos" },
-            { n: "24h", l: "Atendimento IA" },
-            { n: "98%", l: "Satisfação" },
-          ].map((s) => (
-            <div key={s.l}>
-              <div className="text-2xl sm:text-4xl font-bold text-primary">{s.n}</div>
-              <div className="text-xs sm:text-sm text-muted-foreground mt-1">{s.l}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* FEATURES com efeito scroll/hover */}
-      <section id="funcionalidades" className="max-w-7xl mx-auto px-4 py-20">
-        <div className="text-center mb-14">
-          <h2 className="text-3xl sm:text-5xl font-bold tracking-tight">
-            Tudo o que seu mandato precisa
-          </h2>
-          <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
-            Uma plataforma completa, pensada para o dia a dia de políticos e gabinetes que querem
-            resultados de verdade.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((f, i) => {
-            const Icon = f.icon;
-            return (
+          <AnimatePresence>
+            {mobileOpen && (
               <motion.div
-                key={f.title}
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-80px" }}
-                transition={{ duration: 0.55, delay: (i % 3) * 0.08 }}
-                className="group relative rounded-2xl overflow-hidden border border-border bg-card hover:shadow-[var(--shadow-lg)] transition-all"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="md:hidden overflow-hidden border-t border-border bg-background"
               >
-                {/* image revealed on hover */}
-                <div className="relative h-52 overflow-hidden bg-gradient-to-br from-primary/20 to-accent/20">
-                  <img
-                    src={f.img}
-                    alt={f.title}
-                    loading="lazy"
-                    className="absolute inset-0 w-full h-full object-cover object-top opacity-0 scale-105 group-hover:opacity-100 group-hover:scale-100 transition-all duration-500"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center group-hover:opacity-0 transition">
-                    <div className="h-16 w-16 rounded-2xl gradient-primary flex items-center justify-center shadow-[var(--shadow-md)]">
-                      <Icon className="h-8 w-8 text-primary-foreground" />
-                    </div>
-                  </div>
-                  {f.premium && (
-                    <span className="absolute top-3 right-3 text-[10px] uppercase tracking-wider bg-accent text-accent-foreground px-2 py-0.5 rounded-full font-semibold">
-                      Plano Prata
-                    </span>
-                  )}
-                </div>
-                <div className="p-5">
-                  <h3 className="font-semibold text-lg">{f.title}</h3>
-                  <p className="text-sm text-muted-foreground mt-2">{f.desc}</p>
+                <div className="px-4 py-4 flex flex-col gap-1 text-sm font-medium">
+                  {[
+                    ["#funcionalidades", "Funcionalidades"],
+                    ["#como-funciona", "Como funciona"],
+                    ["#cadastro", "Começar"],
+                    ["#faq", "Dúvidas"],
+                  ].map(([href, label]) => (
+                    <a key={href} href={href} onClick={() => setMobileOpen(false)} className="py-2.5">
+                      {label}
+                    </a>
+                  ))}
+                  <Link to="/blog" onClick={() => setMobileOpen(false)} className="py-2.5">
+                    Blog
+                  </Link>
+                  <Link to="/login" onClick={() => setMobileOpen(false)} className="py-2.5">
+                    Entrar
+                  </Link>
+                  <a
+                    href="#cadastro"
+                    onClick={() => setMobileOpen(false)}
+                    className="mt-2 px-4 py-3 rounded-xl bg-accent text-accent-foreground text-center font-bold"
+                  >
+                    Começar agora
+                  </a>
                 </div>
               </motion.div>
-            );
-          })}
-        </div>
+            )}
+          </AnimatePresence>
+        </header>
 
-        {/* Extra features */}
-        <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {extraFeatures.map((f, i) => {
-            const Icon = f.icon;
-            return (
-              <motion.div
-                key={f.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.05 }}
-                className="p-5 rounded-xl border border-border bg-card/60 hover:bg-card transition"
+        {/* HERO */}
+        <section id="top" className={`relative overflow-hidden ${DARK} text-white`}>
+          <div aria-hidden className="pointer-events-none absolute inset-0">
+            <div
+              className="absolute inset-0 opacity-[0.07]"
+              style={{
+                backgroundImage:
+                  "linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)",
+                backgroundSize: "56px 56px",
+                maskImage: "radial-gradient(ellipse 80% 70% at 50% 30%, black 30%, transparent 100%)",
+                WebkitMaskImage: "radial-gradient(ellipse 80% 70% at 50% 30%, black 30%, transparent 100%)",
+              }}
+            />
+            <div className="absolute -top-48 -left-40 h-[640px] w-[640px] rounded-full bg-primary/40 blur-[120px]" />
+            <div className="absolute top-1/3 -right-40 h-[520px] w-[520px] rounded-full bg-accent/25 blur-[120px]" />
+          </div>
+
+          <div className="relative max-w-7xl mx-auto px-4 pt-28 sm:pt-36 pb-20 lg:pb-28 grid lg:grid-cols-[1.05fr_1fr] gap-14 lg:gap-12 items-center">
+            <div className="text-center lg:text-left">
+              <div
+                className="animate-fade-up motion-reduce:animate-none inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-semibold text-white/85 backdrop-blur"
               >
-                <div className="flex items-start gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Gestão de mandato com IA<span className="hidden sm:inline"> · vereadores, deputados e prefeitos</span>
+              </div>
+
+              <h1
+                className="animate-fade-up motion-reduce:animate-none [animation-delay:90ms] mt-6 text-[2.5rem] leading-[1.05] sm:text-6xl lg:text-[4.25rem] font-extrabold tracking-tight text-balance"
+              >
+                Cada mensagem sem resposta é{" "}
+                <span className="bg-gradient-to-r from-[hsl(346,90%,68%)] to-[hsl(18,95%,66%)] bg-clip-text text-transparent">
+                  um voto a menos
+                </span>{" "}
+                em outubro.
+              </h1>
+
+              <p className="animate-fade-up motion-reduce:animate-none [animation-delay:180ms] mt-6 text-lg sm:text-xl text-white/75 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+                O DEMOCRAT.AI organiza eleitores, demandas e equipe em um só painel — e coloca uma inteligência
+                artificial para atender o WhatsApp do seu gabinete <b className="text-white font-semibold">24 horas por dia</b>.
+              </p>
+
+              <div className="animate-fade-up motion-reduce:animate-none [animation-delay:270ms] mt-9 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
+                <PrimaryCTA className="w-full sm:w-auto text-base">Quero organizar meu mandato</PrimaryCTA>
+                <a
+                  href="#funcionalidades"
+                  className="w-full sm:w-auto inline-flex items-center justify-center rounded-xl border border-white/20 bg-white/5 px-7 py-4 font-semibold text-white backdrop-blur transition hover:bg-white/10"
+                >
+                  Ver a plataforma por dentro
+                </a>
+              </div>
+
+              <ul
+                className="animate-fade-up motion-reduce:animate-none [animation-delay:360ms] mt-8 grid grid-cols-2 gap-x-6 gap-y-3 max-w-sm sm:max-w-md mx-auto lg:mx-0 text-sm text-white/70"
+              >
+                {[
+                  [ShieldCheck, "Garantia de 7 dias"],
+                  [Zap, "Demonstração gratuita"],
+                  [Smartphone, "Funciona no celular"],
+                  [Lock, "Sem fidelidade"],
+                ].map(([Icon, label]) => {
+                  const I = Icon as typeof ShieldCheck;
+                  return (
+                    <li key={label as string} className="flex items-center gap-2 whitespace-nowrap">
+                      <I className="h-4 w-4 text-[hsl(178,55%,62%)]" /> {label as string}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+
+            {/* composição visual */}
+            <div className="relative mx-auto w-full max-w-xl lg:max-w-none">
+              <div className="animate-tilt-in motion-reduce:animate-none [animation-delay:250ms]">
+                <HeroDashboard />
+              </div>
+
+              <motion.div
+                initial={{ opacity: 0, x: -40, y: 10 }}
+                animate={{ opacity: 1, x: 0, y: 0 }}
+                transition={{ duration: 0.8, ease: EASE, delay: 0.9 }}
+                className="hidden sm:block absolute -left-6 lg:-left-20 -top-10 z-10"
+              >
+                <motion.div animate={{ y: [0, -10, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}>
+                  <FloatingWhatsApp />
+                </motion.div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, x: 40, y: 10 }}
+                animate={{ opacity: 1, x: 0, y: 0 }}
+                transition={{ duration: 0.8, ease: EASE, delay: 1.15 }}
+                className="hidden sm:block absolute -right-4 lg:-right-8 -bottom-8 z-10"
+              >
+                <motion.div animate={{ y: [0, 10, 0] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}>
+                  <FloatingBirthday />
+                </motion.div>
+              </motion.div>
+            </div>
+          </div>
+
+          {/* público */}
+          <div className="relative border-t border-white/10">
+            <div className="max-w-7xl mx-auto px-4 py-6 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-sm text-white/55">
+              <span className="text-white/80 font-semibold">Feito para</span>
+              {["Vereadores", "Deputados estaduais", "Deputados federais", "Prefeitos", "Chefes de gabinete"].map((r) => (
+                <span key={r}>{r}</span>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* DOR */}
+        <section className="max-w-7xl mx-auto px-4 py-20 sm:py-28">
+          <SectionHeader
+            eyebrow="Você se identifica?"
+            title={
+              <>
+                Seu gabinete trabalha muito.
+                <br className="hidden sm:block" /> Mas o eleitor sente isso?
+              </>
+            }
+            sub="Se pelo menos uma dessas situações acontece no seu mandato, você está deixando votos na mesa."
+          />
+
+          <motion.div
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, amount: 0.15 }}
+            variants={stagger}
+            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+          >
+            {pains.map((p) => {
+              const Icon = p.icon;
+              return (
+                <motion.div
+                  key={p.title}
+                  variants={fadeUp}
+                  className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]"
+                >
+                  <div className="h-11 w-11 rounded-xl bg-accent/10 text-accent flex items-center justify-center">
                     <Icon className="h-5 w-5" />
                   </div>
-                  <div>
-                    <h4 className="font-semibold flex items-center gap-2">
-                      {f.title}
+                  <h3 className="mt-4 font-bold text-lg">{p.title}</h3>
+                  <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{p.desc}</p>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+
+          <Reveal className="mt-16 sm:mt-20 max-w-4xl mx-auto text-center">
+            <Quote className="mx-auto h-8 w-8 text-primary/30" />
+            <p className="mt-4 text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight text-balance">
+              O eleitor não lembra do projeto que você protocolou.{" "}
+              <span className="text-primary">Ele lembra se foi atendido quando precisou.</span>
+            </p>
+            <p className="mt-6 text-muted-foreground text-lg">
+              Não é falta de trabalho. É falta de sistema. <b className="text-foreground">O DEMOCRAT.AI é esse sistema.</b>
+            </p>
+          </Reveal>
+        </section>
+
+        {/* FUNCIONALIDADES */}
+        <section id="funcionalidades" className="scroll-mt-16 bg-secondary/50 border-y border-border">
+          <div className="max-w-7xl mx-auto px-4 py-20 sm:py-28">
+            <SectionHeader
+              eyebrow="A solução"
+              title="Tudo que o seu mandato precisa, em um só lugar"
+              sub="Pare de alternar entre WhatsApp, planilha, caderno e Word. Cada parte do gabinete conectada — e você enxergando tudo."
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {features.map((f, i) => {
+                const Icon = f.icon;
+                return (
+                  <motion.article
+                    key={f.kicker}
+                    initial={{ opacity: 0, y: 56, scale: 0.96, filter: "blur(8px)" }}
+                    whileInView={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+                    viewport={{ once: true, amount: 0.2 }}
+                    transition={{ type: "spring", stiffness: 70, damping: 17, mass: 0.9, delay: (i % 3) * 0.1 }}
+                    whileHover={{ y: -6 }}
+                    className={`group flex flex-col rounded-3xl border border-border bg-card overflow-hidden shadow-[var(--shadow-card)] transition-[box-shadow,border-color] duration-300 hover:border-primary/40 hover:shadow-[0_24px_48px_-20px_hsl(178,38%,30%,0.35)] ${f.span}`}
+                  >
+                    <div className={`relative overflow-hidden border-b border-border bg-gradient-to-br from-secondary to-muted ${f.visualH}`}>
+                      <div className="h-full w-full transition-transform duration-500 ease-out group-hover:scale-[1.03]">{f.visual}</div>
                       {f.premium && (
-                        <span className="text-[9px] uppercase tracking-wider bg-accent/15 text-accent px-1.5 py-0.5 rounded">
-                          Prata
+                        <span className="absolute top-3 right-3 z-10 text-[10px] uppercase tracking-wider bg-accent text-accent-foreground px-2.5 py-1 rounded-full font-bold shadow">
+                          Plano Prata
                         </span>
                       )}
-                    </h4>
-                    <p className="text-xs text-muted-foreground mt-1">{f.desc}</p>
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* CADASTRO */}
-      <section id="cadastro" className="max-w-6xl mx-auto px-4 py-20">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-5xl font-bold tracking-tight">Comece agora</h2>
-          <p className="mt-4 text-muted-foreground">
-            Deixe seus dados que nossa equipe entra em contato para ativar o seu acesso.
-          </p>
-        </div>
-
-        <div className="max-w-xl mx-auto">
-          <motion.form
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-            onSubmit={handleSubmit}
-            className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-[var(--shadow-md)]"
-          >
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="nome" className="block text-sm font-medium mb-1.5">
-                  Nome
-                </label>
-                <input
-                  id="nome"
-                  type="text"
-                  required
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  placeholder="Seu nome completo"
-                  className="w-full h-11 rounded-lg border border-input bg-background px-3 py-2 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium mb-1.5">
-                  E-mail
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="voce@email.com"
-                  className="w-full h-11 rounded-lg border border-input bg-background px-3 py-2 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="telefone" className="block text-sm font-medium mb-1.5">
-                  Número (WhatsApp)
-                </label>
-                <input
-                  id="telefone"
-                  type="tel"
-                  required
-                  value={telefone}
-                  onChange={(e) => setTelefone(e.target.value)}
-                  placeholder="(11) 99999-9999"
-                  className="w-full h-11 rounded-lg border border-input bg-background px-3 py-2 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={status === "enviando"}
-                className="w-full h-12 rounded-xl gradient-primary text-primary-foreground font-semibold shadow-[var(--shadow-md)] hover:opacity-90 transition inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:pointer-events-none"
-              >
-                {status === "enviando" ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Enviando...
-                  </>
-                ) : (
-                  <>
-                    <Send className="h-5 w-5" />
-                    Quero começar agora
-                  </>
-                )}
-              </button>
-
-              {status === "sucesso" && (
-                <p className="text-sm text-primary text-center">
-                  Recebemos seus dados! Em breve nossa equipe entrará em contato.
-                </p>
-              )}
-
-              {status === "erro" && (
-                <p className="text-sm text-destructive text-center">
-                  Não foi possível enviar agora. Tente novamente em instantes.
-                </p>
-              )}
+                    </div>
+                    <div className="p-6 sm:p-7">
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary">
+                        <Icon className="h-4 w-4" /> {f.kicker}
+                      </div>
+                      <h3 className="mt-2.5 text-xl font-extrabold tracking-tight leading-snug">{f.title}</h3>
+                      <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
+                    </div>
+                  </motion.article>
+                );
+              })}
             </div>
-          </motion.form>
 
-          <p className="text-center text-xs text-muted-foreground mt-8">
-            Seus dados estão seguros e serão usados apenas para contato da nossa equipe.
-          </p>
-        </div>
-      </section>
+            {/* demais funcionalidades */}
+            <Reveal className="mt-14 text-center">
+              <h3 className="text-lg font-bold">E ainda:</h3>
+            </Reveal>
+            <motion.div
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, amount: 0.2 }}
+              variants={stagger}
+              className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
+            >
+              {extraFeatures.map((f) => {
+                const Icon = f.icon;
+                return (
+                  <motion.div
+                    key={f.title}
+                    variants={fadeUp}
+                    className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4"
+                  >
+                    <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm">{f.title}</h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">{f.desc}</p>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          </div>
+        </section>
 
-      {/* DEPOIMENTOS */}
-      <section id="depoimentos" className="bg-card/40 border-y border-border py-20">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-5xl font-bold tracking-tight">Quem usa, recomenda</h2>
-            <p className="mt-4 text-muted-foreground">
-              Mandatos de todo o Brasil já transformaram sua gestão com a DEMOCRAT.AI.
-            </p>
+        {/* COMO FUNCIONA */}
+        <section id="como-funciona" className="scroll-mt-16 max-w-6xl mx-auto px-4 py-20 sm:py-28">
+          <SectionHeader eyebrow="Como funciona" title="Do zero ao gabinete organizado no mesmo dia" />
+
+          <motion.ol
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, amount: 0.3 }}
+            variants={stagger}
+            className="relative grid gap-6 md:grid-cols-3"
+          >
+            <div aria-hidden className="hidden md:block absolute top-7 left-[16%] right-[16%] h-px bg-gradient-to-r from-primary/0 via-primary/40 to-primary/0" />
+            {steps.map((s, i) => {
+              const Icon = s.icon;
+              return (
+                <motion.li key={s.title} variants={fadeUp} className="relative text-center px-4">
+                  <div className="relative mx-auto h-14 w-14 rounded-2xl gradient-primary text-primary-foreground flex items-center justify-center shadow-[var(--shadow-lg)]">
+                    <Icon className="h-6 w-6" />
+                    <span className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-accent text-accent-foreground text-xs font-bold flex items-center justify-center ring-4 ring-background">
+                      {i + 1}
+                    </span>
+                  </div>
+                  <h3 className="mt-5 text-lg font-bold">{s.title}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
+                </motion.li>
+              );
+            })}
+          </motion.ol>
+
+          <Reveal className="mt-14 text-center">
+            <PrimaryCTA>Quero começar hoje</PrimaryCTA>
+          </Reveal>
+        </section>
+
+        {/* PLANOS */}
+        <section id="cadastro" ref={cadastroRef} className={`scroll-mt-16 relative overflow-hidden ${DARK} text-white`}>
+          <div aria-hidden className="pointer-events-none absolute inset-0">
+            <div className="absolute -top-32 left-1/4 h-[460px] w-[460px] rounded-full bg-primary/35 blur-[120px]" />
+            <div className="absolute -bottom-32 right-1/4 h-[420px] w-[420px] rounded-full bg-accent/25 blur-[120px]" />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {testimonials.map((t, i) => (
-              <motion.div
+          <div className="relative max-w-6xl mx-auto px-4 py-20 sm:py-28 grid lg:grid-cols-[1fr_0.9fr] gap-12 lg:gap-16 items-center">
+            {/* argumento */}
+            <Reveal>
+              <span className="inline-block text-xs font-bold uppercase tracking-[0.18em] text-[hsl(178,50%,65%)]">
+                Comece agora
+              </span>
+              <h2 className="mt-3 text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.1] text-balance">
+                Dê o primeiro passo para organizar seu mandato
+              </h2>
+              <p className="mt-4 text-white/70 text-lg leading-relaxed">
+                Deixe seus dados e nossa equipe entra em contato para liberar seu acesso e mostrar a plataforma
+                funcionando com a realidade do seu gabinete.
+              </p>
+
+              <ul className="mt-8 space-y-3">
+                {[
+                  "Demonstração guiada, sem compromisso",
+                  "Ajuda para importar sua base de eleitores",
+                  "Garantia de 7 dias após a contratação",
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-3 text-white/85">
+                    <span className="h-6 w-6 shrink-0 rounded-full bg-[hsl(178,55%,62%)]/20 text-[hsl(178,55%,62%)] flex items-center justify-center">
+                      <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                    </span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+
+            {/* formulário */}
+            <Reveal delay={0.1}>
+              <div className="rounded-3xl bg-card text-card-foreground p-6 sm:p-8 shadow-[0_30px_60px_-25px_hsl(178,45%,9%,0.7)] border border-white/10">
+                {status === "sucesso" ? (
+                  <div className="py-10 text-center">
+                    <div className="mx-auto h-16 w-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
+                      <CheckCircle2 className="h-8 w-8" />
+                    </div>
+                    <h3 className="mt-5 text-xl font-extrabold">Recebemos seu contato!</h3>
+                    <p className="mt-2 text-muted-foreground">
+                      Em breve nossa equipe fala com você no WhatsApp ou e-mail informado. Fique de olho.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setStatus("idle")}
+                      className="mt-6 text-sm font-semibold text-primary hover:underline"
+                    >
+                      Enviar outro contato
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                      <h3 className="text-xl font-extrabold">Quero conhecer a plataforma</h3>
+                      <p className="text-sm text-muted-foreground mt-1">Leva menos de 30 segundos.</p>
+                    </div>
+
+                    <div>
+                      <label htmlFor="lead-nome" className="block text-sm font-semibold mb-1.5">
+                        Nome completo
+                      </label>
+                      <input
+                        id="lead-nome"
+                        type="text"
+                        required
+                        value={nome}
+                        onChange={(e) => setNome(e.target.value)}
+                        placeholder="Seu nome"
+                        className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="lead-email" className="block text-sm font-semibold mb-1.5">
+                        E-mail
+                      </label>
+                      <input
+                        id="lead-email"
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="voce@exemplo.com"
+                        className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="lead-telefone" className="block text-sm font-semibold mb-1.5">
+                        WhatsApp
+                      </label>
+                      <input
+                        id="lead-telefone"
+                        type="tel"
+                        required
+                        value={telefone}
+                        onChange={(e) => setTelefone(e.target.value)}
+                        placeholder="(00) 00000-0000"
+                        className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={status === "enviando"}
+                      className="group w-full inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-6 py-4 font-bold text-accent-foreground shadow-[0_12px_40px_-12px_hsl(346,70%,49%)] transition hover:bg-[hsl(346,70%,44%)] disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {status === "enviando" ? "Enviando..." : "Quero começar"}
+                      {status !== "enviando" && <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />}
+                    </button>
+
+                    {status === "erro" && (
+                      <p className="text-sm text-destructive text-center">
+                        Não foi possível enviar agora. Tente novamente em instantes.
+                      </p>
+                    )}
+
+                    <p className="text-xs text-muted-foreground text-center">
+                      Seus dados são usados apenas para contato. Nada de spam.
+                    </p>
+                  </form>
+                )}
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* DEPOIMENTOS */}
+        <section id="depoimentos" className="max-w-6xl mx-auto px-4 py-20 sm:py-28">
+          <SectionHeader eyebrow="Depoimentos" title="Quem já organizou o mandato" />
+
+          <motion.div
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, amount: 0.2 }}
+            variants={stagger}
+            className="grid grid-cols-1 md:grid-cols-3 gap-5"
+          >
+            {testimonials.map((t) => (
+              <motion.figure
                 key={t.name}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
-                className="p-6 rounded-2xl border border-border bg-card"
+                variants={fadeUp}
+                className="flex flex-col p-7 rounded-3xl border border-border bg-card shadow-[var(--shadow-card)]"
               >
-                <div className="flex gap-1 text-accent mb-3">
+                <div className="flex gap-0.5 text-amber-400">
                   {Array.from({ length: 5 }).map((_, k) => (
                     <Star key={k} className="h-4 w-4 fill-current" />
                   ))}
                 </div>
-                <p className="text-sm leading-relaxed">"{t.text}"</p>
-                <div className="mt-4 pt-4 border-t border-border flex items-center gap-3">
-                  <img
-                    src={t.avatar}
-                    alt={t.name}
-                    loading="lazy"
-                    width={48}
-                    height={48}
-                    className="h-12 w-12 rounded-full object-cover border border-border"
-                  />
+                <blockquote className="mt-4 flex-1 leading-relaxed">“{t.text}”</blockquote>
+                <figcaption className="mt-6 pt-5 border-t border-border flex items-center gap-3">
+                  <div className="h-11 w-11 rounded-full gradient-primary text-primary-foreground font-bold flex items-center justify-center">
+                    {t.name.split(" ").slice(-1)[0][0]}
+                  </div>
                   <div>
-                    <div className="font-semibold text-sm">{t.name}</div>
+                    <div className="font-bold text-sm">{t.name}</div>
                     <div className="text-xs text-muted-foreground">{t.role}</div>
                   </div>
-                </div>
-              </motion.div>
+                </figcaption>
+              </motion.figure>
             ))}
+          </motion.div>
+        </section>
+
+        {/* FAQ */}
+        <section id="faq" className="scroll-mt-16 bg-secondary/50 border-y border-border">
+          <div className="max-w-3xl mx-auto px-4 py-20 sm:py-28">
+            <SectionHeader eyebrow="Dúvidas" title="Perguntas frequentes" />
+            <Reveal>
+              <Accordion type="single" collapsible className="rounded-2xl border border-border bg-card px-5 sm:px-7">
+                {faqs.map((f, i) => (
+                  <AccordionItem key={f.q} value={`f${i}`} className="last:border-0">
+                    <AccordionTrigger className="text-left font-bold hover:no-underline py-5">{f.q}</AccordionTrigger>
+                    <AccordionContent className="text-muted-foreground leading-relaxed text-[15px]">{f.a}</AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </Reveal>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* CTA FINAL */}
-      <section className="max-w-5xl mx-auto px-4 py-20 text-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="rounded-3xl gradient-primary p-10 sm:p-16 text-primary-foreground shadow-[var(--shadow-lg)]"
-        >
-          <h2 className="text-3xl sm:text-5xl font-bold tracking-tight">
-            Seu mandato merece uma plataforma à altura
-          </h2>
-          <p className="mt-4 text-primary-foreground/90 max-w-2xl mx-auto">
-            Comece hoje. Em 5 minutos você já está organizando demandas, eleitores e tarefas com
-            inteligência artificial.
-          </p>
-          <a
-            href="#cadastro"
-            className="inline-flex items-center gap-2 mt-8 px-8 py-4 rounded-xl bg-accent text-accent-foreground font-bold hover:scale-105 transition"
-          >
-            Começar agora <ArrowRight className="h-5 w-5" />
-          </a>
-        </motion.div>
-      </section>
-
-      {/* FOOTER */}
-      <footer className="border-t border-border bg-card/40">
-        <div className="max-w-7xl mx-auto px-4 py-10 grid grid-cols-2 md:grid-cols-4 gap-8 text-sm">
-          <div className="col-span-2">
-            <div className="flex items-center gap-2">
-              <img src={logo} alt="DEMOCRAT.AI" className="h-8 w-8" />
-              <span className="font-bold">DEMOCRAT.AI</span>
+        {/* CTA FINAL */}
+        <section className="px-4 py-20 sm:py-28">
+          <Reveal className="max-w-5xl mx-auto">
+            <div className={`relative overflow-hidden rounded-[2rem] ${DARK} text-white px-6 py-14 sm:p-20 text-center`}>
+              <div aria-hidden className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 h-[420px] w-[720px] rounded-full bg-primary/40 blur-[110px]" />
+              <div aria-hidden className="pointer-events-none absolute -bottom-40 -right-20 h-[360px] w-[360px] rounded-full bg-accent/30 blur-[110px]" />
+              <div className="relative">
+                <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.1] text-balance">
+                  Outubro chega para todo mundo.
+                  <br />
+                  <span className="text-[hsl(178,55%,62%)]">A diferença é quem chega organizado.</span>
+                </h2>
+                <p className="mt-6 text-white/75 text-lg max-w-2xl mx-auto">
+                  Comece hoje e, em poucos minutos, seu gabinete já está registrando demandas, cuidando da base e
+                  respondendo eleitores com inteligência artificial.
+                </p>
+                <PrimaryCTA className="mt-10 text-base">Quero organizar meu mandato agora</PrimaryCTA>
+                <p className="mt-5 text-sm text-white/55">Preencha em 30 segundos · Nossa equipe entra em contato · Garantia de 7 dias</p>
+              </div>
             </div>
-            <p className="mt-3 text-muted-foreground max-w-xs text-xs">
-              Plataforma inteligente de gestão política e relacionamento com eleitores.
-            </p>
-          </div>
+          </Reveal>
+        </section>
 
-          <div>
-            <div className="font-semibold mb-3">Produto</div>
-            <ul className="space-y-2 text-muted-foreground">
-              <li><a href="#funcionalidades" className="hover:text-foreground">Funcionalidades</a></li>
-              <li><a href="#cadastro" className="hover:text-foreground">Cadastro</a></li>
-              <li><Link to="/login" className="hover:text-foreground">Entrar</Link></li>
-            </ul>
-          </div>
+        {/* FOOTER */}
+        <footer className="border-t border-border bg-card/40 pb-20 md:pb-0">
+          <div className="max-w-7xl mx-auto px-4 py-12 grid grid-cols-2 md:grid-cols-4 gap-8 text-sm">
+            <div className="col-span-2">
+              <div className="flex items-center gap-2">
+                <img src={logo} alt="" width={32} height={32} loading="lazy" className="h-8 w-8" />
+                <span className="font-extrabold">DEMOCRAT.AI</span>
+              </div>
+              <p className="mt-3 text-muted-foreground max-w-xs text-sm">
+                Plataforma inteligente de gestão de mandato e relacionamento com eleitores.
+              </p>
+            </div>
 
-          <div>
-            <div className="font-semibold mb-3">Empresa</div>
-            <ul className="space-y-2 text-muted-foreground">
-              <li><Link to="/blog" className="hover:text-foreground">Blog</Link></li>
-              <li><Link to="/politica-privacidade" className="hover:text-foreground">Política de Privacidade</Link></li>
-              <li><a href="mailto:contato@democrat.ai" className="hover:text-foreground">Contato</a></li>
-            </ul>
+            <div>
+              <div className="font-bold mb-3">Produto</div>
+              <ul className="space-y-2 text-muted-foreground">
+                <li><a href="#funcionalidades" className="hover:text-foreground">Funcionalidades</a></li>
+                <li><a href="#cadastro" className="hover:text-foreground">Começar</a></li>
+                <li><Link to="/login" className="hover:text-foreground">Entrar</Link></li>
+              </ul>
+            </div>
+
+            <div>
+              <div className="font-bold mb-3">Empresa</div>
+              <ul className="space-y-2 text-muted-foreground">
+                <li><Link to="/blog" className="hover:text-foreground">Blog</Link></li>
+                <li><Link to="/politica-privacidade" className="hover:text-foreground">Política de Privacidade</Link></li>
+                <li><a href="mailto:contato@democrat.ai" className="hover:text-foreground">Contato</a></li>
+              </ul>
+            </div>
           </div>
-        </div>
-        <div className="border-t border-border py-5 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} DEMOCRAT.AI — Todos os direitos reservados.
-        </div>
-      </footer>
-    </div>
+          <div className="border-t border-border py-5 text-center text-xs text-muted-foreground">
+            © {new Date().getFullYear()} DEMOCRAT.AI — Todos os direitos reservados.
+          </div>
+        </footer>
+
+        {/* CTA fixo no mobile */}
+        <AnimatePresence>
+          {showStickyCta && !mobileOpen && (
+            <motion.div
+              initial={{ y: 100 }}
+              animate={{ y: 0 }}
+              exit={{ y: 100 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur-lg px-4 pt-3 pb-[max(env(safe-area-inset-bottom),12px)]"
+            >
+              <a
+                href="#cadastro"
+                className="flex items-center justify-between gap-3 rounded-xl bg-accent px-5 py-3.5 text-accent-foreground font-bold shadow-[0_12px_40px_-12px_hsl(346,70%,49%)]"
+              >
+                <span className="whitespace-nowrap">Organizar meu mandato</span>
+                <span className="flex items-center gap-1 text-sm font-semibold opacity-90 whitespace-nowrap">
+                  Começar <ArrowRight className="h-4 w-4" />
+                </span>
+              </a>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </MotionConfig>
   );
 };
 

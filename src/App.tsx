@@ -4,38 +4,41 @@ import { toast } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
-import { AppLayout } from "@/components/AppLayout";
 import { AuthProvider, useAuth, ROUTE_TO_PERMISSION, PermissionKey } from "@/hooks/useAuth";
 import { HeaderSearchProvider } from "@/contexts/HeaderSearchContext";
 import UpgradeGate from "@/components/UpgradeGate";
 import type { LockableFeature } from "@/config/planFeatures";
-import Dashboard from "./pages/Dashboard";
-import Eleitores from "./pages/Eleitores";
-import MapaEleitores from "./pages/MapaEleitores";
-import Demandas from "./pages/Demandas";
-import Tarefas from "./pages/Tarefas";
-import Agenda from "./pages/Agenda";
-import Assistente from "./pages/Assistente";
-import Configuracoes from "./pages/Configuracoes";
-import Aniversarios from "./pages/Aniversarios";
-import Assessores from "./pages/Assessores";
-import Tutoriais from "./pages/Tutoriais";
-import ResumoMensal from "./pages/ResumoMensal";
-import BaseConhecimento from "./pages/BaseConhecimento";
-import PainelAssessor from "./pages/PainelAssessor";
-import Login from "./pages/Login";
-import Cadastro from "./pages/Cadastro";
-import Admin from "./pages/Admin";
-import AcessoWebhook from "./pages/AcessoWebhook";
-import LoginAssessor from "./pages/LoginAssessor";
-import CadastroAssessor from "./pages/CadastroAssessor";
-import MartaMurta from "./pages/MartaMurta";
+// A landing é a porta de entrada: carrega junto com o bundle principal.
 import Landing from "./pages/Landing";
-import Blog from "./pages/Blog";
-import BlogPost from "./pages/BlogPost";
-import PoliticaPrivacidade from "./pages/PoliticaPrivacidade";
+
+// Demais páginas sob demanda — quem visita a página de vendas não baixa
+// Google Maps, jsPDF, html2canvas, xlsx etc.
+const AppLayout = lazy(() => import("@/components/AppLayout").then((m) => ({ default: m.AppLayout })));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Eleitores = lazy(() => import("./pages/Eleitores"));
+const MapaEleitores = lazy(() => import("./pages/MapaEleitores"));
+const Demandas = lazy(() => import("./pages/Demandas"));
+const Tarefas = lazy(() => import("./pages/Tarefas"));
+const Agenda = lazy(() => import("./pages/Agenda"));
+const Assistente = lazy(() => import("./pages/Assistente"));
+const Configuracoes = lazy(() => import("./pages/Configuracoes"));
+const Aniversarios = lazy(() => import("./pages/Aniversarios"));
+const Assessores = lazy(() => import("./pages/Assessores"));
+const Tutoriais = lazy(() => import("./pages/Tutoriais"));
+const ResumoMensal = lazy(() => import("./pages/ResumoMensal"));
+const BaseConhecimento = lazy(() => import("./pages/BaseConhecimento"));
+const PainelAssessor = lazy(() => import("./pages/PainelAssessor"));
+const Login = lazy(() => import("./pages/Login"));
+const Cadastro = lazy(() => import("./pages/Cadastro"));
+const Admin = lazy(() => import("./pages/Admin"));
+const AcessoWebhook = lazy(() => import("./pages/AcessoWebhook"));
+const LoginAssessor = lazy(() => import("./pages/LoginAssessor"));
+const MartaMurta = lazy(() => import("./pages/MartaMurta"));
+const Blog = lazy(() => import("./pages/Blog"));
+const BlogPost = lazy(() => import("./pages/BlogPost"));
+const PoliticaPrivacidade = lazy(() => import("./pages/PoliticaPrivacidade"));
 
 const queryClient = new QueryClient();
 
@@ -133,7 +136,8 @@ const AnimatedRoutes = () => {
   const location = useLocation();
   return (
     <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
+      <Suspense key={location.pathname} fallback={<Spinner />}>
+      <Routes location={location}>
         <Route path="/" element={<Landing />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:slug" element={<BlogPost />} />
@@ -162,6 +166,7 @@ const AnimatedRoutes = () => {
         <Route path="/configuracoes" element={<ProtectedRoute><AppLayout><Configuracoes /></AppLayout></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
+      </Suspense>
     </AnimatePresence>
   );
 };

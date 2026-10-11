@@ -87,10 +87,20 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "fade-up": {
+          from: { opacity: "0", transform: "translateY(24px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "tilt-in": {
+          from: { opacity: "0", transform: "perspective(1600px) translateY(60px) rotateX(14deg) rotateY(-10deg)" },
+          to: { opacity: "1", transform: "perspective(1600px) rotateX(4deg) rotateY(-6deg)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "fade-up": "fade-up 0.8s cubic-bezier(0.22, 1, 0.36, 1) both",
+        "tilt-in": "tilt-in 1.1s cubic-bezier(0.22, 1, 0.36, 1) both",
       },
     },
   },

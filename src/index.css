@@ -2,7 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
+/* A fonte Plus Jakarta Sans é carregada via <link> no index.html (com preconnect).
+   Um @import aqui, depois das diretivas do Tailwind, é ignorado pelo navegador. */
 
 @layer base {
   :root {
