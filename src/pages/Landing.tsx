@@ -13,8 +13,6 @@ import {
   FileBarChart,
   UserCheck,
   Bot,
-  Check,
-  X,
   ArrowRight,
   ShieldCheck,
   Zap,
@@ -22,8 +20,11 @@ import {
   Star,
   Menu,
   Smartphone,
+  Loader2,
+  Send,
 } from "lucide-react";
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import logo from "@/assets/logo-democrat-icon.png";
 
 import f47 from "@/assets/landing/feature-47.png.asset.json";
@@ -37,9 +38,6 @@ import f53 from "@/assets/landing/feature-53.png.asset.json";
 import a1 from "@/assets/landing/avatar-1.jpg.asset.json";
 import a2 from "@/assets/landing/avatar-2.jpg.asset.json";
 import a3 from "@/assets/landing/avatar-3.jpg.asset.json";
-
-const LINK_BRONZE = "https://pay.kiwify.com.br/9HlfvxA";
-const LINK_PRATA = "https://pay.kiwify.com.br/E2UJ6NS";
 
 const features = [
   {
@@ -96,50 +94,6 @@ const extraFeatures = [
   { icon: TrendingUp, title: "Dashboard em Tempo Real", desc: "Métricas ao vivo: eleitores, demandas, tarefas, conversões." },
 ];
 
-const plans = [
-  {
-    name: "Bronze",
-    tag: "Para começar with profissionalismo",
-    price: "R$ 97",
-    period: "/mês",
-    link: LINK_BRONZE,
-    cta: "Começar com Bronze",
-    highlight: false,
-    items: [
-      { included: true, label: "Painel de Controle completo" },
-      { included: true, label: "Base de Eleitores (CRM)" },
-      { included: true, label: "Mapa de Eleitores" },
-      { included: true, label: "Gestão de Aniversários" },
-      { included: true, label: "Gestão de Demandas" },
-      { included: true, label: "Gestão de Tarefas" },
-      { included: true, label: "Agenda Oficial" },
-      { included: true, label: "Base de Conhecimento" },
-      { included: true, label: "Histórico de Conversas" },
-      { included: true, label: "Resumo Mensal" },
-      { included: true, label: "Gestão de Assessores" },
-      { included: false, label: "Assistente Legislativo IA" },
-      { included: false, label: "Agente IA no WhatsApp 24h" },
-    ],
-  },
-  {
-    name: "Prata",
-    tag: "A experiência completa DEMOCRAT.AI",
-    price: "R$ 147",
-    period: "/mês",
-    link: LINK_PRATA,
-    cta: "Quero o plano Prata",
-    highlight: true,
-    items: [
-      { included: true, label: "Tudo do plano Bronze" },
-      { included: true, label: "Assistente Legislativo IA (PL, discursos, ofícios)" },
-      { included: true, label: "Agente IA no WhatsApp 24h" },
-      { included: true, label: "Roteamento automático de demandas" },
-      { included: true, label: "Suporte prioritário" },
-      { included: true, label: "Atualizações antecipadas" },
-    ],
-  },
-];
-
 const testimonials = [
   {
     name: "Vereador R. Souza",
@@ -163,6 +117,31 @@ const testimonials = [
 
 const Landing = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [status, setStatus] = useState<"idle" | "enviando" | "sucesso" | "erro">("idle");
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setStatus("enviando");
+
+    const { error } = await supabase.from("leads").insert({
+      nome,
+      email,
+      telefone,
+    });
+
+    if (error) {
+      setStatus("erro");
+      return;
+    }
+
+    setNome("");
+    setEmail("");
+    setTelefone("");
+    setStatus("sucesso");
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
@@ -176,7 +155,7 @@ const Landing = () => {
 
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
             <a href="#funcionalidades" className="text-foreground/70 hover:text-foreground transition">Funcionalidades</a>
-            <a href="#planos" className="text-foreground/70 hover:text-foreground transition">Planos</a>
+            <a href="#cadastro" className="text-foreground/70 hover:text-foreground transition">Cadastro</a>
             <a href="#depoimentos" className="text-foreground/70 hover:text-foreground transition">Depoimentos</a>
             <Link to="/blog" className="text-foreground/70 hover:text-foreground transition">Blog</Link>
           </nav>
@@ -184,7 +163,7 @@ const Landing = () => {
           <div className="hidden md:flex items-center gap-3">
             <Link to="/login" className="text-sm font-medium text-foreground/80 hover:text-foreground">Entrar</Link>
             <a
-              href="#planos"
+              href="#cadastro"
               className="px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-sm font-semibold shadow-[var(--shadow-md)] hover:shadow-[var(--shadow-lg)] transition"
             >
               Começar agora
@@ -204,12 +183,12 @@ const Landing = () => {
           <div className="md:hidden border-t border-border bg-background/95">
             <div className="px-4 py-3 flex flex-col gap-3 text-sm">
               <a href="#funcionalidades" onClick={() => setMobileOpen(false)}>Funcionalidades</a>
-              <a href="#planos" onClick={() => setMobileOpen(false)}>Planos</a>
+              <a href="#cadastro" onClick={() => setMobileOpen(false)}>Cadastro</a>
               <a href="#depoimentos" onClick={() => setMobileOpen(false)}>Depoimentos</a>
               <Link to="/blog" onClick={() => setMobileOpen(false)}>Blog</Link>
               <Link to="/login" onClick={() => setMobileOpen(false)}>Entrar</Link>
               <a
-                href="#planos"
+                href="#cadastro"
                 onClick={() => setMobileOpen(false)}
                 className="px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-center font-semibold"
               >
@@ -267,7 +246,7 @@ const Landing = () => {
             className="mt-8 flex flex-col sm:flex-row gap-3 justify-center items-center"
           >
             <a
-              href="#planos"
+              href="#cadastro"
               className="w-full sm:w-auto px-8 py-4 rounded-xl gradient-primary text-primary-foreground font-semibold shadow-[var(--shadow-lg)] hover:scale-105 transition inline-flex items-center justify-center gap-2"
             >
               Quero transformar meu mandato <ArrowRight className="h-5 w-5" />
@@ -409,77 +388,106 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* PLANOS */}
-      <section id="planos" className="max-w-6xl mx-auto px-4 py-20">
+      {/* CADASTRO */}
+      <section id="cadastro" className="max-w-6xl mx-auto px-4 py-20">
         <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-5xl font-bold tracking-tight">Escolha seu plano</h2>
+          <h2 className="text-3xl sm:text-5xl font-bold tracking-tight">Comece agora</h2>
           <p className="mt-4 text-muted-foreground">
-            Comece com o Bronze ou tenha a experiência completa com o Prata.
+            Deixe seus dados que nossa equipe entra em contato para ativar o seu acesso.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-          {plans.map((plan, i) => (
-            <motion.div
-              key={plan.name}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: i * 0.1 }}
-              className={`relative rounded-2xl p-7 border transition ${
-                plan.highlight
-                  ? "border-accent bg-gradient-to-br from-card to-primary/5 shadow-[var(--shadow-lg)] md:scale-105"
-                  : "border-border bg-card"
-              }`}
-            >
-              {plan.highlight && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent text-accent-foreground text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                  Mais escolhido
-                </span>
-              )}
-
-              <h3 className="text-2xl font-bold">{plan.name}</h3>
-              <p className="text-sm text-muted-foreground mt-1">{plan.tag}</p>
-
-              <div className="mt-6 flex items-baseline gap-1">
-                <span className="text-4xl sm:text-5xl font-bold">{plan.price}</span>
-                <span className="text-muted-foreground">{plan.period}</span>
+        <div className="max-w-xl mx-auto">
+          <motion.form
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            onSubmit={handleSubmit}
+            className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-[var(--shadow-md)]"
+          >
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="nome" className="block text-sm font-medium mb-1.5">
+                  Nome
+                </label>
+                <input
+                  id="nome"
+                  type="text"
+                  required
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  placeholder="Seu nome completo"
+                  className="w-full h-11 rounded-lg border border-input bg-background px-3 py-2 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                />
               </div>
 
-              <a
-                href={plan.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`mt-6 block text-center px-6 py-3 rounded-xl font-semibold transition ${
-                  plan.highlight
-                    ? "gradient-accent text-accent-foreground hover:opacity-90 shadow-[var(--shadow-md)]"
-                    : "gradient-primary text-primary-foreground hover:opacity-90"
-                }`}
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium mb-1.5">
+                  E-mail
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="voce@email.com"
+                  className="w-full h-11 rounded-lg border border-input bg-background px-3 py-2 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="telefone" className="block text-sm font-medium mb-1.5">
+                  Número (WhatsApp)
+                </label>
+                <input
+                  id="telefone"
+                  type="tel"
+                  required
+                  value={telefone}
+                  onChange={(e) => setTelefone(e.target.value)}
+                  placeholder="(11) 99999-9999"
+                  className="w-full h-11 rounded-lg border border-input bg-background px-3 py-2 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={status === "enviando"}
+                className="w-full h-12 rounded-xl gradient-primary text-primary-foreground font-semibold shadow-[var(--shadow-md)] hover:opacity-90 transition inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:pointer-events-none"
               >
-                {plan.cta}
-              </a>
+                {status === "enviando" ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-5 w-5" />
+                    Quero começar agora
+                  </>
+                )}
+              </button>
 
-              <ul className="mt-6 space-y-2.5">
-                {plan.items.map((it) => (
-                  <li key={it.label} className="flex items-start gap-2 text-sm">
-                    {it.included ? (
-                      <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                    ) : (
-                      <X className="h-4 w-4 text-muted-foreground/50 shrink-0 mt-0.5" />
-                    )}
-                    <span className={it.included ? "" : "text-muted-foreground/60 line-through"}>
-                      {it.label}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
-          ))}
+              {status === "sucesso" && (
+                <p className="text-sm text-primary text-center">
+                  Recebemos seus dados! Em breve nossa equipe entrará em contato.
+                </p>
+              )}
+
+              {status === "erro" && (
+                <p className="text-sm text-destructive text-center">
+                  Não foi possível enviar agora. Tente novamente em instantes.
+                </p>
+              )}
+            </div>
+          </motion.form>
+
+          <p className="text-center text-xs text-muted-foreground mt-8">
+            Seus dados estão seguros e serão usados apenas para contato da nossa equipe.
+          </p>
         </div>
-
-        <p className="text-center text-xs text-muted-foreground mt-8">
-          Pagamento seguro via Kiwify · Cancele quando quiser · Sem fidelidade
-        </p>
       </section>
 
       {/* DEPOIMENTOS */}
@@ -545,10 +553,10 @@ const Landing = () => {
             inteligência artificial.
           </p>
           <a
-            href="#planos"
+            href="#cadastro"
             className="inline-flex items-center gap-2 mt-8 px-8 py-4 rounded-xl bg-accent text-accent-foreground font-bold hover:scale-105 transition"
           >
-            Escolher meu plano <ArrowRight className="h-5 w-5" />
+            Começar agora <ArrowRight className="h-5 w-5" />
           </a>
         </motion.div>
       </section>
@@ -570,7 +578,7 @@ const Landing = () => {
             <div className="font-semibold mb-3">Produto</div>
             <ul className="space-y-2 text-muted-foreground">
               <li><a href="#funcionalidades" className="hover:text-foreground">Funcionalidades</a></li>
-              <li><a href="#planos" className="hover:text-foreground">Planos</a></li>
+              <li><a href="#cadastro" className="hover:text-foreground">Cadastro</a></li>
               <li><Link to="/login" className="hover:text-foreground">Entrar</Link></li>
             </ul>
           </div>
