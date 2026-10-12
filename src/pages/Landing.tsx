@@ -459,8 +459,8 @@ const Landing = () => {
                 Cada mensagem sem resposta é{" "}
                 <span className="bg-gradient-to-r from-[hsl(346,90%,68%)] to-[hsl(18,95%,66%)] bg-clip-text text-transparent">
                   um voto a menos
-                </span>{" "}
-                em outubro.
+                </span>
+                .
               </h1>
 
               <p className="animate-fade-up motion-reduce:animate-none [animation-delay:180ms] mt-6 text-lg sm:text-xl text-white/75 max-w-xl mx-auto lg:mx-0 leading-relaxed">
